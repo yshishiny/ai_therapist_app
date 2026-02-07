@@ -1,0 +1,36 @@
+services:
+  api:
+    build: .
+    container_name: ai-therapist-api
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    environment:
+      PYTHONUNBUFFERED: "1"
+      DATABASE_URL: "postgresql://therapist:therapist@db:5432/ai_therapist"
+      TZ: "Africa/Cairo"
+      # Firebase (add your credentials)
+      # FIREBASE_PROJECT_ID: "your-project"
+      # LLM for AI features
+      OPENAI_BASE_URL: "http://host.docker.internal:1234/v1"
+      OPENAI_API_KEY: "lm-studio"
+    volumes:
+      - ./backend:/app/backend
+      - ./assessments:/app/assessments
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15-alpine
+    container_name: ai-therapist-db
+    restart: always
+    environment:
+      POSTGRES_USER: therapist
+      POSTGRES_PASSWORD: therapist
+      POSTGRES_DB: ai_therapist
+    volumes:
+      - therapist_data:/var/lib/postgresql/data
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+
+volumes:
+  therapist_data:
