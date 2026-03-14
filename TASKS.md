@@ -4,10 +4,10 @@
 
 ### Product/Clinical
 
-- [ ] User stories for intake → session flow
-- [ ] SOAP/DAP note templates
+- [x] User stories for intake → session flow
+- [x] SOAP/DAP note templates
 - [ ] Wellbeing indicator rules
-- [ ] Consent guardrails
+- [x] Consent guardrails
 
 ### UX/UI
 
@@ -26,9 +26,9 @@
 
 ### Assessments
 
-- [ ] PHQ-9 form + scoring
-- [ ] GAD-7 form + scoring
-- [ ] In-app scoring JSON rules
+- [x] PHQ-9 form + scoring
+- [x] GAD-7 form + scoring
+- [x] In-app scoring JSON rules
 - [ ] License status table
 
 ### AI

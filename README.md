@@ -41,6 +41,26 @@ curl http://localhost:8001/health
 | POST   | /assessments           | Submit assessment     |
 | GET    | /dashboard             | Quick stats           |
 
+## Deployment (Railway)
+
+This backend is structured to deploy automatically via **Railway** when commits are pushed to the `main` branch. 
+
+### Prerequisites & Variables
+You must set the following environment variables in your Railway Project Settings:
+- `DATABASE_URL` (Required: connection string)
+- `OPENAI_API_KEY` (Optional: AI integrations)
+- `ENVIRONMENT` (Set to `production`)
+
+### Railway Setup Steps
+1. Push this repository to GitHub.
+2. In Railway, click **New Project** -> **Deploy from GitHub repo**.
+3. Select this repository. Railway will automatically detect the `railway.toml` and root `backend/Dockerfile`.
+4. Add the environment variables listed above.
+5. Railway will automatically inject the `PORT` variable. The `/health` endpoint serves as a rolling gate; if the container fails to start or the endpoint returns !== HTTP 200, Railway will abort the deployment preventing downtime.
+
+### Rollback Process
+If a deployment fails or introduces a bug, click on the **Deployments** tab in Railway, find the previous successful deployment, and click the vertical dots `⋮` -> **Redeploy**. Railway gracefully manages traffic switching.
+
 ## License
 
 Private - All rights reserved

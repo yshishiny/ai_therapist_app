@@ -229,3 +229,121 @@ VALUES
         'FREE',
         '{"max": 25, "items": 5, "multiply": 4, "bands": [{"min":0,"max":50,"label":"Poor wellbeing"},{"min":51,"max":100,"label":"Adequate"}]}'
     ) ON CONFLICT (id) DO NOTHING;
+
+-- Mindfulness Techniques
+CREATE TABLE IF NOT EXISTS mindfulness_techniques (
+    id TEXT PRIMARY KEY,
+    school VARCHAR(50) NOT NULL, -- MBSR, MBCT, DBT, ACT, COMPASSION, SOMATIC
+    name TEXT NOT NULL,
+    description TEXT,
+    best_for TEXT,
+    duration_min_lower INTEGER,
+    duration_min_upper INTEGER,
+    evidence_level VARCHAR(20) -- HIGH, MODERATE, DEVELOPING
+);
+
+-- Seed assessment templates (PID-5, FEATS, PPAT)
+INSERT INTO
+    assessment_templates (
+        id,
+        name,
+        template_type,
+        license_status,
+        scoring_rules
+    )
+VALUES
+    (
+        'pid5_brief',
+        'PID-5 Brief (Adult)',
+        'PERSONALITY',
+        'FREE',
+        '{"items": 25, "domains": ["Negative Affectivity", "Detachment", "Antagonism", "Disinhibition", "Psychoticism"]}'
+    ),
+    (
+        'feats_v1',
+        'FEATS (Formal Elements Art Therapy Scale)',
+        'ART_THERAPY',
+        'LICENSED',
+        '{"items": 14, "scale": "1-5", "elements": ["Color Prominence", "Color Fit", "Energy", "Space", "Integration", "Logic", "Realism", "Problem-solving", "Developmental", "Details", "Line Quality", "Person", "Rotation", "Perseveration"]}'
+    ),
+    (
+        'ppat',
+        'PPAT (Person Picking an Apple)',
+        'ART_THERAPY',
+        'LICENSED',
+        '{"directive": "Draw a person picking an apple from a tree", "scoring": "FEATS"}'
+    ) ON CONFLICT (id) DO NOTHING;
+
+-- Seed Mindfulness Techniques
+INSERT INTO
+    mindfulness_techniques (
+        id,
+        school,
+        name,
+        description,
+        best_for,
+        duration_min_lower,
+        duration_min_upper,
+        evidence_level
+    )
+VALUES
+    (
+        'mbsr_body_scan',
+        'MBSR',
+        'Body Scan',
+        'Systematic attention to body parts',
+        'Stress, Somatic Tension',
+        20,
+        45,
+        'HIGH'
+    ),
+    (
+        'mbct_3min',
+        'MBCT',
+        '3-Minute Breathing Space',
+        'Awareness -> Gathering -> Expanding',
+        'Rumination, Relapse Prevention',
+        3,
+        3,
+        'HIGH'
+    ),
+    (
+        'dbt_wise_mind',
+        'DBT',
+        'Wise Mind',
+        'Synthesis of Emotion and Reason',
+        'Emotion Dysregulation',
+        2,
+        5,
+        'HIGH'
+    ),
+    (
+        'act_defusion',
+        'ACT',
+        'Cognitive Defusion',
+        'Observing thoughts as thoughts',
+        'Anxiety, Avoidance',
+        2,
+        5,
+        'MODERATE'
+    ),
+    (
+        'somatic_54321',
+        'SOMATIC',
+        '5-4-3-2-1 Grounding',
+        'Sensory orientation (sight, touch, hear...)',
+        'Panic, Dissociation',
+        2,
+        5,
+        'MODERATE'
+    ),
+    (
+        'compassion_break',
+        'COMPASSION',
+        'Self-Compassion Break',
+        'Mindfulness + Common Humanity + Kindness',
+        'Shame, Self-Criticism',
+        3,
+        5,
+        'MODERATE'
+    ) ON CONFLICT (id) DO NOTHING;

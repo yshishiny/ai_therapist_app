@@ -1,0 +1,2 @@
+json_key_file(ENV["SUPPLY_JSON_KEY"]) # Path to the service account json file, handled by CI Action
+package_name("com.example.ai_therapist") # Ensure this matches your applicationId in app/build.gradle

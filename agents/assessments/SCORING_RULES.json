@@ -1,0 +1,31 @@
+{
+  "phq9": {
+    "scoring": {
+      "not_at_all": 0,
+      "several_days": 1,
+      "more_than_half": 2,
+      "nearly_every_day": 3
+    },
+    "interpretation": [
+      { "min": 0, "max": 4, "severity": "None-minimal" },
+      { "min": 5, "max": 9, "severity": "Mild" },
+      { "min": 10, "max": 14, "severity": "Moderate" },
+      { "min": 15, "max": 19, "severity": "Moderately severe" },
+      { "min": 20, "max": 27, "severity": "Severe" }
+    ]
+  },
+  "gad7": {
+    "scoring": {
+      "not_at_all": 0,
+      "several_days": 1,
+      "more_than_half": 2,
+      "nearly_every_day": 3
+    },
+    "interpretation": [
+      { "min": 0, "max": 4, "severity": "Minimal anxiety" },
+      { "min": 5, "max": 9, "severity": "Mild anxiety" },
+      { "min": 10, "max": 14, "severity": "Moderate anxiety" },
+      { "min": 15, "max": 21, "severity": "Severe anxiety" }
+    ]
+  }
+}

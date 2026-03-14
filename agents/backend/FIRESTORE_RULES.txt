@@ -1,0 +1,29 @@
+# Backend Agent - Firestore Security Rules (Draft)
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper: Checks if user is a therapist
+    function isTherapist() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'therapist';
+    }
+
+    // Patients: Only therapists can read/write
+    match /patients/{patientId} {
+      allow read, write: if isTherapist();
+      
+      // Nested collections (Notes, Assessments) inherit therapist check
+      match /{allChildren=**} {
+        allow read, write: if isTherapist();
+      }
+    }
+
+    // Role-based metadata: Read only for self
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
