@@ -1,0 +1,95 @@
+{
+  "patient_id": "SYS_P03_LowFriendship",
+  "context": "Low positives/repair; resentment.",
+  "responses": [
+    {
+      "item": 1,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 2,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 3,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 4,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 5,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 6,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 7,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 8,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 9,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 10,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 11,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 12,
+      "score_0_to_4": 1
+    }
+  ],
+  "subscale_scores": {
+    "Negative cycle intensity": {
+      "total": 12,
+      "max": 20,
+      "band": "Moderate"
+    },
+    "Relationship safety/violence risk": {
+      "total": 1,
+      "max": 4,
+      "band": "Mild"
+    },
+    "Strengths/repair": {
+      "total": 3,
+      "max": 12,
+      "band": "Mild"
+    },
+    "Roles/structure": {
+      "total": 4,
+      "max": 8,
+      "band": "Moderate"
+    },
+    "Substance impact": {
+      "total": 1,
+      "max": 4,
+      "band": "Mild"
+    }
+  },
+  "risk_flags": {
+    "any": false,
+    "items": []
+  },
+  "recommendations": [
+    {
+      "priority": 2,
+      "school": "Systems",
+      "text": "Map the negative cycle (trigger→pursue/withdraw→escalation→shutdown). Teach time-outs + repair script; increase positives."
+    }
+  ],
+  "notes": {
+    "screening_only": true
+  }
+}

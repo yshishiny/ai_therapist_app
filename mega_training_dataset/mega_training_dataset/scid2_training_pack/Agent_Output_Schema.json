@@ -1,0 +1,40 @@
+{
+  "patient_id": "string",
+  "patient_meta": {
+    "age": "int",
+    "gender": "string",
+    "context": "string"
+  },
+  "responses": [
+    {
+      "item": "int",
+      "response": "Yes|No"
+    }
+  ],
+  "domain_scores": [
+    {
+      "domain": "string",
+      "yes_count": "int",
+      "threshold": "int",
+      "screen_positive": "bool",
+      "yes_items": [
+        "int"
+      ]
+    }
+  ],
+  "risk_flags": {
+    "self_harm": [
+      "int"
+    ],
+    "violence_weapon": [
+      "int"
+    ],
+    "sexual_coercion": [
+      "int"
+    ]
+  },
+  "notes": {
+    "screening_only": true,
+    "requires_clinician_interview": true
+  }
+}

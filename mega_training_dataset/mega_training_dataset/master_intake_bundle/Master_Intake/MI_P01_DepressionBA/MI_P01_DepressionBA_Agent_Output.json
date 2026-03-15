@@ -1,0 +1,247 @@
+{
+  "patient_id": "MI_P01_DepressionBA",
+  "demographics": {
+    "age": 32,
+    "gender": "Female",
+    "language": "Arabic"
+  },
+  "narrative": {
+    "presenting_problem": "I feel numb and unmotivated; I stopped enjoying anything.",
+    "goals_8_weeks": "Return to work routine and reconnect with friends."
+  },
+  "ratings": [
+    {
+      "item": 12,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 13,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 14,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 15,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 16,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 17,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 18,
+      "score_0_to_4": 0
+    },
+    {
+      "item": 19,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 20,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 21,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 22,
+      "score_0_to_4": 0
+    },
+    {
+      "item": 23,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 24,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 25,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 26,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 27,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 28,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 29,
+      "score_0_to_4": 0
+    },
+    {
+      "item": 34,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 35,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 36,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 37,
+      "score_0_to_4": 0
+    },
+    {
+      "item": 38,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 39,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 40,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 41,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 42,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 43,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 45,
+      "score_0_to_4": 0
+    },
+    {
+      "item": 46,
+      "score_0_to_4": 1
+    }
+  ],
+  "composites": {
+    "Functioning_Impact": {
+      "total": 8,
+      "max": 12,
+      "band": "High",
+      "items": [
+        12,
+        13,
+        14
+      ]
+    },
+    "Mood_Anhedonia": {
+      "total": 6,
+      "max": 8,
+      "band": "High",
+      "items": [
+        15,
+        16
+      ]
+    },
+    "Anxiety_Panic": {
+      "total": 2,
+      "max": 8,
+      "band": "Mild",
+      "items": [
+        17,
+        18
+      ]
+    },
+    "Trauma_Activation": {
+      "total": 7,
+      "max": 16,
+      "band": "Mild",
+      "items": [
+        20,
+        21,
+        22,
+        26
+      ]
+    },
+    "OCD_Rumination": {
+      "total": 4,
+      "max": 8,
+      "band": "Moderate",
+      "items": [
+        23,
+        24
+      ]
+    },
+    "Sleep_Substance": {
+      "total": 8,
+      "max": 16,
+      "band": "Moderate",
+      "items": [
+        25,
+        27,
+        28,
+        29
+      ]
+    },
+    "Risk_Index": {
+      "total": 8,
+      "max": 24,
+      "band": "Mild",
+      "items": [
+        34,
+        35,
+        36,
+        37,
+        38,
+        39
+      ]
+    },
+    "Strengths_Index": {
+      "total": 9,
+      "max": 16,
+      "band": "Moderate",
+      "items": [
+        40,
+        41,
+        42,
+        43
+      ]
+    }
+  },
+  "risk_flags": {
+    "any": true,
+    "items": [
+      {
+        "item": 38,
+        "score": 3,
+        "note": "Violence risk"
+      }
+    ]
+  },
+  "routing": {
+    "suggested_school": "CBT/ERP or ACT",
+    "why": "Risk index elevated → safety planning first; consider DBT distress tolerance.; Mood/anhedonia + functioning impact → behavioral activation and structure.; High checking/rumination → ERP/defusion focus."
+  },
+  "recommendations": [
+    {
+      "priority": 1,
+      "text": "Defusion practice daily ('I’m having the thought that…'); reduce rumination rituals."
+    },
+    {
+      "priority": 2,
+      "text": "Values → one committed action this week; plan barriers and willingness strategy."
+    }
+  ],
+  "notes": {
+    "screening_only": true,
+    "requires_clinician_judgment": true
+  }
+}

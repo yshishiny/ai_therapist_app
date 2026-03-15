@@ -1,0 +1,48 @@
+Item,Prompt,Score_0_to_4,Text
+1,Age (years),,27
+2,Gender identity,,Male
+3,Preferred language,,English
+4,Relationship status,,
+5,Living situation,,
+6,Occupation / study,,
+7,Main concern(s) in your words,,I get panic attacks and avoid crowded places.
+8,When did this start?,,Varies (fictional)
+9,What makes it worse?,,Triggers vary (fictional)
+10,What helps?,,Some coping helps (fictional)
+11,What would 'better' look like in 8 weeks? (goals),,Ride public transport again and reduce panic fear.
+12,Work/school functioning impact (0–4),2,
+13,Relationships/social functioning impact (0–4),2,
+14,Self-care/ADLs impact (0–4),1,
+15,Pleasure/interest level (0–4; reverse — higher = worse anhedonia),3,
+16,Low mood (0–4),1,
+17,Anxiety/worry (0–4),3,
+18,Panic symptoms (0–4),4,
+19,Irritability/anger (0–4),2,
+20,Intrusive memories/flashbacks (0–4),1,
+21,Avoidance of reminders (0–4),3,
+22,Dissociation/detachment (0–4),2,
+23,Compulsions/checking (0–4),3,
+24,Rumination (0–4),2,
+25,Sleep quality (0–4; higher = worse),2,
+26,Nightmares (0–4),1,
+27,Alcohol use impact (0–4),2,
+28,Drug use impact (0–4),2,
+29,Caffeine/nicotine impact (0–4),2,
+30,Previous therapy? what helped/what didn’t?,,No prior therapy or mixed results (fictional)
+31,Psychiatric medication history (if any),,
+32,Medical conditions affecting mood/anxiety (if any),,
+33,Major life events / stressors in past year,,Recent stressors noted (fictional)
+34,Suicidal thoughts (0–4),0,
+35,Plan/intent (0–4),2,
+36,Past suicide attempt(s) (0–4),1,
+37,Self-harm urges/behavior (0–4),0,
+38,Harm to others / violence risk (0–4),1,
+39,IPV / fear/intimidation at home (0–4),2,
+40,Support system strength (0–4; higher = stronger),0,
+41,Coping skills available (0–4; higher = stronger),3,
+42,Motivation for change (0–4; higher = stronger),1,
+43,Values/meaning clarity (0–4; higher = clearer),1,
+44,Therapy preference: CBT / DBT / ACT / Psychodynamic / Systems / Unsure,,Unsure
+45,Preference: structured homework (0–4),0,
+46,Comfort with mindfulness (0–4),1,
+47,Any cultural/spiritual considerations?,,None stated (fictional)

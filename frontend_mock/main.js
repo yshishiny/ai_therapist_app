@@ -1,36 +1,256 @@
-// Navigation Logic
-window.switchView = (viewId) => {
-  // Hide all views
-  document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
-  
-  const targetView = document.getElementById(`view-${viewId}`);
-  if (targetView) {
-    targetView.style.display = 'block';
-  } else {
-    console.error(`View ${viewId} not found`);
-    return;
+// Translation Framework
+const translations = {
+  en: {
+    sidebar_dashboard: "Dashboard",
+    sidebar_calendar: "Clinical Calendar",
+    sidebar_patients: "Patient Registry",
+    sidebar_assessments: "Assessments",
+    sidebar_sessions: "AI Scribe",
+    sidebar_settings: "Settings",
+    header_welcome: "Welcome back, Dr. Heba Moustafa",
+    header_dashboard: "Clinical Command Center",
+    btn_scan: "Scan Handwritten Note",
+    btn_upload: "Upload Hardcopy",
+    btn_session: "New AI Session",
+    stat_active: "Active Patients",
+    stat_urgent: "Urgent Alerts",
+    stat_sessions: "MTD Sessions",
+    stat_reports: "Pending Reports"
+  },
+  ar: {
+    sidebar_dashboard: "لوحة التحكم",
+    sidebar_calendar: "الجدول العيادي",
+    sidebar_patients: "سجل المرضى",
+    sidebar_assessments: "التقييمات",
+    sidebar_sessions: "الناسخ الآلي",
+    sidebar_settings: "الإعدادات",
+    header_welcome: "مرحباً د. هبة مصطفى",
+    header_dashboard: "مركز القيادة العيادي",
+    btn_scan: "مسح ملاحظة يدوية",
+    btn_upload: "رفع نسخة ورقية",
+    btn_session: "جلسة ذكاء اصطناعي جديدة",
+    stat_active: "المرضى النشطون",
+    stat_urgent: "تنبيهات عاجلة",
+    stat_sessions: "جلسات هذا الشهر",
+    stat_reports: "تقارير معلقة"
   }
-
-  // Update Active Nav
-  document.querySelectorAll('.nav-links li').forEach(li => li.classList.remove('active'));
-  const navItem = document.getElementById(`nav-${viewId}`);
-  if (navItem) navItem.classList.add('active');
-
-  // Trigger view-specific renders
-  if (viewId === 'calendar') renderCalendar();
-  if (viewId === 'dashboard') renderDashboardData();
-  if (viewId === 'patients') renderPatientsDetail();
-  if (viewId === 'assessments') renderAssessmentsView();
 };
 
-// Data & State
+let currentLang = 'en';
+
+window.setLanguage = (lang) => {
+  currentLang = lang;
+  document.body.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  document.body.classList.toggle('rtl-mode', lang === 'ar');
+  
+  // Update UI Elements
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (translations[lang][key]) {
+      el.innerText = translations[lang][key];
+    }
+  });
+
+  // Re-render context-heavy views if active
+  const activeView = Array.from(document.querySelectorAll('.view')).find(v => v.style.display !== 'none');
+  if (activeView) {
+    const viewId = activeView.id.replace('view-', '');
+    if (viewId === 'dashboard') renderDashboardData();
+  }
+};
+
+// Global Utilities
+window.showToast = (message) => {
+  const toast = document.getElementById('notificationToast');
+  const msgEl = document.getElementById('toastMessage');
+  if (toast && msgEl) {
+    msgEl.innerText = message;
+    toast.style.display = 'block';
+    setTimeout(() => {
+      toast.style.display = 'none';
+    }, 4000);
+  }
+};
+
+// Global State
+let isAuthenticated = false;
+let currentActivePatientId = null;
+
+window.handleCredentialResponse = (response) => {
+  console.log("Encoded JWT ID token: " + response.credential);
+  
+  // Simulate JWT decoding and verification
+  const payload = JSON.parse(atob(response.credential.split('.')[1]));
+  console.log("User Authenticated:", payload.name);
+  
+  isAuthenticated = true;
+  
+  // Update Profile UI
+  const profileName = document.querySelector('.user-info .name');
+  if (profileName) profileName.innerText = payload.name;
+  
+  // Unlock App
+  document.getElementById('view-login').style.display = 'none';
+  document.querySelector('.app-container').style.display = 'flex';
+  
+  // Redirect to Dashboard
+  switchView('dashboard');
+};
+
+window.demoLogin = () => {
+  console.log("Developer Bypass Initiated...");
+  
+  isAuthenticated = true;
+  localStorage.setItem('demo_mode', 'true');
+  
+  // Update Profile UI with Mock Data
+  const profileName = document.querySelector('.user-info .name');
+  if (profileName) profileName.innerText = "Demo Therapist";
+  
+  // Unlock App
+  const loginView = document.getElementById('view-login');
+  if (loginView) loginView.style.display = 'none';
+  
+  const appContainer = document.querySelector('.app-container');
+  if (appContainer) appContainer.style.display = 'flex';
+  
+  // Redirect to Dashboard
+  switchView('dashboard');
+  
+  showToast("Demo Access: Welcome to the Clinical Command Center.");
+};
+
+window.forceDashboard = () => {
+    isAuthenticated = true;
+    localStorage.setItem('demo_mode', 'true');
+    document.getElementById('view-login').style.display = 'none';
+    document.querySelector('.app-container').style.display = 'flex';
+    switchView('dashboard');
+    showToast("System Force-Unlocked.");
+};
+
+window.logout = () => {
+    isAuthenticated = false;
+    localStorage.removeItem('demo_mode');
+    document.getElementById('view-login').style.display = 'flex';
+    document.querySelector('.app-container').style.display = 'none';
+    localStorage.removeItem('preferred-theme'); 
+};
+
+// Google Auth Fallback Detection
+window.initAuthFallback = () => {
+    console.log("Monitoring Google Auth initialization...");
+    setTimeout(() => {
+        const googleAuthContainer = document.getElementById('google-auth-container');
+        const fallback = document.getElementById('auth-fallback');
+        
+        // If google script not loaded or button didn't render
+        if (!window.google || (googleAuthContainer && googleAuthContainer.innerHTML.trim() === "")) {
+            console.warn("Google Auth failed to load. Activating clinical bypass...");
+            if (googleAuthContainer) googleAuthContainer.style.display = 'none';
+            if (fallback) fallback.style.display = 'block';
+        }
+    }, 3000); // Wait 3 seconds for Google to initialize
+};
+
+// Call on load
+window.addEventListener('load', initAuthFallback);
+
+// Mobile Interaction Logic
+window.toggleSidebar = () => {
+  document.querySelector('.sidebar').classList.toggle('active');
+};
+
+// Patient Detail Tabs Logic
+window.switchDetailTab = (tabId) => {
+  // Update Buttons
+  document.querySelectorAll('.detail-tab').forEach(btn => btn.classList.remove('active'));
+  const activeBtn = Array.from(document.querySelectorAll('.detail-tab')).find(btn => btn.innerText.toLowerCase().includes(tabId));
+  if (activeBtn) activeBtn.classList.add('active');
+
+  // Update Content
+  document.querySelectorAll('.detail-tab-content').forEach(content => content.style.display = 'none');
+  const targetContent = document.getElementById(`detail-${tabId}`);
+  if (targetContent) targetContent.style.display = 'block';
+};
+
+// Treatment Plan Generator Simulation
+window.generateTreatmentPlan = () => {
+  const roadmap = document.getElementById('treatmentRoadmap');
+  showToast("Analyzing clinical history and generating roadmap...");
+  
+  setTimeout(() => {
+    roadmap.innerHTML = `
+      <div class="roadmap-phase active">
+        <h4>Phase 1: Stabilization & Alliance</h4>
+        <p><strong>Objectives:</strong> Symptom monitoring, crisis planning, and establishing therapeutic rapport.</p>
+        <p><strong>Measures:</strong> PHQ-9 & GAD-7 weekly.</p>
+      </div>
+      <div class="roadmap-phase">
+        <h4>Phase 2: Core Work (CBT/Trauma Focused)</h4>
+        <p><strong>Objectives:</strong> Cognitive restructuring, exposure work, and behavioral activation.</p>
+        <p><strong>Methods:</strong> 3-column thought records, graded exposure hierarchy.</p>
+      </div>
+      <div class="roadmap-phase">
+        <h4>Phase 3: Consolidation & Relapse Prevention</h4>
+        <p><strong>Objectives:</strong> Generalizing skills, identifying early warning signs, and tapering sessions.</p>
+        <p><strong>Homework:</strong> Self-led values matrix and safety maintenance plan.</p>
+      </div>
+    `;
+    showToast("Roadmap generated and filed to Treatment Plan.");
+  }, 1500);
+};
+
+window.openHomeworkLibrary = () => {
+    showToast("Opening Clinical Homework Library...");
+    // Logic for library modal would go here
+    const homeworkList = document.getElementById('activeHomeworkList');
+    homeworkList.innerHTML = `
+        <div class="homework-item">
+            <div class="homework-info">
+                <h4>CBT Thought Record</h4>
+                <span>Assigned Today &bull; Due: Next Session</span>
+            </div>
+            <span class="homework-status" style="background: rgba(255,255,0,0.1); color: #ffd700;">Pending</span>
+        </div>
+        <div class="homework-item">
+            <div class="homework-info">
+                <h4>Values Matrix Exercise</h4>
+                <span>Assigned Next Phase &bull; Locked</span>
+            </div>
+            <span class="homework-status" style="background: rgba(255,255,255,0.05); color: #888;">Locked</span>
+        </div>
+    `;
+};
+
+// Data & State (Enhanced with Clinical History & Archives)
 const patients = [
-  { id: 821, name: "Sarah Johnson", status: "Active", last: "Today", risk: "Med", riskLabel: "Medium", next: "Draft SOAP" },
-  { id: 402, name: "Michael Chen", status: "Active", last: "2 days ago", risk: "Low", riskLabel: "Low", next: "Review PHQ-9" },
-  { id: 105, name: "Ahmed Hassan", status: "Urgent", last: "1h ago", risk: "High", riskLabel: "High", next: "Crisis Log" },
-  { id: 334, name: "Elena Rodriguez", status: "Active", last: "Yesterday", risk: "Low", riskLabel: "Low", next: "Send Reminders" },
-  { id: 912, name: "James Wilson", status: "Paused", last: "1 week ago", risk: "Med", riskLabel: "Medium", next: "Follow up" }
+  { 
+    id: 821, name: "Sarah Johnson", status: "Active", last: "Today", risk: "Med", riskLabel: "Medium", next: "Draft SOAP", 
+    phq9: [18, 15, 12, 14, 10, 8], gad7: [14, 12, 15, 11, 9, 7], diagnosis: "MDD, GAD",
+    files: {
+        input: [
+            { name: "Intake_Form_Scanned.pdf", date: "2024-02-01", size: "2.4MB" },
+            { name: "Session_1_Audio_Raw.m4a", date: "2024-02-05", size: "12MB" }
+        ],
+        processed: [
+            { name: "Session_1_Transcript.docx", date: "2024-02-06", size: "45KB", tags: ["CBT", "Anxiety"] }
+        ],
+        output: [
+            { name: "SOAP_Note_Draft.pdf", date: "2024-02-07", size: "88KB", tags: ["SOAP"] }
+        ],
+        reports: [
+            { name: "Comprehensive_Psych_Report.pdf", date: "2024-02-08", size: "1.5MB", tags: ["Finalized"] }
+        ]
+    }
+  },
+  { id: 402, name: "Michael Chen", status: "Active", last: "2 days ago", risk: "Low", riskLabel: "Low", next: "Review PHQ-9", phq9: [10, 9, 7, 8, 6, 5], gad7: [8, 7, 5, 6, 4, 3], diagnosis: "Adjustment Disorder", files: { input: [], processed: [], output: [], reports: [] } },
+  { id: 105, name: "Ahmed Hassan", status: "Urgent", last: "1h ago", risk: "High", riskLabel: "High", next: "Crisis Log", phq9: [24, 22, 25, 23, 22, 21], gad7: [19, 20, 18, 19, 17, 18], diagnosis: "PTSD, Severe Depression", files: { input: [], processed: [], output: [], reports: [] } },
+  { id: 334, name: "Elena Rodriguez", status: "Active", last: "Yesterday", risk: "Low", riskLabel: "Low", next: "Send Reminders", phq9: [12, 10, 8, 9, 7, 6], gad7: [10, 9, 7, 8, 6, 5], diagnosis: "Anxiety", files: { input: [], processed: [], output: [], reports: [] } },
+  { id: 912, name: "James Wilson", status: "Paused", last: "1 week ago", risk: "Med", riskLabel: "Medium", next: "Follow up", phq9: [15, 14, 16, 15, 14, 15], gad7: [13, 12, 14, 13, 12, 13], diagnosis: "Bipolar II", files: { input: [], processed: [], output: [], reports: [] } }
 ];
+
+let trendsChartInstance = null;
 
 const appointments = [
   { day: 3, time: "09:00 AM", patient: "Sarah Johnson", type: "clinical", Label: "CBT Session" },
@@ -40,76 +260,822 @@ const appointments = [
   { day: 4, time: "01:00 PM", patient: "James Wilson", type: "clinical", Label: "CBT Session" }
 ];
 
+window.setTheme = (theme) => {
+  document.body.classList.remove('theme-dark', 'theme-high-contrast');
+  if (theme !== 'light') {
+    document.body.classList.add(`theme-${theme}`);
+  }
+  localStorage.setItem('preferred-theme', theme);
+};
+
+// Initialize theme
+const savedTheme = localStorage.getItem('preferred-theme') || 'light';
+setTheme(savedTheme);
+
 const assessments = {
   personality: {
-    title: "Quick Personality Assessment",
-    guide: `
-      <p>Simplified Tier-1 personality scan based on the BFI-10 model.</p>
-      <p><strong>Clinical Utility:</strong> Used during intake to establish baseline temperament and communication style preferences.</p>
-      <ul>
-        <li>Trait Spectrum: Extraversion, Agreeableness, Conscientiousness, Neuroticism, Openness.</li>
-      </ul>
-    `,
+    en: { title: "Personality Assessment (BFI-10)", guide: "Standardized Big Five 10-item scale." },
+    ar: { title: "تقييم الشخصية (BFI-10)", guide: "مقياس العوامل الخمسة الكبرى المختصر (١٠ فقرات)." },
     questions: [
-      "I see myself as extraverted, enthusiastic.",
-      "I see myself as critical, quarrelsome.",
-      "I see myself as dependable, self-disciplined.",
-      "I see myself as anxious, easily upset.",
-      "I see myself as open to new experiences, complex."
+      "I see myself as extraverted, enthusiastic. / أرى نفسي منفتحاً ومتحمساً.",
+      "I see myself as critical, quarrelsome. / أرى نفسي ميالاً للنقد والجدل.",
+      "I see myself as dependable, self-disciplined. / أرى نفسي جديراً بالثقة ومنضبطاً.",
+      "I see myself as anxious, easily upset. / أرى نفسي قلقاً وسريع الانزعاج.",
+      "I see myself as open to new experiences. / أرى نفسي منفتحاً على التجارب الجديدة.",
+      "I see myself as reserved, quiet. / أرى نفسي متحفظاً وهادئاً.",
+      "I see myself as sympathetic, warm. / أرى نفسي متعاطفاً وودوداً.",
+      "I see myself as disorganized, careless. / أرى نفسي غير منظم ومهمل.",
+      "I see myself as calm, emotionally stable. / أرى نفسي هادئاً ومستقراً عاطفياً.",
+      "I see myself as conventional, uncreative. / أرى نفسي تقليدياً وغير مبدع."
     ],
-    options: ["Disagree", "Neither", "Agree", "Strongly Agree"]
-  },
-  phq9: {
-    title: "PHQ-9 (Depression Screening)",
-    guide: `
-      <p>The Patient Health Questionnaire-9 is a multipurpose instrument for screening, diagnosing, monitoring and measuring the severity of depression.</p>
-      <p><strong>Scoring Interpretation:</strong></p>
-      <ul>
-        <li>0-4: Minimal</li>
-        <li>5-9: Mild</li>
-        <li>10-14: Moderate</li>
-        <li>15-19: Moderately Severe</li>
-        <li>20+: Severe</li>
-      </ul>
-    `,
-    questions: [
-      "Little interest or pleasure in doing things?",
-      "Feeling down, depressed, or hopeless?",
-      "Trouble falling or staying asleep, or sleeping too much?",
-      "Feeling tired or having little energy?",
-      "Poor appetite or overeating?"
+    prompts: [
+      "Ask if they feel energized by social interactions or if they tend to lead conversations.",
+      "Observe if they tend to find fault in others or focus on flaws during the session.",
+      "Clarify this refers to follow-through on commitments and self-regulation skills.",
+      "Check for frequency of worry or physical signs of tension (e.g., foot tapping).",
+      "Explore curiosity about art, new ideas, or unconventional life experiences.",
+      "Distinguish between a preference for solitude versus social anxiety or avoidance.",
+      "Check for empathy and concern for others' well-being in their personal narratives.",
+      "Ask about difficulty with planning, clutter, or chronic time management issues.",
+      "Observe emotional resilience and stability in the face of minor stressors described.",
+      "Explore preference for routines and traditional methods over novelty or abstract thinking."
     ],
-    options: ["Not at all", "Several days", "More than half", "Nearly every day"]
-  },
-  gad7: {
-    title: "GAD-7 (Anxiety Screening)",
-    guide: `
-      <p>The GAD-7 is a sensitive self-report scale to identify probable cases of Generalized Anxiety Disorder.</p>
-      <p><strong>Clinical Utility:</strong> Monitoring response to treatment and identifying comorbid anxiety symptoms.</p>
-    `,
-    questions: [
-      "Feeling nervous, anxious or on edge?",
-      "Not being able to stop or control worrying?",
-      "Worrying too much about different things?",
-      "Trouble relaxing?",
-      "Being so restless that it is hard to sit still?"
-    ],
-    options: ["Not at all", "Several days", "More than half", "Nearly every day"]
+    options: ["Disagree / معارض", "Neither / محايد", "Agree / موافق", "Strongly Agree / موافق بشدة"]
   },
   ace: {
-    title: "ACE (Adverse Childhood Experiences)",
-    guide: `
-      <p>The ACE score is a tool for identifying developmental trauma history.</p>
-      <p><strong>Impact:</strong> High ACE scores are strongly correlated with chronic health conditions and clinical mental health outcomes.</p>
-    `,
+    en: { title: "Adverse Childhood Experiences (ACE)", guide: "The official 10-item clinical version." },
+    ar: { title: "تجارب الطفولة القاسية (ACE)", guide: "النسخة العيادية الرسمية (١٠ فقرات)." },
     questions: [
-        "Did a parent or adult in the household often swear at you, insult you, or put you down?",
-        "Did you often feel that no one in your family loved you or thought you were important?",
-        "Did you often feel that you didn't have enough to eat, had to wear dirty clothes, or had no one to protect you?",
-        "Were your parents ever separated or divorced?",
-        "Did you live with anyone who was a problem drinker or used street drugs?"
+      "Physical abuse (hit, kicked, hurt)? / هل تعرضت للضرب أو الركل أو الإيذاء الجسدي؟",
+      "Sexual abuse (touched inappropriately)? / هل تعرضت لأي نوع من الإساءة الجنسية؟",
+      "Emotional abuse (insulted, humiliated)? / هل تعرضت للإهانة أو الإذلال العاطفي المتكرر؟",
+      "Emotional neglect (unloved, unimportant)? / هل شعرت بأنك غير محبوب أو غير مهم لعائلتك؟",
+      "Physical neglect (not enough food/clothing)? / هل عانيت من نقص في الغذاء أو الكساء أو الحماية؟",
+      "Parents separated or divorced? / هل انفصل والداك أو تطلقا؟",
+      "Witnessed domestic violence? / هل شاهدت والدتك أو امرأة في المنزل تتعرض للضرب؟",
+      "Household substance abuse? / هل عاش معك شخص مدمن على الكحول أو المخدرات؟",
+      "Household mental illness? / هل عانى أحد أفراد المنزل من الاكتئاب أو مرض نفسي؟",
+      "Household member imprisoned? / هل دخل أحد أفراد عائلتك السجن؟"
     ],
-    options: ["No", "Yes"]
+    prompts: [
+      "Focus on intentional harm rather than accidental injury during childhood.",
+      "Explain this covers any unwanted touch, inappropriate exposure, or sexual coercion.",
+      "Check for a recurring pattern of verbal degradation, being called names, or humiliation.",
+      "Explore deep-seated feelings of isolation or a lack of emotional support from caregivers.",
+      "Check if basic needs (food, safety, medical care) were neglected during developmental years.",
+      "Confirm if this parental separation happened before the patient turned 18.",
+      "Clarify if they saw or heard domestic aggression specifically between adults in the home.",
+      "Check for problematic use of alcohol or substances by anyone living in the household.",
+      "Inquire if any household member was diagnosed or showed clear symptoms of mental distress.",
+      "Confirm if any household member spent time in jail, prison, or juvenile detention."
+    ],
+    options: ["No / لا", "Yes / نعم"]
+  },
+  trauma: {
+    en: { title: "Trauma/Dissociation Screen", guide: "Stabilization and safety check." },
+    ar: { title: "مقياس الصدمة والتفكك", guide: "فحص الاستقرار والأمان." },
+    questions: [
+      "Do you feel 'spaced out'? / هل تشعر بالانفصال؟",
+      "Are you easily startled? / هل تجفل بسهولة؟",
+      "Do you feel emotionally numb? / هل تشعر بالخدر العاطفي؟",
+      "Do you feel constantly 'on guard'? / هل أنت في حالة تأهب دائم؟",
+      "Flashbacks? / ومضات من الماضي؟",
+      "Nightmares? / كوابيس؟",
+      "Avoiding reminders? / تجنب المذكرات؟",
+      "Feeling world is unreal? / الشعور بأن العالم غير واقعي؟",
+      "Unexplained time loss? / فقدان غير مفسر للوقت؟",
+      "Out-of-body experiences? / تجارب الخروج من الجسد؟",
+      "Hearing voices in head? / سماع أصوات في الرأس؟",
+      "Body feels foreign? / الجسد يبدو غريباً؟",
+      "Physical reactions to memory? / ردود فعل جسدية للذكرى؟",
+      "Memory gaps? / فجوات في الذاكرة؟",
+      "Loss of interest? / فقدان الاهتمام؟",
+      "Detachment from others? / الانفصال عن الآخرين؟",
+      "Unable to feel joy? / عدم القدرة على الشعور بالبهجة؟",
+      "Irritability? / سرعة الانفعال؟",
+      "Hypervigilance? / اليقظة المفرطة؟",
+      "Exaggerated startle response? / استجابة جفل مبالغ فيها؟",
+      "Concentration problems? / مشاكل في التركيز؟",
+      "Feeling life is shortened? / الشعور بأن الحياة قصيرة؟",
+      "Self-blame for events? / لوم الذات على الأحداث؟",
+      "Negative beliefs about self? / معتقدات سلبية عن الذات؟",
+      "Distorted cause of event? / تشوه في تفسير سبب الحدث؟",
+      "Fear, horror, or anger? / خوف أو رعب أو غضب؟",
+      "Diminished participation? / تضاؤل المشاركة؟",
+      "Estrangement from others? / الاغتراب عن الآخرين؟",
+      "Sleep disturbance? / اضطراب في النوم؟",
+      "Reckless behavior? / سلوك متهور؟"
+    ],
+    prompts: [
+      "Check for dissociation symptoms, feeling foggy, or losing track of time.",
+      "Observe if they jump at sudden noises or movements in the office.",
+      "Ask if they feel they have 'shut down' their emotions to cope.",
+      "Look for hypervigilance, scanning the room, or sitting near the exit.",
+      "Confirm if they relive traumatic events as if they are happening in the present.",
+      "Ask if their dreams specifically replay the traumatic event or its themes.",
+      "Check if they avoid specific places, people, or scents that trigger memory.",
+      "Clarify if the world around them feels distant, foggy, or 'like a movie'.",
+      "Confirm if they find themselves in places without knowing how they got there.",
+      "Ask if they ever feel like they are floating above or outside their body.",
+      "Distinguish between intrusive thoughts and auditory hallucinations.",
+      "Explore if parts of their body feel like they don't belong to them.",
+      "Ask about racing heart or sweating when thinking about the past.",
+      "Check for significant gaps in childhood memory or recent events.",
+      "Explore if activities they used to love now feel meaningless.",
+      "Check for a sense of 'otherness' or being unable to relate to peers.",
+      "Confirm if they feel anhedonia—a total inability to experience pleasure.",
+      "Observe for low frustration tolerance or quickness to anger during intake.",
+      "Check for excessive monitoring of surroundings for potential threats.",
+      "Observe if they are physically 'jumpy' during the conversation.",
+      "Ask about difficulty finishing tasks or staying focused on the conversation.",
+      "Explore if they have a sense of 'foreshortened future' (not expected to live long).",
+      "Check for excessive guilt regarding events that were outside their control.",
+      "Explore deep-seated beliefs like 'I am damaged' or 'I am unlovable'.",
+      "Check for distorted logic about why a traumatic event occurred.",
+      "Screen for intense, persistent negative affect states.",
+      "Ask about pulling away from community, family, or social obligations.",
+      "Explore feelings of social isolation even when surrounded by others.",
+      "Check for difficulty falling asleep or early morning awakening.",
+      "Ask about high-speed driving, substance binges, or risky sexual behavior."
+    ],
+    options: ["Not at all", "A little", "Moderately", "Extremely"]
+  },
+  psych: {
+    en: { title: "Psychodynamic Pattern Map", guide: "Relational themes and defenses." },
+    ar: { title: "خريطة الأنماط النفسية", guide: "المواضيع العلائقية والدفاعات." },
+    questions: [
+      "I feel judged by others. / أشعر بحكم الآخرين عليّ.",
+      "Hard to express anger directly. / أجد صعوبة في التعبير عن غضبي مباشرة.",
+      "Repeating relationship patterns. / أكرر أنماطاً في علاقاتي.",
+      "Deep sense of shame. / شعور عميق بالخزي.",
+      "Using logic to ignore feelings. / أستخدم المنطق لتجاهل مشاعري.",
+      "Need to be perfect to be loved. / أحتاج أن أكون مثالياً لأُحب.",
+      "Fear of being abandoned. / أخاف من الهجران.",
+      "Struggle with boundaries. / أجد صعوبة في وضع الحدود.",
+      "Feeling empty inside. / أشعر بالفراغ من الداخل.",
+      "Hard to trust others. / أجد صعوبة في الثقة بالآخرين.",
+      "Responsible for others' joy. / مسؤول عن سعادة الآخرين.",
+      "Withdraw when vulnerable. / أنسحب في حالات الضعف.",
+      "Intense jealousy. / غيرة شديدة.",
+      "Don't know my true self. / لا أعرف نفسي الحقيقية.",
+      "Sensitive to criticism. / حساس للانتقاد.",
+      "Feeling like a fraud. / أشعر وكأنني مخادع.",
+      "Hard to say no. / أجد صعوبة في قول لا.",
+      "Self-esteem from others. / تقديري لذاتي يأتي من الآخرين.",
+      "Liked only for what I do. / أكون محبوباً لما أفعله فقط.",
+      "Preoccupied with power/control. / منشغل بالقوة والسيطرة.",
+      "Idealizing/Devaluing others. / تمجيد أو التقليل من شأن الآخرين.",
+      "Parental control continues. / استمرار تحكم الوالدين.",
+      "Avoiding commitments. / تجنب الالتزامات.",
+      "Need to save others. / الرغبة في إنقاذ الآخرين.",
+      "Boredom with reality. / الشعور بالملل من الواقع.",
+      "Hidden parts of self. / أجزاء مخفية من نفسي.",
+      "Feeling childish in adult tasks. / أشعر بالطفولية في مهام الكبار.",
+      "Intimacy struggles. / صعوبة في الحميمية.",
+      "Humor hides pain. / الفكاهة تخفي الألم.",
+      "Afraid of success. / أخاف من النجاح."
+    ],
+    prompts: [
+      "Explore if they project a 'judging parent' onto colleagues or friends.",
+      "Check for passive-aggressive tendencies or somatic complaints instead of anger.",
+      "Explore the core 'script' they follow in romance (e.g., the pursuer).",
+      "Observe eye contact and posture when discussing failure or social gaffes.",
+      "Watch for intellectualization—talking 'about' feelings instead of feeling them.",
+      "Inquire about early childhood pressure to be the 'perfect' or 'good' child.",
+      "Explore reactions to the therapist being late or cancelling a session.",
+      "Check for inability to maintain personal space or over-sharing early in therapy.",
+      "Distinguish between boredom and a lack of a cohesive internal self.",
+      "Observe the current therapeutic alliance for signs of suspicion or testing.",
+      "Check for 'pathological altruism' or neglecting own needs for others.",
+      "Observe if the patient shuts down or changes topic when things get 'heavy'.",
+      "Explore underlying fears of inadequacy that drive competitive jealousy.",
+      "Check if they feel they are 'performing' a role rather than being themselves.",
+      "Even constructive feedback—does it feel like a personal attack?",
+      "Explore 'Imposter Syndrome' in professional or academic settings.",
+      "Check for fear of disappointing others or being seen as 'difficult'.",
+      "Does their mood depend entirely on a partner's or boss's approval?",
+      "Explore if they feel valueless when not being productive or helpful.",
+      "Check for a need to micromanage therapists, partners, or employees.",
+      "Observe if they flip between seeing people as 'perfect' and 'worthless'.",
+      "Explore current internalized voices of mother/father figures.",
+      "Check for a pattern of 'flight' when relationships become intimate.",
+      "Explore the 'Rescuer' role in the Karpman Drama Triangle.",
+      "Inquire about preference for fantasy, gaming, or daydreaming over daily life.",
+      "Explore feelings of having a 'secret' or 'shameful' side hidden from all.",
+      "Do they feel like a 10-year-old when dealing with taxes, bosses, or conflict?",
+      "Explore physical or emotional avoidance of close proximity.",
+      "Observe if they use jokes to deflect from vulnerable topics in session.",
+      "Explore 'self-sabotage' behaviors that appear when goals are near."
+    ],
+    options: ["Never", "Rarely", "Sometimes", "Always"]
+  },
+  systems: {
+    en: { title: "Systems/Interpersonal Cycle", guide: "Couples and family dynamics." },
+    ar: { title: "مقايس الدورة العلائقية", guide: "ديناميكيات الأزواج والعائلات." },
+    questions: [
+      "In conflict, I withdraw. / في النزاعات، أنسحب.",
+      "In conflict, I pursue/criticize. / في النزاعات، أطارد أو أنتقد.",
+      "Safe sharing feelings. / أشعر بالأمان عند مشاركة مشاعري.",
+      "Failure to repair after arguments. / فشل الإصلاح بعد الجدال.",
+      "Lonely when together. / أشعر بالوحدة ونحن معاً.",
+      "Stuck in same argument. / عالقون في نفس الجدال.",
+      "Carrying emotional load. / أحمل العبء العاطفي.",
+      "Friendship is lost. / فقدنا الصداقة.",
+      "Feeling criticized often. / أشعر بالنقد غالباً.",
+      "Fear of partner's reaction. / أخاف من رد فعل شريكي.",
+      "Intimacy struggles. / صعوبة في الحميمية.",
+      "Can't be myself. / لا يمكنني أن أكون نفسي.",
+      "One-sided decisions. / اتخاذ قرارات من طرف واحد.",
+      "No quality time. / لا يوجد وقت ذا جودة.",
+      "Partner doesn't hear me. / شريكي لا يسمعني.",
+      "Values conflict. / صراع القيم.",
+      "Family interference. / تدخل العائلة.",
+      "No shared vision. / لا توجد رؤية مشتركة.",
+      "Partner is a stranger. / شريكي كأنه غريب.",
+      "Like roommates. / نعيش كزملاء سكن فقط.",
+      "Walking on eggshells. / الحذر المفرط في التعامل.",
+      "Trust is broken. / الثقة محطمة.",
+      "Competition vs collaboration. / التنافس بدلاً من التعاون.",
+      "Hiding things. / إخفاء أشياء.",
+      "Better when partner is away. / الأفضل عندما يغيب شريكي.",
+      "Mutual blame. / اللوم المتبادل.",
+      "Lack of support for goals. / نقص الدعم للأهداف.",
+      "Communication is a battlefield. / التواصل ساحة معركة.",
+      "Feeling manipulated. / الشعور بالتلاعب بالحقائق.",
+      "Forgotten how to fun. / نسينا كيف نمرح."
+    ],
+    prompts: [
+      "Look for emotional 'stonewalling' or withdrawing into silence during conflict.",
+      "Check for a pattern of escalation or 'poking' to get an emotional response.",
+      "Inquire about specific fears of judgment or rejection by the partner.",
+      "Ask if they have any 'reset' ritual or way to reconcile after big fights.",
+      "Explore the sense of 'parallel lives' versus shared emotional intimacy.",
+      "Check for 'negative sentiment override' where every issue leads back to one topic.",
+      "Ask who usually initiates conversations about the relationship or logistics.",
+      "Explore if the 'foundational friendship' of the couple has eroded.",
+      "Does the patient feel they can never 'get it right' in their partner's eyes?",
+      "Observe for signs of fear, walking on eggshells, or monitoring partner's mood.",
+      "Explore differences in sexual desire or emotional vulnerability.",
+      "Check if they feel they have suppressed their personality to keep the peace.",
+      "Ask about the division of power regarding finances, kids, or major moves.",
+      "Distinguish between being in the same room vs. actually engaging with each other.",
+      "Check for a 'demand-withdraw' cycle and who feels more unheard.",
+      "Explore fundamental differences in religion, money, or parenting styles.",
+      "Inquire about in-laws or siblings who may be triangulated into the conflict.",
+      "Ask if they can imagine where the relationship will be in 5 or 10 years.",
+      "Explore the loss of 'shared meaning' or private jokes in the relationship.",
+      "Check if physical touch and romance have completely stopped.",
+      "Observe for anxiety about bringing up even minor concerns to the partner.",
+      "Explore the impact of past infidelity or broken promises on current safety.",
+      "Does everything feel like a win/loss scenario rather than a team effort?",
+      "Inquire about 'secret' accounts, conversations, or habits hidden from partner.",
+      "Ask if they feel a sense of relief or more 'themselves' when the partner is out.",
+      "Check if they have stopped taking responsibility and only see the other's faults.",
+      "Explore if the partner actively hinders the patient's growth or career.",
+      "Observe for Gottman's 'Four Horsemen': Criticism, Contempt, Defensiveness, Stonewalling.",
+      "Check for 'Gaslighting' or feeling like their memory of events is being challenged.",
+      "Explore when was the last time they laughed together without a hidden agenda."
+    ],
+    options: ["Never", "Rarely", "Sometimes", "Always"]
+  },
+  masterIntake: {
+    en: { title: "Master Clinical Intake (Full)", guide: "Unified entry point." },
+    ar: { title: "الاستمارة العيادية الشاملة", guide: "نقطة دخول موحدة." },
+    questions: [
+      "Reason for seeking therapy? / سبب طلب العلاج؟",
+      "Current medications? / الأدوية الحالية؟",
+      "History of trauma? / تاريخ الصدمات؟",
+      "Safety concerns? / مخاوف تتعلق بالأمان؟",
+      "Personal strengths? / نقاط القوة الشخصية؟",
+      "Living situation? / وضع المعيشة؟",
+      "Employment/Stress? / العمل والتوتر؟",
+      "Social support? / الدعم الاجتماعي؟",
+      "Substance history? / تاريخ التعاطي؟",
+      "Previous therapy? / علاج سابق؟",
+      "Sleep quality? / جودة النوم؟",
+      "Appetite changes? / تغيرات الشهية؟",
+      "Energy levels? / مستويات الطاقة؟",
+      "Panic attacks? / نوبات الهلع؟",
+      "Hopelessness? / الشعور باليأس؟",
+      "Cultural factors? / عوامل ثقافية؟",
+      "Legal issues? / مشاكل قانونية؟",
+      "Medical history? / التاريخ الطبي؟",
+      "Family mental health? / الصحة النفسية للعائلة؟",
+      "Treatment goals? / أهداف العلاج؟",
+      "Childhood history? / تاريخ الطفولة؟",
+      "Education level? / المستوى التعليمي؟",
+      "Interests/Hobbies? / الاهتمامات/الهوايات؟",
+      "Self-care practices? / ممارسات الرعاية الذاتية؟",
+      "Significant losses? / خسائر كبيرة؟",
+      "Recent life events? / أحداث حياتية حديثة؟",
+      "Coping skills? / مهارات التكيف؟",
+      "Financial stability? / الاستقرار المالي؟",
+      "Relationship status? / الحالة العلائقية؟",
+      "Aspirations for the year? / تطلعات العام القادم؟"
+    ],
+    prompts: [
+      "Ask for the 'Defining Moment' that made them call for an appointment today.",
+      "Confirm dosage, adherence, and who the prescribing physician is.",
+      "Gently screen for PTSD symptoms or developmental trauma.",
+      "MANDATORY: Check for SI/HI (Suicidal or Homicidal Ideation) and access to means.",
+      "Focus on what they *do well* to build a strengths-based treatment plan.",
+      "Check for housing stability and safety in their current environment.",
+      "Explore burnout or recent changes in the work environment.",
+      "Ask who they would call at 3 AM in an emergency.",
+      "Check for frequency and impact on function for alcohol/drugs.",
+      "Inquire what was helpful and what *didn't* work in the past.",
+      "Check for difficulty falling asleep, staying asleep, or early waking.",
+      "Explore weight changes or emotional eating vs. loss of appetite.",
+      "Ask if they feel 'leaden' or physically slow during the day.",
+      "Clarify frequency and specific physical symptoms (e.g., heart racing).",
+      "Explore if they see any 'light at the end of the tunnel'.",
+      "Inquire about religious, ethnic, or community beliefs that affect therapy.",
+      "Check for pending court cases, custody issues, or recent police contact.",
+      "Identify chronic illnesses that may mimic or exacerbate mental health.",
+      "Look for patterns of depression, anxiety, or bipolar in biological family.",
+      "Clarify what 'better' looks like in concrete, measurable terms.",
+      "Briefly screen for major developmental milestones or core wounds.",
+      "Check for history of learning disabilities or high-pressure academic pasts.",
+      "Focus on things that bring them flow or joy outside of 'work'.",
+      "What do they currently do to manage stress (exercise, meditation, etc)?",
+      "Check for deaths, breakups, or moves in the last 2 years.",
+      "Inquire about weddings, babies, jobs, or other major life transitions.",
+      "What is their current 'toolkit' for dealing with distress?",
+      "Inquire about debt or sudden loss of income affecting stress levels.",
+      "Beyond 'married/single'—explore the *quality* of their primary bond.",
+      "Ask for one big thing they hope to change about themselves this year."
+    ],
+    options: ["Sensitive/Confidential / حساس/سري", "Standard Entry / إدخال قياسي"]
+  },
+  asrs: {
+    en: { title: "ASRS v1.1 (ADHD Screen)", guide: "Full 18-item WHO self-report scale." },
+    ar: { title: "مقياس اضطراب نقص الانتباه (ASRS)", guide: "مقياس منظمة الصحة العالمية الكامل (١٨ فقرة)." },
+    questions: [
+      "Trouble wrapping up final details? / صعوبة في إنهاء التفاصيل النهائية للمشروع؟",
+      "Difficulty getting things in order? / صعوبة في تنظيم الأشياء؟",
+      "Problems remembering appointments? / مشاكل في تذكر المواعيد والالتزامات؟",
+      "Avoidance of mentally taxing tasks? / تجنب المهام التي تتطلب الكثير من الجهد الذهني؟",
+      "Fidget or squirm in seat? / التململ أو التحرك في المقعد؟",
+      "Feel overly active or driven by a motor? / الشعور بالنشاط الزائد وكأنك مدفوع بمحرك؟",
+      "Careless mistakes? / الوقوع في أخطاء ناجمة عن عدم الانتباه؟",
+      "Difficulty keeping attention? / صعوبة في الحفاظ على الانتباه؟",
+      "Concentration on direct speech? / صعوبة التركيز على ما يقال لك مباشرة؟",
+      "Misplacing things? / فقدان أو صعوبة العثور على الأشياء؟",
+      "Distracted by noise/activity? / تشتت الانتباه بسبب الضوضاء أو الأنشطة حولك؟",
+      "Leave seat in meetings? / ترك مقعدك في الاجتماعات أو المواقف المتوقعة؟",
+      "Feel restless or fidgety? / الشعور بالتململ أو القلق الحركي؟",
+      "Difficulty unwinding? / صعوبة في الاسترخاء في وقت فراغك؟",
+      "Talking too much? / التحدث بشكل مفرط؟",
+      "Finishing others' sentences? / إكمال جمل الآخرين قبل انتهائهم؟",
+      "Difficulty waiting turn? / صعوبة في انتظار دورك؟",
+      "Interrupting others? / مقاطعة الآخرين أثناء انشغالهم؟"
+    ],
+    prompts: [
+      "Check if they lose steam once the initial 'novelty' of a task is gone.",
+      "Inquire about difficulty with sequencing multi-step tasks (e.g., taxes).",
+      "Confirm if they rely on external prompts or others to avoid missing meetings.",
+      "Ask if they put off tasks like 'reading long reports' or 'doing paperwork'.",
+      "Observe body movements, leg shaking, or hand playing during the intake.",
+      "Check for an internal sense of 'inner pressure' to keep moving.",
+      "Explore if they miss key instructions because they were scanning ahead.",
+      "Ask if their mind 'wanders' even during things they enjoy (e.g., movies).",
+      "Confirm if they find their mind drifting mid-conversation.",
+      "Inquire how often they lose keys, phone, or wallet in their own home.",
+      "Observe if their eyes are scanning backgrounds or people during session.",
+      "Ask if they have been told they are disruptive or 'can't sit still'.",
+      "Check for a constant internal feeling of needing to do *something*.",
+      "Ask if they find themselves 'on the go' even during vacation or rest.",
+      "Observe for 'pressured speech' or skipping between multiple topics.",
+      "Note if they cut off the therapist's questions or jump to conclusions.",
+      "Inquire about frustration in lines, traffic, or slow-moving meetings.",
+      "Observe if they interject or take over tasks when others are 'too slow'."
+    ],
+    options: ["Never / أبداً", "Rarely / نادراً", "Sometimes / أحياناً", "Often / غالباً", "Very Often / غالباً جداً"]
+  },
+  pcl5: {
+    en: { title: "PCL-5 (PTSD Screen)", guide: "Full 20-item VA standardized PTSD checklist." },
+    ar: { title: "مقياس اضطراب ما بعد الصدمة (PCL-5)", guide: "قائمة التحقق المعتمدة الكاملة (٢٠ فقرة)." },
+    questions: [
+      "Repeated, disturbing, unwanted memories? / ذكريات متكررة ومزعجة وغير مرغوب فيها؟",
+      "Repeated, disturbing dreams? / أحلام متكررة ومزعجة عن التجربة؟",
+      "Acting/feeling as if it were happening again? / التصرف أو الشعور وكأن الحدث يتكرر أصلاً؟",
+      "Feeling very upset when reminded? / الشعور بالانزعاج الشديد عند تذكر التجربة؟",
+      "Strong physical reactions when reminded? / حدوث ردود فعل جسدية قوية عند التذكر؟",
+      "Avoiding memories, thoughts, feelings? / تجنب الذكريات أو الأفكار أو المشاعر المرتبطة؟",
+      "Avoiding external reminders? / تجنب المذكرات الخارجية (أشخاص، أماكن، مواقف)؟",
+      "Trouble remembering important parts? / صعوبة في تذكر أجزاء هامة من التجربة؟",
+      "Negative beliefs about self/world? / معتقدات سلبية قوية عن نفسك أو الآخرين أو العالم؟",
+      "Blaming self or others? / لوم نفسك أو الآخرين على ما حدث؟",
+      "Negative feelings (fear, anger, guilt)? / مشاعر سلبية قوية (خوف، غضب، ذنب، خزي)؟",
+      "Loss of interest in activities? / فقدان الاهتمام بالأنشطة التي كنت تستمتع بها؟",
+      "Feeling distant or cut off? / الشعور بالبعد أو الانفصال عن الآخرين؟",
+      "Trouble having positive feelings? / صعوبة في الشعور بمشاعر إيجابية؟",
+      "Irritable behavior/angry outbursts? / سلوك عصبي أو نوبات غضب؟",
+      "Taking risks/harmful behavior? / الإقدام على مخاطر أو سلوكيات مؤذية؟",
+      "Being 'superalert' or on guard? / البقاء في حالة تأهب قصوى أو الحذر الدائم؟",
+      "Feeling jumpy or easily startled? / الشعور بالجفال أو الفزع بسهولة؟",
+      "Difficulty concentrating? / صعوبة في التركيز؟",
+      "Trouble falling or staying asleep? / صعوبة في النوم أو البقاء نائماً؟"
+    ],
+    prompts: [
+      "Distinguish between voluntary recall and intrusive, distressing flashes.",
+      "Check if they wake up with physiological arousal (sweating, racing heart).",
+      "Ask if they have 'lost time' during these episodes (Flashbacks).",
+      "Observe if discussing the trauma leads to visible physical distress.",
+      "Ask about heart racing, nausea, or muscle tension when reminded.",
+      "Explore effortful avoidance—specifically 'pushing away' thoughts.",
+      "Identify specific 'triggers' (e.g., loud bangs, certain streets, news).",
+      "Distinguish between 'forgetting' versus dissociation/amnesia during impact.",
+      "Explore internalizing 'scripts' like 'The world is completely dangerous'.",
+      "Explore 'Survivor's Guilt' or irrational blame for the outcome.",
+      "Check for chronic states of 'Terror' or 'Shame' that won't lift.",
+      "Compare current activity level to how they were *before* the event.",
+      "Ask if they feel they are 'viewing life through a pane of glass'.",
+      "Confirm if they feel 'dead inside' even during happy occasions.",
+      "Observe for low frustration tolerance in the intake session.",
+      "Inquire about reckless driving, drinking, or other self-harming risks.",
+      "Observe scanning behaviors and hyper-vigilance in the session.",
+      "Observe if they physically 'jump' at small office noises (printer, doors).",
+      "Ask if they can finish a book or movie without their mind drifting.",
+      "Check for insomnia specifically related to fear of nightmares or night safety."
+    ],
+    options: ["Not at all / إطلاقاً", "A little / قليلاً", "Moderately / بدرجة متوسطة", "Quite a bit / بدرجة كبيرة", "Extremely / للغاية"]
+  },
+  bdii: {
+    en: { title: "BDI-II (Beck Depression)", guide: "Full 21-item standardized inventory." },
+    ar: { title: "مقياس بيك للاكتئاب (BDI-II)", guide: "مقياس بيك المعتمد الكامل (٢١ فقرة)." },
+    questions: [
+      "Sadness / الحزن",
+      "Pessimism / التشاؤم",
+      "Past Failure / الفشل السابق",
+      "Loss of Pleasure / فقدان المتعة",
+      "Guilty Feelings / مشاعر الذنب",
+      "Punishment Feelings / مشاعر العقاب",
+      "Self-Dislike / عدم الرضا عن الذات",
+      "Self-Criticalness / نقد الذات",
+      "Suicidal Thoughts / أفكار انتحارية",
+      "Crying / البكاء",
+      "Agitation / الاهتياج",
+      "Loss of Interest / فقدان الاهتمام",
+      "Indecisiveness / التردد",
+      "Worthlessness / الشعور بعدم القيمة",
+      "Loss of Energy / فقدان الطاقة",
+      "Changes in Sleep / تغيرات في نظام النوم",
+      "Irritability / سرعة الانفعال",
+      "Changes in Appetite / تغيرات في الشهية",
+      "Concentration Difficulty / صعوبة التركيز",
+      "Tiredness/Fatigue / التعب أو الإجهاد",
+      "Loss of Interest in Sex / فقدان الرغبة الجنسية"
+    ],
+    prompts: [
+      "Distinguish between intermittent low mood and persistent, empty sadness.",
+      "Ask if they can imagine *anything* getting better in the next month.",
+      "Confirm if they feel they have 'ruined' their life or let people down.",
+      "Check for anhedonia—things they used to love now feel like chores.",
+      "Explore if they feel they are being 'punished' for who they are.",
+      "Confirm if they feel they deserve bad things to happen to them.",
+      "Ask if they feel 'disgusted' with themselves or their appearance.",
+      "Explore the 'Internal Critic'—is it constant and loud?",
+      "Check for active plan vs. passive ideation ('wish I just didn't wake up').",
+      "Confirm if they feel they *can't* cry anymore, or cry for no reason.",
+      "Observe for 'psychomotor agitation'—pacing, hand-wringing in session.",
+      "Check for social withdrawal—do they stop answering the phone?",
+      "Ask about difficulty choosing even simple things (e.g., what to eat).",
+      "Confirm if they feel they have no impact or meaning in others' lives.",
+      "Ask if they feel physically 'heavy' or tasks take '10x more effort'.",
+      "Confirm if they sleep too much (hypersomnia) or too little (insomnia).",
+      "Observe for low tolerance for clinician's questions or minor delays.",
+      "Confirm if they are eating significantly more or less than usual.",
+      "Ask if they find they are reading the same page over and over.",
+      "Check if they feel exhausted even after a full night's sleep.",
+      "Inquire about changes in libido or physical affection with partners."
+    ],
+    options: ["Score 0 / ٠", "Score 1 / ١", "Score 2 / ٢", "Score 3 / ٣"]
+  },
+  audit: {
+    en: { title: "AUDIT (Alcohol Use Screen)", guide: "Full 10-item WHO gold standard tool." },
+    ar: { title: "اختبار تعاطي الكحول (AUDIT)", guide: "أداة منظمة الصحة العالمية الكاملة (١٠ فقرات)." },
+    questions: [
+      "How often do you have a drink? / كم مرة تتناول فيها مشروباً كحولياً؟",
+      "How many drinks on a typical day? / كم عد المشروبات التي تتناولها في اليوم المعتاد؟",
+      "Six or more drinks on one occasion? / كم مرة تتناول ٦ مشروبات أو أكثر في المرة الواحدة؟",
+      "Unable to stop once started? / كم مرة وجدت نفسك غير قادر على التوقف عن الشرب؟",
+      "Failed to do what was expected? / كم مرة فشلت في القيام بما هو متوقع منك بسبب الشرب؟",
+      "Needed first drink in morning? / كم مرة احتجت لمشروب في الصباح بعد ليلة شرب ثقيلة؟",
+      "Feeling of guilt or remorse? / كم مرة شعرت بالذنب أو الندم بعد الشرب؟",
+      "Unable to remember night before? / كم مرة لم استطع تذكر ما حدث في الليلة السابقة؟",
+      "Injured as a result of drinking? / هل أصيب أحد (أنت أو غيرك) نتيجة شربك؟",
+      "Concerned relative/friend/doctor? / هل قلق قريب أو صديق أو طبيب بشأن شربك؟"
+    ],
+    prompts: [
+      "Check for a pattern of 'binge drinking' versus steady daily consumption.",
+      "Clarify what they consider a 'typical drink' (e.g., a large glass of wine vs. a small beer).",
+      "Focus on the frequency of 'heavy episodic drinking' in the last 6 months.",
+      "Inquire about a lack of control or 'loss of off-switch' once they take the first sip.",
+      "Check for impact on work, family obligations, or social commitments.",
+      "Screen for physiological dependence and 'the shakes' in the morning.",
+      "Explore if drinking is followed by a cycle of deep shame or self-loathing.",
+      "Confirm the frequency of 'blackouts' and memory loss during drinking episodes.",
+      "Inquire about physical accidents, falls, or altercations while intoxicated.",
+      "Ask if loved ones have directly confronted them about their alcohol intake."
+    ],
+    options: ["Never / أبداً", "Monthly or less / شهرياً أو أقل", "2-4 times/mo / ٢-٤ مرات شهرياً", "2-3 times/week / ٢-٣ مرات أسبوعياً", "Daily / يومياً"]
+  },
+  gds: {
+    en: { title: "GDS (Geriatric Depression)", guide: "Full 15-item Stanford Short Form." },
+    ar: { title: "مقياس اكتئاب المسنين (GDS)", guide: "مقياس ستانفورد المختصر الكامل (١٥ فقرة)." },
+    questions: [
+      "Satisfied with life? / هل أنت راضٍ عن حياتك بشكل أساسي؟",
+      "Dropped activities? / هل تخليت عن الكثير من أنشطتك واهتماماتك؟",
+      "Feel life is empty? / هل تشعر بأن حياتك فارغة؟",
+      "Often get bored? / هل تشعر بالملل كثيراً؟",
+      "In good spirits? / هل أنت في مزاج جيد معظم الوقت؟",
+      "Afraid of bad things? / هل تخشى حدوث شيء سيء لك؟",
+      "Feel happy most of time? / هل تشعر بالسعادة معظم الوقت؟",
+      "Often feel helpless? / هل تشعر بالعجز كثيراً؟",
+      "Prefer staying home? / هل تفضل البقاء بالمنزل بدلاً من الخروج والقيام بأشياء جديدة؟",
+      "Memory problems? / هل تشعر بأن لديك مشاكل في الذاكرة أكثر من المعتاد؟",
+      "Wonderful to be alive? / هل تعتقد أنه من الرائع أن تكون حياً الآن؟",
+      "Feel worthless now? / هل تشعر بأنك عديم القيمة في وضعك الحالي؟",
+      "Full of energy? / هل تشعر بفيض من الطاقة؟",
+      "Situation is hopeless? / هل تشعر بأن وضعك ميؤوس منه؟",
+      "Others better off? / هل تعتقد أن معظم الناس أفضل حالاً منك؟"
+    ],
+    prompts: [
+      "Explore if they feel their life has lost its sense of 'purpose' after retirement or loss.",
+      "Check for loss of interest in hobbies that used to define their identity.",
+      "Distinguish between literal emptiness and a lack of social connection.",
+      "Confirm if they feel they have 'too much time' with nothing meaningful to do.",
+      "Observe current affect and energy levels during the assessment.",
+      "Inquire about vague health fears or anxiety about the future.",
+      "Distinguish between 'contentment' and 'happiness'.",
+      "Explore if they feel they have lost autonomy or control over their life.",
+      "Check for social withdrawal and isolation from the community.",
+      "Distinguish between 'normal aging' forgetfulness and depression-related 'pseudo-dementia'.",
+      "Observe for signs of existential dread or loss of the will to live.",
+      "Explore if they feel like a 'burden' to their children or family.",
+      "Look for 'fatigue' that doesn't improve with rest.",
+      "Inquire if they believe *anything* can improve their current situation.",
+      "Check for social comparison and feelings of jealousy or inadequacy."
+    ],
+    options: ["No / لا", "Yes / نعم"]
+  },
+  act: {
+    en: { title: "Acceptance & Action (AAQ-II)", guide: "Official 7-item psychological flexibility scale." },
+    ar: { title: "مقياس القبول والالتزام (AAQ-II)", guide: "المقياس الرسمي للمرونة النفسية (٧ فقرات)." },
+    questions: [
+      "I'm afraid of my feelings. / أنا أخاف من مشاعري.",
+      "My painful memories prevent me from having a fulfilling life. / ذكرياتي المؤلمة تمنعني من عيش حياة مرضية.",
+      "I worry about not being able to control my worries/feelings. / أقلق من عدم قدرتي على التحكم في مخاوفي ومشاعري.",
+      "Emotions cause problems in my life. / تسبب العواطف مشاكل في حياتي.",
+      "It seems like most people handle life better than I do. / يبدو أن معظم الناس يتعاملون مع الحياة أفضل مني.",
+      "Painful experiences make it difficult to live a valued life. / التجارب المؤلمة تجعل من الصعب عيش حياة ذات قيمة.",
+      "My thoughts and feelings do not get in the way of how I want to live. / أفكاري ومشاعري لا تعيق الطريقة التي أريد أن أعيش بها."
+    ],
+    prompts: [
+      "Identify 'Experiential Avoidance'—specifically what feelings they try to 'delete'.",
+      "Explore how 'fusion' with past memories stops them from acting in the present.",
+      "Check for 'control-focused' strategies that actually increase distress.",
+      "Ask for concrete examples of when an emotion led to a 'missed life event'.",
+      "Explore 'Social Comparison' and the 'I am the only one struggling' myth.",
+      "Clarify what their 'valued life' would look like if pain wasn't a barrier.",
+      "Note: This is a reverse-scored item. Focus on their sense of agency."
+    ],
+    options: ["Never True / أبداً غير صحيح", "Very Seldom True", "Seldom True", "Sometimes True / صحيح أحياناً", "Frequently True", "Almost Always True", "Always True / دائماً صحيح"]
+  },
+  dbt: {
+    en: { title: "DBT Diary Card (Skills)", guide: "Standardized 15-skill effectiveness screen." },
+    ar: { title: "بطاقة يوميات DBT (المهارات)", guide: "مقياس فعالية المهارات (١٥ مهارة)." },
+    questions: [
+      "Wise Mind / العقل الحكيم",
+      "Observe/Describe / الملاحظة والوصف",
+      "One-Mindfully / اليقظة الذهنية التامة",
+      "Non-Judgmentally / عدم الحكم",
+      "Effectiveness / الفعالية",
+      "Distraction (ACCEPTS) / التشتيت",
+      "Self-Soothing / تهدئة الذات",
+      "IMPROVE the Moment / تحسين اللحظة",
+      "Pros and Cons / الإيجابيات والسلبيات",
+      "Radical Acceptance / القبول الجذري",
+      "Turning the Mind / تحويل العقل",
+      "Willingness / الاستعداد",
+      "Check the Facts / التحقق من الحقائق",
+      "Opposite Action / الفعل العكسي",
+      "Problem Solving / حل المشكلات"
+    ],
+    prompts: [
+      "Ask for a specific instance where they balanced 'Emotion Mind' and 'Reason Mind'.",
+      "Can they describe an event without using evaluating adjectives (good/bad)?",
+      "Check if they were able to focus on one thing at a time during high stress.",
+      "Explore if they can notice their thoughts without labelling them as 'wrong'.",
+      "Ask if they focused on what *works* rather than what is *fair* or *right*.",
+      "Identify which ACCEPTS sub-skill they used (Activities, Contributing, Tasks...).",
+      "Ask which sense (sight, smell, etc) they used to ground themselves.",
+      "Explore if they used Imagery, Meaning, or Prayer to survive a crisis.",
+      "Check if they actually wrote them down before making a high-stakes decision.",
+      "Confirm if they can stop fighting a reality that they cannot currently change.",
+      "Explore the effort required to choose acceptance over and over again.",
+      "Distinguish between 'Willingness' (doing what's needed) vs. 'Willfulness' (resistance).",
+      "Ask: 'Did your emotional reaction match the actual facts of the situation?'",
+      "Confirm if they acted against an unjustified urge (e.g., calling an ex).",
+      "Explore if they identified the goal, brain-stormed, and chose the best option."
+    ],
+    options: ["Not Used / لم تستخدم", "Used/Not Helpful", "Used/Helpful", "Used/Very Helpful / مفيدة جداً"]
+  },
+  scidii: {
+    en: { title: "SCID-II (Personality Screen)", guide: "Full 119-item DSM-4/5 screening tool." },
+    ar: { title: "مقياس الشخصية الممنهج (SCID-II)", guide: "المقياس الكامل المعتمد (١١٩ فقرة)." },
+    questions: [
+      "Avoided jobs requiring close contact? / تجنبت وظائف تتطلب احتكاكاً وثيقاً؟",
+      "Avoid getting involved with people? / تجنبت الانخراط مع الناس؟",
+      "Fear of being shamed or ridiculed? / الخوف من التعرض للخزي أو السخرية؟",
+      "Preoccupied with criticism? / منشغل بالنقد؟",
+      "Inhibited in new situations? / متحفظ في المواقف الجديدة؟",
+      "Feel socially inept? / تشعر بعدم الكفاءة الاجتماعية؟",
+      "Reluctant to take risks? / متردد في المخاطرة؟",
+      "Need others to assume responsibility? / تحتاج للآخرين لتحمل المسؤولية؟",
+      "Difficulty expressing disagreement? / صعوبة في التعبير عن الاختلاف؟",
+      "Difficulty initiating projects? / صعوبة في بدء المشاريع؟",
+      "Go to excessive lengths for support? / تبذل جهوداً مفرطة للدعم؟",
+      "Feel helpless when alone? / تشعر بالعجز عند البقاء وحيداً؟",
+      "Urgent need for new relationship? / حاجة ملحة لعلاقة جديدة؟",
+      "Preoccupied with fears of self-care? / مخاوف من العناية بالنفس؟",
+      "Preoccupied with details/rules? / منشغل بالتفاصيل والقواعد؟",
+      "Perfectionism interferes? / المثالية تعيق العمل؟",
+      "Excessively devoted to work? / مكرس للعمل بشكل مفرط؟",
+      "Overconscientious? / مفرط في الضمير؟",
+      "Unable to discard objects? / غير قادر على التخلص من الأشياء؟",
+      "Reluctant to delegate? / متردد في تفويض المهام؟",
+      "Miserly spending? / بخل في الإنفاق؟",
+      "Rigid and stubborn? / متصلب وعنيد؟",
+      "Passive resistance to routine? / مقاومة سلبية للمهام الروتينية؟",
+      "Complain of being misunderstood? / تشكو أنك غير مفهوم؟",
+      "Sullen and argumentative? / عابس وميال للجدل؟",
+      "Critical of authority? / ناقد للسلطة؟",
+      "Envy toward fortunate? / حسد الآخرين؟",
+      "Exaggerated complaints? / شكاوى مبالغ فيها؟",
+      "Mood alternates? / تقلب المزاج؟",
+      "Self-critical? / تنتقد نفسك؟",
+      "Worry about failing? / تقلق من الفشل؟",
+      "Judgmental of others? / تحكم على الآخرين؟",
+      "Pessimistic style? / أسلوب تشاؤمي؟",
+      "Prone to feeling guilty? / عرضة للذنب؟",
+      "Expect to be exploited? / تتوقع استغلالك؟",
+      "Doubts of loyalty? / شكوك في الولاء؟",
+      "Reluctant to confide? / متردد في الثقة؟",
+      "Read hidden meanings? / تقرأ معاني مخفية؟",
+      "Bear grudges? / تحمل الضغينة؟",
+      "Perceive attacks quickly? / تشعر بالهجوم سريعاً؟",
+      "Suspicions of fidelity? / شكوك في الأمانة؟",
+      "Odd beliefs? / معتقدات غريبة؟",
+      "Unusual perceptions? / تصورات غير عادية؟",
+      "Odd thinking/speech? / تفكير وكلام غريب؟",
+      "Suspiciousness? / الريبة والشك؟",
+      "Inappropriate affect? / عاطفة غير ملائمة؟",
+      "Odd behavior? / سلوك غريب؟",
+      "Lack of close friends? / نقص الأصدقاء؟",
+      "Social anxiety? / قلق اجتماعي؟",
+      "Neither desires nor enjoys relationships? / لا ترغب ولا تستمتع بالعلاقات؟",
+      "Chooses solitary activities? / تختار أنشطة انفرادية؟",
+      "Little interest in sex? / اهتمام ضئيل بالجنس؟",
+      "Few activities enjoyed? / أنشطة قليلة تستمتع بها؟",
+      "Indifferent to praise? / غير مبالٍ بالمدح؟",
+      "Emotional coldness? / برود عاطفي؟",
+      "Uncomfortable if not center of attention? / غير مرتاح إذا لم تكن المركز؟",
+      "Seductive behavior? / سلوك إغوائي؟",
+      "Shallow emotions? / مشاعر ضحلة؟",
+      "Uses appearance for attention? / تستخدم المظهر للجذب؟",
+      "Impressionistic speech? / كلام انطباعي؟",
+      "Self-dramatization? / تمثيل الذات؟",
+      "Suggestible? / قابل للإيحاء؟",
+      "Intimacy overestimated? / تبالغ في حميمية العلاقات؟",
+      "Grandiose importance? / شعور بالعظمة؟",
+      "Fantasies of success? / خيالات النجاح؟",
+      "Believes they are special? / تعتقد أنك مميز؟",
+      "Requires admiration? / تتطلب الإعجاب؟",
+      "Sense of entitlement? / شعور بالاستحقاق؟",
+      "Exploitative? / استغلالي؟",
+      "Lacks empathy? / يفتقر للتعاطف؟",
+      "Envious? / حسود؟",
+      "Arrogant? / متكبر؟",
+      "Unable to conform? / غير قادر على الامتثال؟",
+      "Deceitful? / مخادع؟",
+      "Impulsive? / مندفع؟",
+      "Aggressive? / عدواني؟",
+      "Disregard for safety? / استهتار بالأمان؟",
+      "Irresponsible? / غير مسؤول؟",
+      "Lack of remorse? / نقص الندم؟",
+      "Fear of abandonment? / خوف من الهجران؟",
+      "Unstable relationships? / علاقات غير مستقرة؟",
+      "Identity disturbance? / اضطراب الهوية؟",
+      "Harmful impulsivity? / اندفاع مؤذٍ؟",
+      "Suicidal behavior? / سلوك انتحاري؟",
+      "Affective instability? / عدم استقرار وجداني؟",
+      "Empty feelings? / شعور بالفراغ؟",
+      "Intense anger? / غضب شديد؟",
+      "Paranoid ideation? / أفكار اضطهادية؟",
+      "Often feel people are against you? / كثيراً ما تشعر أن الناس ضدك؟",
+      "Experience reality as dream-like? / هل تشعر أن الواقع يشبه الحلم؟",
+      "Sudden shifts in values? / تحولات مفاجئة في القيم؟",
+      "Difficulty controlling temper? / صعوبة في التحكم في الأعصاب؟",
+      "Break things when angry? / كسر الأشياء عند الغضب؟",
+      "Engage in risky sex? / الانخراط في جنس خطر؟",
+      "Spending sprees? / نوبات إنفاق مفرط؟",
+      "Binge eating? / شراهة في الأكل؟",
+      "Reckless driving? / قيادة متهورة؟",
+      "Recurrent self-mutilation? / إيذاء الذات المتكرر؟",
+      "Frequent job changes? / تغيير متكرر للوظائف؟",
+      "History of running away? / تاريخ من الهروب؟",
+      "Lying to get favors? / الكذب للحصول على مكاسب؟",
+      "Cruelty to animals? / القسوة مع الحيوانات؟",
+      "Deliberate firesetting? / إشعال حرائق متعمد؟",
+      "Stealing/Shoplifting? / السرقة؟",
+      "Lack of interest in others' feelings? / عدم الاهتمام بمشاعر الآخرين؟",
+      "Consistent irritability? / عصبية مستمرة؟",
+      "Exploiting friends? / استغلال الأصدقاء؟",
+      "Unusual dress or grooming? / ملابس أو هندام غير عادي؟",
+      "Magical thinking affecting behavior? / تفكير سحري يؤثر على السلوك؟",
+      "Vague or circumstantial speech? / كلام غامض أو مسهب؟",
+      "No confidants outside family? / لا أسرار خارج العائلة؟",
+      "Preoccupied with envy? / منشغل بالحسد؟",
+      "Exaggerated responses to criticism? / ردود فعل مبالغ فيها للنقد؟",
+      "Sense of being a failure? / شعور بالفشل؟",
+      "Expecting the worst? / توقع الأسوأ؟",
+      "Self-denial for others? / التفاني المفرط للآخرين؟",
+      "Hyperfocus on tiny errors? / تركيز مفرط على الأخطاء الصغيرة؟",
+      "Rigid morality? / أخلاقيات متصلبة؟"
+    ],
+    options: ["No / لا", "Yes / نعم"]
+  },
+  dass21: {
+    en: { title: "DASS-21 (Depression, Anxiety, Stress)", guide: "21-item clinical scale for psychological distress." },
+    ar: { title: "مقياس الاكتئاب والقلق والتوتر (DASS-21)", guide: "مقياس عيادي من ٢١ فقرة للضائقة النفسية." },
+    questions: [
+      "Found it hard to wind down? / وجدت صعوبة في الاسترخاء؟",
+      "Aware of dryness of mouth? / شعرت بجفاف في الفم؟",
+      "Couldn't seem to experience any positive feeling? / لم أستطع الشعور بمشاعر إيجابية؟",
+      "Experienced breathing difficulty? / واجهت صعوبة في التنفس؟",
+      "Found it difficult to work up the initiative to do things? / وجدت صعوبة في المبادرة للقيام بالأشياء؟",
+      "Tended to over-react to situations? / ميل للمبالغة في رد الفعل للمواقف؟",
+      "Experienced trembling? / شعرت بالرعشة؟",
+      "Felt that I was using a lot of nervous energy? / شعرت أنني أستهلك الكثير من الطاقة العصبية؟",
+      "Worried about situations in which I might panic? / قلقت من مواقف قد أصاب فيها بالهلع؟",
+      "Felt that I had nothing to look forward to? / شعرت أنه ليس لدي ما أتطلع إليه؟",
+      "Found myself getting agitated? / وجدت نفسي في حالة من الهياج؟",
+      "Found it difficult to relax? / وجدت صعوبة في الاسترخاء؟",
+      "Felt down-hearted and blue? / شعرت بالإحباط والكآبة؟",
+      "Intolerant of anything that kept me from getting on with what I was doing? / عدم التسامح مع أي شيء يعيق ما أفعله؟",
+      "Felt I was close to panic? / شعرت أنني قريب من حالة الهلع؟",
+      "Unable to become enthusiastic about anything? / غير قادر على الشعور بالحماس تجاه أي شيء؟",
+      "Felt I wasn't worth much as a person? / شعرت أنني لا أستحق الكثير كشخص؟",
+      "Felt that I was rather touchy? / شعرت أنني حساس جداً؟",
+      "Aware of the action of my heart in the absence of physical exertion? / شعرت بضربات قلبي دون مجهود جسدي؟",
+      "Felt scared without any good reason? / شعرت بالخوف دون سبب وجيه؟",
+      "Felt that life was meaningless? / شعرت أن الحياة لا معنى لها؟"
+    ],
+    options: ["Never / أبداً", "Sometimes / أحياناً", "Often / غالباً", "Always / دائماً"]
+  },
+  lsas: {
+    en: { title: "LSAS (Liebowitz Social Anxiety Scale)", guide: "24-item gold standard for social anxiety assessment." },
+    ar: { title: "مقياس ليبويتز للقلق الاجتماعي (LSAS)", guide: "المعيار الذهبي لتقييم القلق الاجتماعي (٢٤ فقرة)." },
+    questions: [
+      "Telephoning in public? / الاتصال الهاتفي في مكان عام؟",
+      "Participating in small groups? / المشاركة في مجموعات صغيرة؟",
+      "Eating in public places? / الأكل في أماكن عامة؟",
+      "Drinking with others in public places? / الشرب مع الآخرين في أماكن عامة؟",
+      "Talking to people in authority? / التحدث إلى المسؤولين أو ذوي السلطة؟",
+      "Acting/performing in front of audience? / التمثيل أو الأداء أمام جمهور؟",
+      "Going to a party? / الذهاب إلى حفلة؟",
+      "Working while being observed? / العمل تحت المراقبة؟",
+      "Writing while being observed? / الكتابة تحت المراقبة؟",
+      "Calling someone you don't know well? / الاتصال بشخص لا تعرفه جيداً؟",
+      "Talking with people you don't know well? / التحدث مع أشخاص لا تعرفهم جيداً؟",
+      "Meeting strangers? / مقابلة الغرباء؟",
+      "Urinating in a public bathroom? / التبول في دورة مياه عامة؟",
+      "Entering a room when others are already seated? / دخول غرفة والناس جالسون؟",
+      "Being the center of attention? / أن تكون مركز الاهتمام؟",
+      "Speaking up at a meeting? / التحدث في اجتماع؟",
+      "Taking a test? / خوض اختبار؟",
+      "Expressing disagreement to people you don't know well? / التعبير عن الاختلاف لمن لا تعرفهم جيداً؟",
+      "Looking at people you don't know well in the eye? / التواصل البصري مع من لا تعرفهم جيداً؟",
+      "Giving a report to a group? / تقديم تقرير لمجموعة؟",
+      "Trying to pick up someone? / محاولة لفت الانتباه العاطفي؟",
+      "Returning goods to a store? / إعادة البضائع للمتجر؟",
+      "Giving a party? / إقامة حفلة؟",
+      "Resisting a high pressure salesperson? / مقاومة بائع يضغط عليك؟"
+    ],
+    options: ["None / لا يوجد", "Mild / طفيف", "Moderate / متوسط", "Severe / شديد"]
+  },
+  cage: {
+    en: { title: "CAGE Substance Screening", guide: "Rapid 4-item screen for problematic substance use." },
+    ar: { title: "مقياس CAGE للتعاطي", guide: "فحص سريع من ٤ فقرات لمشاكل تعاطي المواد." },
+    questions: [
+      "Have you ever felt you should Cut down on your drinking/use? / هل شعرت يوماً بضرورة التقليل من شربك أو تعاطيك؟",
+      "Have people Annoyed you by criticizing your drinking/use? / هل أزعجك الناس بنقد شربك أو تعاطيك؟",
+      "Have you ever felt bad or Guilty about your drinking/use? / هل شعرت يوماً بالذنب بسبب شربك أو تعاطيك؟",
+      "Have you ever had a drink/use first thing in the morning (Eye-opener)? / هل تناولت شيئاً في الصباح الباكر لتهدئة أعصابك؟"
+    ],
+    options: ["No / لا", "Yes / نعم"]
   }
 };
 
@@ -117,6 +1083,11 @@ let currentAssessment = null;
 let trendsChart = null;
 
 // Renderers
+const renderPatientList = (patientList) => {
+    const tableBody = document.getElementById('patientTableBodyDetail');
+    if (tableBody) tableBody.innerHTML = patientList.map(p => renderPatientRow(p)).join('');
+};
+
 const renderPatientRow = (p) => `
   <tr onclick="viewPatient(${p.id})" style="cursor: pointer;">
     <td>${p.name} <span style="font-size: 11px; color: #999;">#${p.id}</span></td>
@@ -127,9 +1098,70 @@ const renderPatientRow = (p) => `
   </tr>
 `;
 
+window.filterPatients = () => {
+    const query = document.getElementById('patientSearch').value.toLowerCase();
+    const searchResults = patients.filter(p => 
+      p.name.toLowerCase().includes(query) || 
+      p.id.toString().includes(query) || 
+      (p.diagnosis && p.diagnosis.toLowerCase().includes(query))
+    );
+    renderPatientList(searchResults);
+};
+
+window.renderClinicalTrends = (patientId) => {
+    const patient = patients.find(p => p.id == patientId);
+    if (!patient || !document.getElementById('clinicalTrendsChart')) return;
+
+    const ctx = document.getElementById('clinicalTrendsChart').getContext('2d');
+    
+    if (trendsChartInstance) {
+      trendsChartInstance.destroy();
+    }
+
+    // Chart.js instance setup
+    trendsChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: ['Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov'],
+        datasets: [
+          {
+            label: 'PHQ-9 (Depression)',
+            data: patient.phq9 || [0,0,0,0,0,0],
+            borderColor: '#4facfe',
+            backgroundColor: 'rgba(79, 172, 254, 0.1)',
+            tension: 0.4,
+            pointRadius: 4,
+            fill: true
+          },
+          {
+            label: 'GAD-7 (Anxiety)',
+            data: patient.gad7 || [0,0,0,0,0,0],
+            borderColor: '#f093fb',
+            backgroundColor: 'rgba(240, 147, 251, 0.1)',
+            tension: 0.4,
+            pointRadius: 4,
+            fill: true
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: 'rgba(255,255,255,0.7)', font: { size: 10 } } }
+        },
+        scales: {
+          y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 } } },
+          x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 } } }
+        }
+      }
+    });
+};
+
 window.viewPatient = (id) => {
     const patient = patients.find(p => p.id === id);
     if (!patient) return;
+    currentActivePatientId = id;
 
     // Switch View
     document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
@@ -143,11 +1175,16 @@ window.viewPatient = (id) => {
     
     // Render AI hints
     renderHints(id);
+
+    // Render Clinical Trends
+    renderClinicalTrends(id);
 };
 
 window.openFolder = (folderName, patientId) => {
+    const pId = patientId || currentActivePatientId;
+    const patient = patients.find(p => p.id == pId);
     const content = document.getElementById('fileExplorerContent');
-    if (!content) return;
+    if (!content || !patient) return;
 
     // Update active state in UI
     document.querySelectorAll('.folder-item').forEach(item => {
@@ -155,31 +1192,16 @@ window.openFolder = (folderName, patientId) => {
         if (item.innerText.toLowerCase().includes(folderName)) item.classList.add('active');
     });
 
-    const files = {
-        input: [
-            { name: "Intake_Form_Scanned.pdf", date: "2024-02-01", size: "2.4MB" },
-            { name: "Session_1_Audio_Raw.m4a", date: "2024-02-05", size: "12MB" },
-            { name: "Handwritten_Notes.jpg", date: "2024-02-05", size: "1.1MB" }
-        ],
-        processed: [
-            { name: "Session_1_Transcript.docx", date: "2024-02-06", size: "45KB" },
-            { name: "Entities_Extracted.json", date: "2024-02-06", size: "12KB" }
-        ],
-        output: [
-            { name: "Summary_Week_1.pdf", date: "2024-02-07", size: "120KB" },
-            { name: "SOAP_Note_Draft.pdf", date: "2024-02-07", size: "88KB" }
-        ],
-        reports: [
-            { name: "Comprehensive_Psych_Report.pdf", date: "2024-02-08", size: "1.5MB" }
-        ]
-    };
+    const patientFiles = patient.files || { input: [], processed: [], output: [], reports: [] };
+    const folderFiles = patientFiles[folderName] || [];
 
-    content.innerHTML = (files[folderName] || []).map(f => `
-        <div class="file-item">
+    content.innerHTML = folderFiles.map(f => `
+        <div class="file-item" onclick="${folderName === 'reports' ? `openReportViewer('${patient.name.replace(/'/g, "\\'")}')` : ''}" style="${folderName === 'reports' ? 'cursor: pointer;' : ''}">
             <span class="file-icon">📄</span>
             <div class="file-info">
                 <span class="file-name">${f.name}</span>
                 <span class="file-meta">${f.date} • ${f.size}</span>
+                ${f.tags ? `<div class="file-tags">${f.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>` : ''}
             </div>
             <button class="btn-icon">👁️</button>
         </div>
@@ -209,9 +1231,361 @@ window.simulateUpload = () => {
     input.type = 'file';
     input.onchange = e => {
         const file = e.target.files[0];
-        alert(`Uploading ${file.name} to Dr. Heba's secure clinical archive...\nProcessing for automated analysis.`);
+        showToast(`Uploading ${file.name}...`);
+        setTimeout(() => {
+            alert(`File "${file.name}" uploaded to secure clinical archive.\nAI is now processing the document for entity extraction.`);
+            showToast("Upload and processing complete.");
+        }, 1500);
     };
     input.click();
+};
+
+window.simulateOCR = () => {
+    alert("RADAR OCR MODULE: Initializing high-fidelity scan...\n\n- Detecting handwriting scripts\n- Normalizing clinical terminology\n- Extracting patient ID and vitals\n\nSuccess: Scanned data ready for clinical mapping.");
+    showToast("OCR Scan successful.");
+};
+
+window.simulateBulkImport = () => {
+    const confirmed = confirm("Migrate legacy manual records into AI-orchestrated folder structure?\n\nThis will process previously manual 'Input/Output' folders for Dr. Heba Moustafa.");
+    if (confirmed) {
+        alert("Legacy Migration Started...\n- Scanning local directories\n- Mapping patients\n- Orchestrating clinical files\n\nSuccess: 124 Patients migrated to AI Secure Archive.");
+    }
+};
+
+window.switchView = (viewId) => {
+  if (!isAuthenticated && viewId !== 'login') {
+    console.warn("Unauthorized access attempt. Please login.");
+    return;
+  }
+
+  // Hide all views
+  document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+  
+  const targetView = document.getElementById(`view-${viewId}`);
+  if (targetView) {
+    targetView.style.display = 'block';
+  } else {
+    console.error(`View ${viewId} not found`);
+    return;
+  }
+
+  // Update Active Nav
+  document.querySelectorAll('.nav-links li').forEach(li => li.classList.remove('active'));
+  const navItem = document.getElementById(`nav-${viewId}`);
+  if (navItem) navItem.classList.add('active');
+
+  // Trigger view-specific renders
+  if (viewId === 'calendar') renderCalendar();
+  if (viewId === 'dashboard') renderDashboardData();
+  if (viewId === 'patients') renderPatientsDetail();
+  if (viewId === 'assessments') renderAssessmentsView();
+
+  // Close sidebar on mobile
+  if (window.innerWidth <= 768) {
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebar) sidebar.classList.remove('active');
+  }
+};
+
+window.openNewSessionModal = () => {
+    const select = document.getElementById('sessionPatientSelect');
+    if (select) {
+        select.innerHTML = patients.map(p => `<option value="${p.id}">${p.name} (#${p.id})</option>`).join('');
+    }
+    document.getElementById('sessionModal').style.display = 'block';
+};
+
+window.closeSessionModal = () => {
+    document.getElementById('sessionModal').style.display = 'none';
+};
+
+let scribeInterval;
+let scribeTime = 0;
+
+window.startLinkedSession = () => {
+    const patientId = document.getElementById('sessionPatientSelect').value;
+    const patient = patients.find(p => p.id == patientId);
+    if (!patient) return;
+
+    currentActivePatientId = patient.id; // Track for archiving
+
+    document.getElementById('activeSessionPatient').innerText = patient.name;
+    document.getElementById('transcriptionFeed').innerHTML = '';
+    document.getElementById('realtimeAnalysis').innerHTML = '';
+    
+    closeSessionModal();
+    switchView('sessions');
+
+    alert(`Clinical Session Started for ${patient.name}.\n\nAI Scribe is active. Transcribing and cross-referencing with ${patient.name}'s historical clinical data for real-time hints.`);
+
+    startClinicalTimer();
+    runScribeSimulation();
+};
+
+const runScribeSimulation = () => {
+    clearInterval(scribeInterval);
+    scribeTime = 0;
+    const phrases = [
+        { role: "therapist", text: "Good morning. How have you been feeling since our last session?" },
+        { role: "patient", text: "A bit better, though I had a tough time on Tuesday night." },
+        { role: "therapist", text: "Can you tell me more about what happened on Tuesday?" },
+        { role: "patient", text: "I just felt this overwhelming sense of dread, like something bad was going to happen." },
+        { role: "therapist", text: "That sounds like a significant anxiety spike. Did you try the breathing exercises we discussed?" }
+    ];
+
+    let index = 0;
+    scribeInterval = setInterval(() => {
+        if (index >= phrases.length) {
+            clearInterval(scribeInterval);
+            return;
+        }
+
+        const p = phrases[index];
+        const feed = document.getElementById('transcriptionFeed');
+        if (feed) {
+            feed.innerHTML += `
+                <div class="scribe-line ${p.role}">
+                    <div class="scribe-bubble">${p.text}</div>
+                </div>
+            `;
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        // Sim analysis update
+        if (index % 2 === 0) {
+            const analysis = document.getElementById('realtimeAnalysis');
+            if (analysis) {
+                const now = new Date();
+                const timeStr = `${now.getHours()}:${now.getMinutes()}`;
+                analysis.innerHTML = `
+                    <div class="analysis-item">
+                        <span class="time">${timeStr}</span>
+                        <p>${index === 0 ? 'Baseline established: Patient appears cooperative but slightly fatigued.' : 'Insight: Anxiety trigger identified (Tuesday event). Correlation with previous OCPD traits noted.'}</p>
+                    </div>
+                ` + analysis.innerHTML;
+            }
+        }
+
+        index++;
+    }, 3000);
+};
+
+window.pauseScribe = () => {
+    clearInterval(scribeInterval);
+    alert("AI Scribe Paused. HIPAA-compliant recording suspended.");
+};
+
+window.stopScribe = () => {
+    clearInterval(scribeInterval);
+    stopClinicalTimer();
+    
+    // Simulate AI Draft Generation for SOAP Note
+    document.getElementById('soapSubjective').value = "Patient reports increased work stress but improved mood since starting behavioral activation. Expressed concern about upcoming presentation.";
+    document.getElementById('soapObjective').value = "Affect is congruent, speech is normal rate/volume. PHQ-9 score today: 10 (Moderate). Cooperative during session.";
+    document.getElementById('soapAssessment').value = "Progressing well in Phase 1. Cognitive distortions related to 'All-or-Nothing' thinking persist but patient is self-correcting.";
+    document.getElementById('soapPlan').value = "Assign CBT Thought Record for presentation-related anxiety. Next session: Friday at 2 PM.";
+    
+    document.getElementById('soapModal').style.display = 'block';
+};
+
+window.closeSoapModal = () => {
+    document.getElementById('soapModal').style.display = 'none';
+    switchView('dashboard');
+    stopClinicalTimer();
+};
+
+window.fileSoapNote = () => {
+    const alliance = document.getElementById('allianceScore').value;
+    showToast(`SOAP Note Filed. Therapeutic Alliance: ${alliance}/10. Session archived to patient folder.`);
+    closeSoapModal();
+    
+    // Original Archive Logic
+    const patient = patients.find(p => p.id == currentActivePatientId);
+    if (patient) {
+        const dateStr = new Date().toISOString().split('T')[0];
+        const fileName = `Session_Transcript_${dateStr}.txt`;
+        if (!patient.files) patient.files = { input: [], processed: [], output: [], reports: [] };
+        patient.files.processed.unshift({
+            name: fileName,
+            date: dateStr,
+            size: "18KB",
+            tags: ["AI Scribe", "Automated", "SOAP Filed"]
+        });
+        showToast("Patient File Archive Synced.");
+        
+        alert(`Session Finalized. AI is now "Processing" the clinical data:
+        
+1. Clinical Entity Extraction: Identifying symptoms and medications.
+2. SCID-II Mapping: Checking against 12 PD domain thresholds.
+3. Risk Verification: Scanning for self-harm or aggression flags.
+4. Note Generation: Creating a draft SOAP note for Dr. Heba's review.
+5. Archive Sync: Updating Input, Processed, and Output folders.`);
+        
+        switchView('dashboard');
+        currentActivePatientId = null;
+        stopClinicalTimer();
+    }
+};
+
+// --- Therapist Power Tools Logic ---
+let clinicalTimerInterval = null;
+let clinicalSeconds = 0;
+
+window.startClinicalTimer = () => {
+  clinicalSeconds = 0;
+  updateTimerDisplay();
+  clearInterval(clinicalTimerInterval);
+  clinicalTimerInterval = setInterval(() => {
+    clinicalSeconds++;
+    updateTimerDisplay();
+    updateSessionPhase();
+  }, 1000);
+};
+
+window.stopClinicalTimer = () => {
+  clearInterval(clinicalTimerInterval);
+};
+
+const updateTimerDisplay = () => {
+  const h = Math.floor(clinicalSeconds / 3600).toString().padStart(2, '0');
+  const m = Math.floor((clinicalSeconds % 3600) / 60).toString().padStart(2, '0');
+  const s = (clinicalSeconds % 60).toString().padStart(2, '0');
+  const display = document.querySelector('.timer-display');
+  if (display) display.innerText = `${h}:${m}:${s}`;
+};
+
+const updateSessionPhase = () => {
+  const badge = document.getElementById('sessionTimerBadge');
+  if (!badge) return;
+
+  if (clinicalSeconds < 300) { // First 5 mins
+    badge.innerText = "Intake/Check-in";
+    badge.className = "tag active";
+  } else if (clinicalSeconds < 1800) { // 5-30 mins
+    badge.innerText = "Processing/Deep Dive";
+    badge.className = "tag urgent";
+  } else {
+    badge.innerText = "Closing/Action Plan";
+    badge.className = "tag med";
+  }
+};
+
+window.switchPanelTab = (tabId) => {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.innerText.toLowerCase().includes(tabId));
+  });
+  document.querySelectorAll('.tab-content').forEach(content => {
+    content.style.display = content.id === `panel-${tabId}` ? 'block' : 'none';
+  });
+};
+
+window.toggleToolBody = (bodyId) => {
+  const body = document.getElementById(bodyId);
+  if (body) {
+    body.style.display = body.style.display === 'none' ? 'block' : 'none';
+  }
+};
+
+const interventions = {
+  cbt: "Self-Monitoring: 'Notice the thought you just had about Tuesday. Is it a fact or a feeling?'\r\nCognitive Restructuring: 'What is the evidence against this dread?'",
+  dbt: "Distress Tolerance: Suggest TIPP skills (Temperature, Intense exercise, Paced breathing).\r\nValidation: 'It makes sense you felt dread given the week you had.'",
+  act: "Defusion: 'Try saying: I am having the thought that something bad will happen.'\r\nValues: 'How does this dread keep you from the parent you want to be?'"
+};
+
+window.showIntervention = (school) => {
+  const content = document.getElementById('interventionContent');
+  if (content) {
+    content.innerText = interventions[school] || "Select a school.";
+    content.classList.add('active'); // Pulse effect if we had one
+  }
+};
+
+window.openSafetyPlanner = () => {
+  const patient = patients.find(p => p.id == currentActivePatientId);
+  const name = patient ? patient.name : "Active Patient";
+  alert(`RADAR PROTOCOL INITIATED: Creating Rapid Safety Plan for ${name}.\n\n1. Warning Signs Identified.\n2. Internal Coping Tools Logged.\n3. Social Contacts Verified.\n4. Professional Help Hotlines Updated.\n\nSafety plan will be filed in Processed/ folder.`);
+  
+  if (patient) {
+    const dateStr = new Date().toISOString().split('T')[0];
+    if (!patient.files) patient.files = { input: [], processed: [], output: [], reports: [] };
+    patient.files.processed.unshift({
+        name: `CRISIS_SAFETY_PLAN_${dateStr}.md`,
+        date: dateStr,
+        size: "4KB",
+        tags: ["Crisis", "High Priority"]
+    });
+  }
+};
+
+const scid2Config = {
+    domains: [
+        { name: "Avoidant", threshold: 4, items: [1,2,3,4,5,6,7] },
+        { name: "Dependent", threshold: 5, items: [8,9,10,11,12,13,14,15] },
+        { name: "OCPD", threshold: 4, items: [16,17,18,19,20,21,22,23] },
+        { name: "Passive-Aggressive", threshold: 4, items: [24,25,26,27,28,29,30,31] },
+        { name: "Depressive", threshold: 5, items: [32,33,34,35,36,37,38,39] },
+        { name: "Paranoid", threshold: 4, items: [40,41,42,43,44,45,46] },
+        { name: "Schizotypal", threshold: 5, items: [47,48,49,50,51,52,53,54,55] },
+        { name: "Schizoid", threshold: 4, items: [56,57,58,59,60,61,62] },
+        { name: "Histrionic", threshold: 5, items: [63,64,65,66,67,68,69,70] },
+        { name: "Narcissistic", threshold: 5, items: [71,72,73,74,75,76,77,78,79,80] },
+        { name: "Borderline", threshold: 5, items: [81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98] },
+        { name: "Antisocial", threshold: 3, items: [99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115] },
+        { name: "Mixed/NOS", threshold: 1, items: [116,117,118,119] }
+    ],
+    riskFlags: {
+        selfHarm: [97, 98],
+        aggression: [105, 106, 107, 108, 109, 110, 111, 112, 113, 114]
+    }
+};
+
+window.openReportViewer = (patientName) => {
+    const modal = document.getElementById('reportModal');
+    const body = document.getElementById('reportViewerBody');
+    if (!modal || !body) return;
+
+    body.innerHTML = `
+        <div class="clinical-report-content">
+            <section class="report-section">
+                <h3>Patient Identification</h3>
+                <p><strong>Name:</strong> ${patientName} | <strong>Case ID:</strong> PSY-8829 | <strong>Verified by:</strong> Dr. Heba Moustafa</p>
+            </section>
+            
+            <section class="report-section">
+                <h3>Clinical Summary (AI Generated)</h3>
+                <p>Patient presents with persistent symptoms of Generalized Anxiety Disorder (GAD-7 Score: 18). Longitudinal analysis indicates strong correlation between work-related stressors and sleep fragmentation. AI Orchestrator identifies a 22% improvement in mindfulness compliance over the last 30 days.</p>
+            </section>
+
+            <section class="report-section">
+                <h3>Diagnostic Insights</h3>
+                <ul>
+                    <li>Primary Focus: Anxiety management and cognitive reframing.</li>
+                    <li>Risk Level: Low (Stabilized).</li>
+                    <li>Symptom Trend: Improving (PHQ-9 decrease of 4 points).</li>
+                </ul>
+            </section>
+
+            <section class="report-section">
+                <h3>Recommended Interventions</h3>
+                <ol>
+                    <li>Integration of emotion-focused therapy techniques.</li>
+                    <li>Adjust sleep hygiene protocols (Refer to AI Alert from Session 4).</li>
+                    <li>Maintenance of current SSRI dosage (Pending Dr. Heba's final verification).</li>
+                </ol>
+            </section>
+
+            <div class="report-signature">
+                <p><em>Electronically Signed by:</em></p>
+                <p><strong>Dr. Heba Moustafa</strong></p>
+                <p>Clinical Lead</p>
+            </div>
+        </div>
+    `;
+    modal.style.display = 'block';
+};
+
+window.closeReportModal = () => {
+    document.getElementById('reportModal').style.display = 'none';
 };
 
 const renderDashboardData = () => {
@@ -311,23 +1685,56 @@ window.openAssessment = (type) => {
   const guide = document.getElementById('guideContent');
   const submitBtn = document.getElementById('submitBtn');
 
-  title.innerText = data.title;
-  guide.innerHTML = data.guide || "<p>No guide available for this test.</p>";
+  // Multi-language title
+  title.innerHTML = `
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span style="font-size: 1.2rem; font-weight: 700;">${data.en.title}</span>
+      <span style="font-size: 1rem; color: var(--primary); font-family: 'Outfit';">${data.ar.title}</span>
+    </div>
+  `;
+  
+  guide.innerHTML = `
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <div class="guide-en">${data.en.guide}</div>
+      <div class="guide-ar" dirdir="rtl" style="text-align: right; font-family: 'Inter';">${data.ar.guide}</div>
+    </div>
+  `;
+  
   submitBtn.style.display = 'block';
   
-  body.innerHTML = data.questions.map((q, i) => `
-    <div class="question-item">
-      <span class="question-text">${i + 1}. ${q}</span>
-      <div class="options-grid">
-        ${data.options.map((opt, oi) => `
-          <label>
-            <input type="radio" name="q${i}" value="${oi}" required>
-            <div class="option-btn">${opt}</div>
-          </label>
-        `).join('')}
+  body.innerHTML = data.questions.map((q, i) => {
+    // Check if question is already bilingual (contains /)
+    const isBilingual = q.includes(' / ');
+    const [qEn, qAr] = isBilingual ? q.split(' / ') : [q, q];
+    
+    // Get clinician prompt if it exists
+    const prompt = data.prompts && data.prompts[i] ? data.prompts[i] : null;
+
+    return `
+      <div class="question-item" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 20px;">
+        <div class="question-text-pair" style="display: flex; flex-direction: column; gap: 8px;">
+          <span class="question-en" style="font-weight: 600; font-size: 15px;">${i + 1}. ${qEn}</span>
+          <span class="question-ar" dir="rtl" style="text-align: right; color: var(--primary); font-weight: 500;">${qAr}</span>
+          ${prompt ? `<div class="clinician-prompt">${prompt}</div>` : ''}
+        </div>
+        <div class="options-grid" style="margin-top: 15px;">
+          ${data.options.map((opt, oi) => {
+            const isOptBilingual = opt.includes(' / ');
+            const [optEn, optAr] = isOptBilingual ? opt.split(' / ') : [opt, opt];
+            return `
+              <label>
+                <input type="radio" name="q${i}" value="${oi}" required>
+                <div class="option-btn" style="display: flex; flex-direction: column; gap: 4px; padding: 10px; text-align: center;">
+                  <span style="font-size: 13px; font-weight: 600;">${optEn}</span>
+                  <span dir="rtl" style="font-size: 11px; color: var(--primary);">${optAr}</span>
+                </div>
+              </label>
+            `;
+          }).join('')}
+        </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   modal.style.display = 'block';
 };
@@ -337,13 +1744,36 @@ window.closeModal = () => {
 };
 
 window.submitAssessment = () => {
-  const formValues = Array.from(document.querySelectorAll('input[type="radio"]:checked')).map(i => parseInt(i.value));
-  if (formValues.length < assessments[currentAssessment].questions.length) {
+  const data = assessments[currentAssessment];
+  const checks = Array.from(document.querySelectorAll('input[type="radio"]:checked'));
+  
+  if (checks.length < data.questions.length) {
     alert('Please answer all questions.');
     return;
   }
 
-  const score = formValues.reduce((a, b) => a + b, 0);
+  // Specialized SCID-II Scoring
+  if (currentAssessment === 'scid2') {
+    let hasRisk = false;
+    checks.forEach(i => {
+        const qIndex = parseInt(i.name.replace('q', ''));
+        const qId = [1, 2, 3, 97, 105, 71][qIndex]; // Map to our simulated IDs
+        if (i.value === "0" && (scid2Config.riskFlags.selfHarm.includes(qId) || scid2Config.riskFlags.aggression.includes(qId))) {
+            hasRisk = true;
+        }
+    });
+
+    if (hasRisk) {
+        alert("🚨 SAFETY ESCALATION TRIGGERED\n\nDirect endorsement of self-harm or aggression items detected (Arabic SCID-II Screen).\n\nRecommendations:\n1. Urgent clinician action required.\n2. Prioritize safety plan / Crisis pathway.\n3. Verify these endorsements in clinical interview.");
+    } else {
+        alert("SCID-II Responses Logged.\n\nAI is computing domain thresholds (e.g., Narcissistic, Avoidant) based on the Ain Shams University clinical scoring model. Results will be added to Dr. Heba's review queue.");
+    }
+    closeModal();
+    return;
+  }
+
+  // Default Scoring for PHQ-9/GAD-7 etc.
+  const score = checks.map(i => parseInt(i.value)).reduce((a, b) => a + b, 0);
   let severity = "Low";
   let classList = "low";
   if (score > 12) { severity = "High"; classList = "high"; }
@@ -360,8 +1790,58 @@ window.submitAssessment = () => {
   document.getElementById('submitBtn').style.display = 'none';
 };
 
+// Patient Registration Logic
+window.openRegisterModal = () => {
+    document.getElementById('registerModal').style.display = 'block';
+};
+
+window.closeRegisterModal = () => {
+    document.getElementById('registerModal').style.display = 'none';
+};
+
+window.handleRegisterPatient = () => {
+    const name = document.getElementById('regName').value;
+    const diagnosis = document.getElementById('regDiagnosis').value || "Screening Pending";
+    const risk = document.getElementById('regRisk').value;
+
+    if (!name) {
+        alert("Patient name is required.");
+        return;
+    }
+
+    const newId = patients.length + 1;
+    const newPatient = {
+        id: newId,
+        name: name,
+        age: "N/A",
+        diagnosis: diagnosis,
+        status: "Active",
+        risk: risk,
+        lastSeen: "Just Now",
+        files: { input: [], processed: [], output: [], reports: [] }
+    };
+
+    patients.unshift(newPatient); // Add to the beginning of the list
+    renderPatientsDetail(); // Refresh the table
+    closeRegisterModal();
+    showToast(`Patient ${name} registered successfully.`);
+    
+    // Reset form
+    document.getElementById('registerPatientForm').reset();
+};
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    // Persistent Demo Bypass Check
+    if (localStorage.getItem('demo_mode') === 'true') {
+        console.log("Demo Mode Detected: Auto-unlocking...");
+        isAuthenticated = true;
+        document.getElementById('view-login').style.display = 'none';
+        const appContainer = document.querySelector('.app-container');
+        if (appContainer) appContainer.style.display = 'flex';
+        switchView('dashboard');
+    }
+
     renderDashboardData();
     // Re-init chart on window resize for responsiveness
     window.addEventListener('resize', () => {

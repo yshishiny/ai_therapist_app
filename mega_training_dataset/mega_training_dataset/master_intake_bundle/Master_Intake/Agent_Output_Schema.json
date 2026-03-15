@@ -1,0 +1,52 @@
+{
+  "patient_id": "string",
+  "demographics": {
+    "age": "int",
+    "gender": "string",
+    "language": "string"
+  },
+  "narrative": {
+    "presenting_problem": "string",
+    "goals_8_weeks": "string"
+  },
+  "ratings": [
+    {
+      "item": "int",
+      "score_0_to_4": "int"
+    }
+  ],
+  "composites": {
+    "<name>": {
+      "total": "int",
+      "max": "int",
+      "band": "string",
+      "items": [
+        "int"
+      ]
+    }
+  },
+  "risk_flags": {
+    "any": "bool",
+    "items": [
+      {
+        "item": "int",
+        "score": "int",
+        "note": "string"
+      }
+    ]
+  },
+  "routing": {
+    "suggested_school": "string",
+    "why": "string"
+  },
+  "recommendations": [
+    {
+      "priority": "int",
+      "text": "string"
+    }
+  ],
+  "notes": {
+    "screening_only": true,
+    "requires_clinician_judgment": true
+  }
+}

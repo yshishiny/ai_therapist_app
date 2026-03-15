@@ -1,0 +1,591 @@
+{
+  "patient_id": "Patient_03_Paranoid",
+  "patient_meta": {
+    "age": 45,
+    "gender": "Male",
+    "context": "Suspiciousness at work, misinterprets comments, holds grudges"
+  },
+  "responses": [
+    {
+      "item": 1,
+      "response": "No"
+    },
+    {
+      "item": 2,
+      "response": "No"
+    },
+    {
+      "item": 3,
+      "response": "No"
+    },
+    {
+      "item": 4,
+      "response": "No"
+    },
+    {
+      "item": 5,
+      "response": "No"
+    },
+    {
+      "item": 6,
+      "response": "No"
+    },
+    {
+      "item": 7,
+      "response": "No"
+    },
+    {
+      "item": 8,
+      "response": "No"
+    },
+    {
+      "item": 9,
+      "response": "No"
+    },
+    {
+      "item": 10,
+      "response": "No"
+    },
+    {
+      "item": 11,
+      "response": "No"
+    },
+    {
+      "item": 12,
+      "response": "No"
+    },
+    {
+      "item": 13,
+      "response": "No"
+    },
+    {
+      "item": 14,
+      "response": "No"
+    },
+    {
+      "item": 15,
+      "response": "No"
+    },
+    {
+      "item": 16,
+      "response": "No"
+    },
+    {
+      "item": 17,
+      "response": "No"
+    },
+    {
+      "item": 18,
+      "response": "No"
+    },
+    {
+      "item": 19,
+      "response": "No"
+    },
+    {
+      "item": 20,
+      "response": "No"
+    },
+    {
+      "item": 21,
+      "response": "No"
+    },
+    {
+      "item": 22,
+      "response": "No"
+    },
+    {
+      "item": 23,
+      "response": "No"
+    },
+    {
+      "item": 24,
+      "response": "No"
+    },
+    {
+      "item": 25,
+      "response": "No"
+    },
+    {
+      "item": 26,
+      "response": "No"
+    },
+    {
+      "item": 27,
+      "response": "No"
+    },
+    {
+      "item": 28,
+      "response": "No"
+    },
+    {
+      "item": 29,
+      "response": "No"
+    },
+    {
+      "item": 30,
+      "response": "No"
+    },
+    {
+      "item": 31,
+      "response": "No"
+    },
+    {
+      "item": 32,
+      "response": "No"
+    },
+    {
+      "item": 33,
+      "response": "No"
+    },
+    {
+      "item": 34,
+      "response": "No"
+    },
+    {
+      "item": 35,
+      "response": "No"
+    },
+    {
+      "item": 36,
+      "response": "No"
+    },
+    {
+      "item": 37,
+      "response": "No"
+    },
+    {
+      "item": 38,
+      "response": "No"
+    },
+    {
+      "item": 39,
+      "response": "No"
+    },
+    {
+      "item": 40,
+      "response": "No"
+    },
+    {
+      "item": 41,
+      "response": "Yes"
+    },
+    {
+      "item": 42,
+      "response": "No"
+    },
+    {
+      "item": 43,
+      "response": "Yes"
+    },
+    {
+      "item": 44,
+      "response": "Yes"
+    },
+    {
+      "item": 45,
+      "response": "Yes"
+    },
+    {
+      "item": 46,
+      "response": "Yes"
+    },
+    {
+      "item": 47,
+      "response": "Yes"
+    },
+    {
+      "item": 48,
+      "response": "Yes"
+    },
+    {
+      "item": 49,
+      "response": "Yes"
+    },
+    {
+      "item": 50,
+      "response": "No"
+    },
+    {
+      "item": 51,
+      "response": "No"
+    },
+    {
+      "item": 52,
+      "response": "No"
+    },
+    {
+      "item": 53,
+      "response": "No"
+    },
+    {
+      "item": 54,
+      "response": "No"
+    },
+    {
+      "item": 55,
+      "response": "No"
+    },
+    {
+      "item": 56,
+      "response": "No"
+    },
+    {
+      "item": 57,
+      "response": "No"
+    },
+    {
+      "item": 58,
+      "response": "No"
+    },
+    {
+      "item": 59,
+      "response": "No"
+    },
+    {
+      "item": 60,
+      "response": "No"
+    },
+    {
+      "item": 61,
+      "response": "No"
+    },
+    {
+      "item": 62,
+      "response": "No"
+    },
+    {
+      "item": 63,
+      "response": "No"
+    },
+    {
+      "item": 64,
+      "response": "No"
+    },
+    {
+      "item": 65,
+      "response": "No"
+    },
+    {
+      "item": 66,
+      "response": "No"
+    },
+    {
+      "item": 67,
+      "response": "No"
+    },
+    {
+      "item": 68,
+      "response": "No"
+    },
+    {
+      "item": 69,
+      "response": "No"
+    },
+    {
+      "item": 70,
+      "response": "No"
+    },
+    {
+      "item": 71,
+      "response": "No"
+    },
+    {
+      "item": 72,
+      "response": "No"
+    },
+    {
+      "item": 73,
+      "response": "No"
+    },
+    {
+      "item": 74,
+      "response": "No"
+    },
+    {
+      "item": 75,
+      "response": "No"
+    },
+    {
+      "item": 76,
+      "response": "No"
+    },
+    {
+      "item": 77,
+      "response": "No"
+    },
+    {
+      "item": 78,
+      "response": "No"
+    },
+    {
+      "item": 79,
+      "response": "No"
+    },
+    {
+      "item": 80,
+      "response": "No"
+    },
+    {
+      "item": 81,
+      "response": "No"
+    },
+    {
+      "item": 82,
+      "response": "No"
+    },
+    {
+      "item": 83,
+      "response": "No"
+    },
+    {
+      "item": 84,
+      "response": "No"
+    },
+    {
+      "item": 85,
+      "response": "No"
+    },
+    {
+      "item": 86,
+      "response": "No"
+    },
+    {
+      "item": 87,
+      "response": "No"
+    },
+    {
+      "item": 88,
+      "response": "No"
+    },
+    {
+      "item": 89,
+      "response": "No"
+    },
+    {
+      "item": 90,
+      "response": "No"
+    },
+    {
+      "item": 91,
+      "response": "No"
+    },
+    {
+      "item": 92,
+      "response": "No"
+    },
+    {
+      "item": 93,
+      "response": "No"
+    },
+    {
+      "item": 94,
+      "response": "No"
+    },
+    {
+      "item": 95,
+      "response": "No"
+    },
+    {
+      "item": 96,
+      "response": "No"
+    },
+    {
+      "item": 97,
+      "response": "No"
+    },
+    {
+      "item": 98,
+      "response": "No"
+    },
+    {
+      "item": 99,
+      "response": "No"
+    },
+    {
+      "item": 100,
+      "response": "No"
+    },
+    {
+      "item": 101,
+      "response": "No"
+    },
+    {
+      "item": 102,
+      "response": "No"
+    },
+    {
+      "item": 103,
+      "response": "No"
+    },
+    {
+      "item": 104,
+      "response": "No"
+    },
+    {
+      "item": 105,
+      "response": "No"
+    },
+    {
+      "item": 106,
+      "response": "No"
+    },
+    {
+      "item": 107,
+      "response": "No"
+    },
+    {
+      "item": 108,
+      "response": "No"
+    },
+    {
+      "item": 109,
+      "response": "No"
+    },
+    {
+      "item": 110,
+      "response": "No"
+    },
+    {
+      "item": 111,
+      "response": "No"
+    },
+    {
+      "item": 112,
+      "response": "No"
+    },
+    {
+      "item": 113,
+      "response": "No"
+    },
+    {
+      "item": 114,
+      "response": "No"
+    },
+    {
+      "item": 115,
+      "response": "No"
+    },
+    {
+      "item": 116,
+      "response": "No"
+    },
+    {
+      "item": 117,
+      "response": "No"
+    },
+    {
+      "item": 118,
+      "response": "No"
+    },
+    {
+      "item": 119,
+      "response": "No"
+    }
+  ],
+  "domain_scores": [
+    {
+      "domain": "Avoidant",
+      "yes_count": 0,
+      "threshold": 4,
+      "screen_positive": false,
+      "yes_items": []
+    },
+    {
+      "domain": "Dependent",
+      "yes_count": 0,
+      "threshold": 5,
+      "screen_positive": false,
+      "yes_items": []
+    },
+    {
+      "domain": "Obsessive-Compulsive",
+      "yes_count": 0,
+      "threshold": 4,
+      "screen_positive": false,
+      "yes_items": []
+    },
+    {
+      "domain": "Passive-Aggressive",
+      "yes_count": 0,
+      "threshold": 4,
+      "screen_positive": false,
+      "yes_items": []
+    },
+    {
+      "domain": "Depressive",
+      "yes_count": 0,
+      "threshold": 5,
+      "screen_positive": false,
+      "yes_items": []
+    },
+    {
+      "domain": "Paranoid",
+      "yes_count": 7,
+      "threshold": 4,
+      "screen_positive": true,
+      "yes_items": [
+        41,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48
+      ]
+    },
+    {
+      "domain": "Schizotypal",
+      "yes_count": 1,
+      "threshold": 5,
+      "screen_positive": false,
+      "yes_items": [
+        49
+      ]
+    },
+    {
+      "domain": "Schizoid",
+      "yes_count": 0,
+      "threshold": 4,
+      "screen_positive": false,
+      "yes_items": []
+    },
+    {
+      "domain": "Histrionic",
+      "yes_count": 0,
+      "threshold": 5,
+      "screen_positive": false,
+      "yes_items": []
+    },
+    {
+      "domain": "Narcissistic",
+      "yes_count": 0,
+      "threshold": 5,
+      "screen_positive": false,
+      "yes_items": []
+    },
+    {
+      "domain": "Borderline",
+      "yes_count": 0,
+      "threshold": 5,
+      "screen_positive": false,
+      "yes_items": []
+    },
+    {
+      "domain": "Antisocial",
+      "yes_count": 0,
+      "threshold": 3,
+      "screen_positive": false,
+      "yes_items": []
+    }
+  ],
+  "risk_flags": {
+    "self_harm": [],
+    "violence_weapon": [],
+    "sexual_coercion": []
+  },
+  "notes": {
+    "screening_only": true,
+    "requires_clinician_interview": true
+  }
+}

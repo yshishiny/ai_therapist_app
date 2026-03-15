@@ -1,0 +1,126 @@
+{
+  "patient_id": "CBT_P03_Rumination",
+  "context": "Persistent rumination and cognitive reactivity after breakup; sleep disrupted.",
+  "responses": [
+    {
+      "item": 1,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 2,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 3,
+      "score_0_to_4": 4
+    },
+    {
+      "item": 4,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 5,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 6,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 7,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 8,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 9,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 10,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 11,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 12,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 13,
+      "score_0_to_4": 4
+    },
+    {
+      "item": 14,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 15,
+      "score_0_to_4": 4
+    },
+    {
+      "item": 16,
+      "score_0_to_4": 0
+    }
+  ],
+  "subscale_scores": {
+    "Depressed mood/Anhedonia": {
+      "total": 7,
+      "max": 12,
+      "band": "Moderate"
+    },
+    "Sleep/Energy/Appetite": {
+      "total": 7,
+      "max": 12,
+      "band": "Moderate"
+    },
+    "Concentration": {
+      "total": 1,
+      "max": 4,
+      "band": "Mild"
+    },
+    "Anxiety/Worry": {
+      "total": 4,
+      "max": 12,
+      "band": "Mild"
+    },
+    "Avoidance/Safety behaviors": {
+      "total": 4,
+      "max": 12,
+      "band": "Mild"
+    },
+    "Rumination/Cognitive reactivity": {
+      "total": 8,
+      "max": 8,
+      "band": "High"
+    },
+    "Stress load": {
+      "total": 0,
+      "max": 4,
+      "band": "Minimal"
+    }
+  },
+  "risk_flags": {
+    "any": false,
+    "items": []
+  },
+  "recommendations": [
+    {
+      "priority": 1,
+      "school": "CBT",
+      "text": "Cognitive distancing: label thoughts as thoughts; set a 10-min worry/rumination window."
+    },
+    {
+      "priority": 2,
+      "school": "CBT",
+      "text": "Behavioral activation: schedule 2 small rewarding/valued activities; track mood/energy."
+    }
+  ],
+  "notes": {
+    "screening_only": true
+  }
+}

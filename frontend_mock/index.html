@@ -12,33 +12,98 @@
     />
     <link rel="stylesheet" href="./style.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer onerror="console.warn('Google Script Load Error'); initAuthFallback();"></script>
   </head>
   <body>
-    <div class="app-container">
+    <!-- Login View (Locked by default) -->
+    <div id="view-login" class="view" style="display: flex; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--bg); z-index: 10000; justify-content: center; align-items: center; flex-direction: column; gap: 30px;">
+      <div class="logo" style="margin-bottom: 0;">
+        <span class="logo-icon" style="font-size: 64px;">🧘</span>
+        <h1 style="font-size: 32px;">AI Therapist</h1>
+      </div>
+      <div class="auth-card glass" style="padding: 40px; border-radius: 24px; text-align: center; max-width: 400px; border: 2px solid var(--primary);">
+        <!-- Emergency Bypass (Prominent) -->
+        <div style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+          <button class="btn btn-primary" onclick="demoLogin()" style="width: 100%; padding: 15px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">
+            Emergency Clinical Bypass
+          </button>
+          <p style="font-size: 11px; color: #ffab00; margin-top: 8px;">Use this if Google Sign-In is not working in your region.</p>
+        </div>
+
+        <h2 style="margin-bottom: 10px;">Google Authentication</h2>
+        <p style="color: var(--text-light); margin-bottom: 20px; font-size: 13px;">Official Secure Access</p>
+        
+        <div id="google-auth-container">
+          <div id="g_id_onload"
+               data-client_id="YOUR_GOOGLE_CLIENT_ID"
+               data-context="use"
+               data-ux_mode="popup"
+               data-callback="handleCredentialResponse"
+               data-auto_prompt="false">
+          </div>
+          <div class="g_id_signin"
+               data-type="standard"
+               data-shape="rectangular"
+               data-theme="outline"
+               data-text="signin_with"
+               data-size="large"
+               data-logo_alignment="left">
+          </div>
+        </div>
+
+        <div style="margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+          <a href="#" onclick="forceDashboard()" style="color: var(--primary); font-size: 12px; text-decoration: none; opacity: 0.5;">[Developer] Force dashboard state</a>
+        </div>
+      </div>
+      <p style="font-size: 12px; color: var(--text-light); opacity: 0.5;">Secure Clinical Environment &bull; HIPAA Compliant Simulation</p>
+    </div>
+
+    <div class="app-container" style="display: none;">
+      <!-- Mobile Header -->
+      <header class="mobile-header">
+        <div class="logo">
+          <span class="logo-icon">🧘</span>
+          <h1 style="font-size: 16px;">AI Therapist</h1>
+        </div>
+        <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+      </header>
+
       <!-- Sidebar -->
       <nav class="sidebar">
         <div class="logo">
           <span class="logo-icon">🧘</span>
           <h1>AI Therapist</h1>
         </div>
+        <div class="lang-toggle" style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-sm" onclick="setLanguage('en')">EN</button>
+            <button class="btn-sm" onclick="setLanguage('ar')">AR</button>
+          </div>
+          <div class="theme-toggle" style="display: flex; gap: 8px;">
+            <button onclick="setTheme('light')" title="Clinical Light" style="background: #f5f7f8; border: 1px solid #ccc; width: 24px; height: 24px; border-radius: 6px; cursor: pointer;"></button>
+            <button onclick="setTheme('dark')" title="Professional Dark" style="background: #1a1c1e; border: 1px solid #333; width: 24px; height: 24px; border-radius: 6px; cursor: pointer;"></button>
+            <button onclick="setTheme('high-contrast')" title="High Contrast" style="background: #000; border: 2px solid #ffff00; width: 24px; height: 24px; border-radius: 6px; cursor: pointer;"></button>
+          </div>
+        </div>
         <ul class="nav-links">
           <li class="active" id="nav-dashboard">
-            <a href="#" onclick="switchView('dashboard')"><span class="icon">📊</span> Dashboard</a>
+            <a href="#" onclick="switchView('dashboard')"><span class="icon">📊</span> <span data-i18n="sidebar_dashboard">Dashboard</span></a>
           </li>
           <li id="nav-patients">
-            <a href="#" onclick="switchView('patients')"><span class="icon">👥</span> Patients</a>
+            <a href="#" onclick="switchView('patients')"><span class="icon">👥</span> <span data-i18n="sidebar_patients">Patients</span></a>
           </li>
           <li id="nav-calendar">
-            <a href="#" onclick="switchView('calendar')"><span class="icon">📅</span> Calendar</a>
+            <a href="#" onclick="switchView('calendar')"><span class="icon">📅</span> <span data-i18n="sidebar_calendar">Calendar</span></a>
           </li>
           <li id="nav-sessions">
-            <a href="#" onclick="switchView('sessions')"><span class="icon">📝</span> Sessions</a>
+            <a href="#" onclick="switchView('sessions')"><span class="icon">📝</span> <span data-i18n="sidebar_sessions">Sessions</span></a>
           </li>
           <li id="nav-assessments">
-            <a href="#" onclick="switchView('assessments')"><span class="icon">📋</span> Assessments</a>
+            <a href="#" onclick="switchView('assessments')"><span class="icon">📋</span> <span data-i18n="sidebar_assessments">Assessments</span></a>
           </li>
           <li id="nav-settings">
-            <a href="#" onclick="switchView('settings')"><span class="icon">⚙️</span> Settings</a>
+            <a href="#" onclick="switchView('settings')"><span class="icon">⚙️</span> <span data-i18n="sidebar_settings">Settings</span></a>
           </li>
         </ul>
         <div class="user-profile">
@@ -55,22 +120,23 @@
       <!-- Dashboard View -->
       <div id="view-dashboard" class="view">
         <header class="top-bar">
-          <h2>Executive Overview</h2>
+          <h2 data-i18n="header_dashboard">Executive Overview</h2>
           <div class="actions">
+            <button class="btn btn-secondary" onclick="simulateBulkImport()">Import Legacy Data</button>
             <button class="btn btn-secondary">Export PHI</button>
-            <button class="btn btn-primary" onclick="switchView('sessions')">+ New Session</button>
+            <button class="btn btn-primary" onclick="openNewSessionModal()">+ New Session</button>
           </div>
         </header>
 
         <!-- Stats Grid -->
         <section class="stats-grid">
           <div class="stat-card">
-            <span class="label">Active Patients</span>
+            <span class="label" data-i18n="stat_active">Active Patients</span>
             <span class="value">42</span>
             <span class="trend pos">↑ 18%</span>
           </div>
           <div class="stat-card">
-            <span class="label">Risk Alerts</span>
+            <span class="label" data-i18n="stat_urgent">Risk Alerts</span>
             <span class="value risk">5</span>
             <span class="trend neg">Immediate Action</span>
           </div>
@@ -80,7 +146,7 @@
             <span class="trend pos">↑ 7%</span>
           </div>
           <div class="stat-card">
-            <span class="label">AI Documentation Save</span>
+            <span class="label" data-i18n="stat_sessions">AI Documentation Save</span>
             <span class="value">22h</span>
             <span class="trend pos">This month</span>
           </div>
@@ -164,29 +230,215 @@
           <h2>Clinical Assessment Library</h2>
           <div class="actions">
             <button class="btn btn-secondary" onclick="simulateUpload()">+ Upload Hardcopy Scan</button>
+            <button class="btn btn-accent" onclick="simulateOCR()">+ Scan Handwritten Note</button>
           </div>
         </header>
         <section class="assessment-center stats-grid">
+          <!-- Professional Diagnostic Screens (Gold Standard) -->
+          <div class="stat-card clickable" onclick="openAssessment('bdii')">
+            <span class="label">Beck/UPenn DSM-5</span>
+            <div class="bilingual-title">
+              <span class="en">BDI-II Depression</span>
+              <span class="ar">مقياس بيك للاكتئاب</span>
+            </div>
+            <span class="trend">Gold Standard Inventory</span>
+          </div>
+          <div class="stat-card clickable" onclick="openAssessment('asrs')">
+            <span class="label">Harvard/WHO ADHD</span>
+            <div class="bilingual-title">
+              <span class="en">ASRS v1.1 Screen</span>
+              <span class="ar">مقياس نقص الانتباه</span>
+            </div>
+            <span class="trend">Diagnostic Adult ADHD</span>
+          </div>
+          <div class="stat-card clickable" onclick="openAssessment('pcl5')">
+            <span class="label">VA/ICD-11 PTSD</span>
+            <div class="bilingual-title">
+              <span class="en">PCL-5 Standard</span>
+              <span class="ar">مقياس الصدمة PTSD</span>
+            </div>
+            <span class="trend">Post-Traumatic Stress</span>
+          </div>
+          <div class="stat-card clickable" onclick="openAssessment('scidii')">
+            <span class="label">DSM-5 Personality</span>
+            <div class="bilingual-title">
+              <span class="en">SCID-II Full Screen</span>
+              <span class="ar">مقياس الشخصية الممنهج</span>
+            </div>
+            <span class="trend">119-Item Inventory</span>
+          </div>
+          <div class="stat-card clickable" onclick="openAssessment('audit')">
+            <span class="label">WHO Standard</span>
+            <div class="bilingual-title">
+              <span class="en">AUDIT Alcohol</span>
+              <span class="ar">اختبار تعاطي الكحول</span>
+            </div>
+            <span class="trend">Substance Screening</span>
+          </div>
+          <div class="stat-card clickable" onclick="openAssessment('act')">
+            <span class="label">ACT Flexibility</span>
+            <div class="bilingual-title">
+              <span class="en">AAQ-II (ACT)</span>
+              <span class="ar">مقياس القبول والالتزام</span>
+            </div>
+            <span class="trend">Psychological Flexibility</span>
+          </div>
+          <div class="stat-card clickable" onclick="openAssessment('dbt')">
+            <span class="label">DBT Skills</span>
+            <div class="bilingual-title">
+              <span class="en">DBT Diary Card</span>
+              <span class="ar">بطاقة يوميات DBT</span>
+            </div>
+            <span class="trend">Skills Effectiveness</span>
+          </div>
+          <div class="stat-card clickable" onclick="openAssessment('gds')">
+            <span class="label">Stanford Geriatric</span>
+            <div class="bilingual-title">
+              <span class="en">GDS (Geriatric)</span>
+              <span class="ar">مقياس اكتئاب المسنين</span>
+            </div>
+            <span class="trend">Aged Care Screen</span>
+          </div>
+          <div class="stat-card clickable" onclick="openAssessment('asrs')">
+            <span class="label">Harvard/WHO ADHD</span>
+            <div class="bilingual-title">
+              <span class="en">ASRS v1.1 Screen</span>
+              <span class="ar">مقياس نقص الانتباه</span>
+            </div>
+            <span class="trend">Diagnostic Adult ADHD</span>
+          </div>
+          <div class="stat-card clickable" onclick="openAssessment('pcl5')">
+            <span class="label">VA/ICD-11 PTSD</span>
+            <div class="bilingual-title">
+              <span class="en">PCL-5 Standard</span>
+              <span class="ar">مقياس الصدمة PTSD</span>
+            </div>
+            <span class="trend">Post-Traumatic Stress</span>
+          </div>
+          <div class="stat-card clickable" onclick="openAssessment('audit')">
+            <span class="label">WHO Standard</span>
+            <div class="bilingual-title">
+              <span class="en">AUDIT Alcohol</span>
+              <span class="ar">اختبار تعاطي الكحول</span>
+            </div>
+            <span class="trend">Substance Screening</span>
+          </div>
+          <div class="stat-card clickable" onclick="openAssessment('gds')">
+            <span class="label">Stanford Geriatric</span>
+            <div class="bilingual-title">
+              <span class="en">GDS (Geriatric)</span>
+              <span class="ar">مقياس اكتئاب المسنين</span>
+            </div>
+            <span class="trend">Aged Care Screen</span>
+          </div>
+          <div style="grid-column: 1 / -1; height: 2px; background: var(--border); margin: 10px 0;"></div>
+          <div class="stat-card clickable highlight" onclick="openAssessment('masterIntake')">
+            <span class="label" data-i18n="launch_intake">Launch Intake</span>
+            <div class="bilingual-title">
+              <span class="en">Master Intake</span>
+              <span class="ar">الاستمارة الشاملة</span>
+            </div>
+            <span class="trend">Multi-School / Safety</span>
+          </div>
           <div class="stat-card clickable" onclick="openAssessment('personality')">
-            <span class="label">Launch Quick Test</span>
-            <span class="value">Personality</span>
+            <span class="label" data-i18n="launch_test">Launch Test</span>
+            <div class="bilingual-title">
+              <span class="en">Personality</span>
+              <span class="ar">تقييم الشخصية</span>
+            </div>
             <span class="trend">Big Five (Short)</span>
           </div>
           <div class="stat-card clickable" onclick="openAssessment('phq9')">
-            <span class="label">Launch Clinical Test</span>
-            <span class="value">PHQ-9</span>
+            <span class="label" data-i18n="launch_clinical">Launch Clinical</span>
+            <div class="bilingual-title">
+              <span class="en">PHQ-9</span>
+              <span class="ar">الاكتئاب</span>
+            </div>
             <span class="trend">Depression Screen</span>
           </div>
           <div class="stat-card clickable" onclick="openAssessment('gad7')">
-            <span class="label">Launch Clinical Test</span>
-            <span class="value">GAD-7</span>
+            <span class="label" data-i18n="launch_clinical">Launch Clinical</span>
+            <div class="bilingual-title">
+              <span class="en">GAD-7</span>
+              <span class="ar">القلق</span>
+            </div>
             <span class="trend">Anxiety Screen</span>
           </div>
+          <div class="stat-card clickable" onclick="openAssessment('scid2')">
+            <span class="label" data-i18n="launch_diagnostic">Launch Diagnostic</span>
+            <div class="bilingual-title">
+              <span class="en">SCID-II</span>
+              <span class="ar">مقابلة الشخصية</span>
+            </div>
+            <span class="trend">Arabic (DSM-IV)</span>
+          </div>
+          <div class="stat-card clickable" onclick="openAssessment('act')">
+            <span class="label" data-i18n="launch_therapy">Launch Therapy</span>
+            <div class="bilingual-title">
+              <span class="en">ACT</span>
+              <span class="ar">المرونة النفسية</span>
+            </div>
+            <span class="trend">Flexibility Check</span>
+          </div>
+          <div class="stat-card clickable" onclick="openAssessment('dbt')">
+            <span class="label" data-i18n="launch_therapy">Launch Therapy</span>
+            <div class="bilingual-title">
+              <span class="en">DBT Diary</span>
+              <span class="ar">متتبع المهارات</span>
+            </div>
+            <span class="trend">Urges & Mood</span>
+          </div>
+          <div class="stat-card clickable" onclick="openAssessment('trauma')">
+            <span class="label" data-i18n="launch_trauma">Launch Trauma</span>
+            <div class="bilingual-title">
+              <span class="en">Trauma Screen</span>
+              <span class="ar">مقياس الصدمة</span>
+            </div>
+            <span class="trend">Stabilization</span>
+          </div>
+          <div class="stat-card clickable" onclick="openAssessment('psych')">
+            <span class="label" data-i18n="launch_therapy">Launch Therapy</span>
+            <div class="bilingual-title">
+              <span class="en">Psychodynamic</span>
+              <span class="ar">التحليل النفسي</span>
+            </div>
+            <span class="trend">Patterns & Defenses</span>
+          </div>
+          <div class="stat-card clickable" onclick="openAssessment('systems')">
+            <span class="label" data-i18n="launch_therapy">Launch Therapy</span>
+            <div class="bilingual-title">
+              <span class="en">Systems</span>
+              <span class="ar">العلاقات الأسرية</span>
+            </div>
+            <span class="trend">Interaction Cycle</span>
+          </div>
           <div class="stat-card clickable" onclick="openAssessment('ace')">
-            <span class="label">Launch Trauma Test</span>
-            <span class="value">ACE</span>
+            <span class="label" data-i18n="launch_intake">Launch Intake</span>
+            <div class="bilingual-title">
+              <span class="en">ACE</span>
+              <span class="ar">تجارب الطفولة</span>
+            </div>
             <span class="trend">Adverse Childhood</span>
           </div>
+        </section>
+        
+        <!-- Recent Clinical Reports (Added for Reporting Check) -->
+        <section class="patient-list glass" style="margin-top: 30px;">
+          <h3>Recent Assessment Reports</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Patient</th>
+                <th>Assessment</th>
+                <th>Score</th>
+                <th>Severity</th>
+              </tr>
+            </thead>
+            <tbody id="reportsTableBody">
+              <!-- Injected by main.js -->
+            </tbody>
+          </table>
         </section>
       </div>
 
@@ -194,8 +446,13 @@
       <div id="view-patients" class="view" style="display: none;">
         <header class="top-bar">
           <h2>Patient Registry</h2>
+          <div class="search-container" style="flex-grow: 1; max-width: 400px; margin: 0 20px;">
+            <input type="text" id="patientSearch" placeholder="Search by name, ID, or diagnosis..." oninput="filterPatients()" style="width: 100%; padding: 8px 15px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text);">
+          </div>
           <div class="actions">
-            <button class="btn btn-primary">+ Register Patient</button>
+            <button class="btn btn-secondary" onclick="simulateUpload()">+ Upload Hardcopy</button>
+            <button class="btn btn-accent" onclick="simulateOCR()">+ Scan Handwriting</button>
+            <button class="btn btn-primary" onclick="openRegisterModal()">+ Register Patient</button>
           </div>
         </header>
         <section class="patient-list glass">
@@ -213,15 +470,105 @@
       <!-- Sessions View -->
       <div id="view-sessions" class="view" style="display: none;">
         <header class="top-bar">
-          <h2>Active Sessions</h2>
-        </header>
-        <section class="glass">
-          <div class="session-placeholder">
-            <h3>Initialize New AI Session</h3>
-            <p>Connect patient profile to start real-time clinical documentation.</p>
-            <button class="btn btn-primary" style="margin-top: 20px;">Launch AI Scribe</button>
+          <div style="display: flex; align-items: center; gap: 15px;">
+            <button class="btn-icon" onclick="switchView('dashboard')">←</button>
+            <h2>Active Clinical Sessions</h2>
+            <span class="info-icon" title="A 'Session' is a live, AI-orchestrated clinical encounter. Its function is to transcribe audio in real-time, extract symptoms/medications, and generate structured SOAP notes automatically." style="cursor:help; opacity:0.6;">ⓘ</span>
           </div>
-        </section>
+          <div class="actions">
+            <button class="btn btn-primary" onclick="openNewSessionModal()">+ New AI Session</button>
+          </div>
+        </header>
+
+        <div class="session-container">
+          <div class="scribe-panel glass">
+            <div class="scribe-header">
+              <span class="status-indicator live"></span> LIVE AI SCRIBE: <span id="activeSessionPatient">No active session</span>
+            </div>
+            <div id="transcriptionFeed" class="transcription-feed">
+              <p class="placeholder">Awaiting session initialization...</p>
+            </div>
+          </div>
+          
+          <aside class="analysis-panel glass" style="width: 380px;">
+            <div class="panel-tabs">
+              <button class="tab-btn active" onclick="switchPanelTab('analysis')">Analysis</button>
+              <button class="tab-btn" onclick="switchPanelTab('tools')">Power Tools</button>
+            </div>
+
+            <div id="panel-analysis" class="tab-content active">
+              <h3>Real-time AI Synthesis</h3>
+              <div id="realtimeAnalysis" class="analysis-feed">
+                <div class="analysis-item">
+                  <span class="time">--:--</span>
+                  <p>Establishing clinical baseline...</p>
+                </div>
+              </div>
+            </div>
+
+            <div id="panel-tools" class="tab-content" style="display: none;">
+              <h3>Session Power Tools</h3>
+              
+              <!-- Clinical Timer -->
+              <div class="tool-section timer-tool">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span class="tool-label">Session Segment</span>
+                  <span id="sessionTimerBadge" class="tag active">Intake Phase</span>
+                </div>
+                <div class="timer-display">00:00:00</div>
+              </div>
+
+              <!-- Mental Status Exam (MSE) -->
+              <div class="tool-section mse-tool">
+                <header onclick="toggleToolBody('mseBody')" style="cursor: pointer; display: flex; justify-content: space-between;">
+                  <span class="tool-label">Mental Status Exam (MSE)</span>
+                  <span>▼</span>
+                </header>
+                <div id="mseBody" class="tool-body" style="display: none;">
+                  <div class="mse-grid">
+                    <label><input type="checkbox"> Alert/Oriented</label>
+                    <label><input type="checkbox"> Cooperative</label>
+                    <label><input type="checkbox"> Euthymic Affect</label>
+                    <label><input type="checkbox"> Linear Thought</label>
+                    <label><input type="checkbox"> Good Insight</label>
+                    <label><input type="checkbox"> Normal Speech</label>
+                  </div>
+                  <textarea placeholder="Observation notes..." class="field-alt" style="margin-top:10px;"></textarea>
+                </div>
+              </div>
+
+              <!-- Intervention Overlays -->
+              <div class="tool-section intervention-tool">
+                <header onclick="toggleToolBody('interventionBody')" style="cursor: pointer; display: flex; justify-content: space-between;">
+                  <span class="tool-label">Quick Interventions</span>
+                  <span>▼</span>
+                </header>
+                <div id="interventionBody" class="tool-body" style="display: none;">
+                  <div class="intervention-toggles">
+                    <button class="btn-sm" onclick="showIntervention('cbt')">CBT</button>
+                    <button class="btn-sm" onclick="showIntervention('dbt')">DBT</button>
+                    <button class="btn-sm" onclick="showIntervention('act')">ACT</button>
+                  </div>
+                  <div id="interventionContent" class="hint-card" style="margin-top:10px; font-size: 11px;">
+                    Select a school for live prompts.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Crisis Safety Planner -->
+              <div class="tool-section safety-tool">
+                <button class="btn btn-accent" style="width: 100%;" onclick="openSafetyPlanner()">
+                  ⚠️ Rapid Safety Plan
+                </button>
+              </div>
+            </div>
+
+            <div class="session-controls" style="margin-top: auto; display: flex; gap: 10px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+              <button class="btn btn-secondary" onclick="pauseScribe()" style="flex:1;">Pause</button>
+              <button class="btn btn-primary" onclick="stopScribe()" style="flex:1;">End Session & Generate Report</button>
+            </div>
+          </aside>
+        </div>
       </div>
 
       <!-- Patient Details View (SPA Deep Dive) -->
@@ -233,36 +580,74 @@
           </div>
           <div class="actions">
             <button class="btn btn-secondary" onclick="simulateUpload()">+ Upload Hardcopy</button>
+            <button class="btn btn-accent" onclick="simulateOCR()">+ Scan Handwriting</button>
             <button class="btn btn-primary">Generate Final Report</button>
           </div>
         </header>
 
+        <div class="detail-tabs">
+          <button class="detail-tab active" onclick="switchDetailTab('archive')">Archive</button>
+          <button class="detail-tab" onclick="switchDetailTab('plan')">Treatment Plan</button>
+          <button class="detail-tab" onclick="switchDetailTab('homework')">Homework</button>
+        </div>
+
         <div class="detail-grid">
-          <!-- Virtual File Explorer -->
-          <div class="explorer-panel glass">
-            <h3>Clinical File Archive</h3>
-            <div class="folder-list">
-              <div class="folder-item active" onclick="openFolder('input')">
-                <span class="icon">📁</span> Input (Raw Docs)
+          <div id="detail-archive" class="detail-tab-content active">
+            <!-- Virtual File Explorer -->
+            <div class="explorer-panel glass">
+              <h3>Clinical File Archive</h3>
+              <div class="folder-list">
+                <div class="folder-item active" onclick="openFolder('input')">
+                  <span class="icon">📁</span> Input (Raw Docs)
+                </div>
+                <div class="folder-item" onclick="openFolder('processed')">
+                  <span class="icon">📁</span> Processed (Cleaned)
+                </div>
+                <div class="folder-item" onclick="openFolder('output')">
+                  <span class="icon">📁</span> Output (Summaries)
+                </div>
+                <div class="folder-item" onclick="openFolder('reports')">
+                  <span class="icon">📄</span> Patient Reports
+                </div>
               </div>
-              <div class="folder-item" onclick="openFolder('processed')">
-                <span class="icon">📁</span> Processed (Cleaned)
+              <div class="file-grid" id="fileExplorerContent">
+                <!-- Files injected by main.js -->
               </div>
-              <div class="folder-item" onclick="openFolder('output')">
-                <span class="icon">📁</span> Output (Summaries)
-              </div>
-              <div class="folder-item" onclick="openFolder('reports')">
-                <span class="icon">📄</span> Patient Reports
-              </div>
-            </div>
-            <div class="file-grid" id="fileExplorerContent">
-              <!-- Files injected by main.js -->
             </div>
           </div>
 
-          <!-- AI Insights & Analysis -->
-          <aside class="insights-panel glass">
-            <h3>AI Clinical Insights</h3>
+          <div id="detail-plan" class="detail-tab-content" style="display: none;">
+            <div class="plan-panel glass">
+              <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3>Phased Healing Roadmap</h3>
+                <button class="btn btn-sm btn-primary" onclick="generateTreatmentPlan()">+ Generate AI Draft</button>
+              </header>
+              <div class="roadmap-timeline" id="treatmentRoadmap">
+                <p class="placeholder">No plan generated yet. Use AI to draft a 3-phase roadmap based on clinical history.</p>
+              </div>
+            </div>
+          </div>
+
+          <div id="detail-homework" class="detail-tab-content" style="display: none;">
+            <div class="homework-panel glass">
+              <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3>Homework & Skills Practice</h3>
+                <button class="btn btn-sm btn-accent" onclick="openHomeworkLibrary()">+ Assign from Library</button>
+              </header>
+              <div class="homework-list" id="activeHomeworkList">
+                <p class="placeholder">No active homework assigned.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Clinical Insights Sidebar -->
+          <aside class="analysis-panel glass">
+            <h3>Clinical Trends</h3>
+            <div style="height: 200px; margin-bottom: 20px;">
+                <canvas id="clinicalTrendsChart"></canvas>
+            </div>
+            
+            <h3>Therapist Hints</h3>
             <div id="aiHintsContent" class="hints-list">
               <!-- AI Analysis injected here -->
             </div>
@@ -306,6 +691,139 @@
         </aside>
       </div>
     </div>
+  </div>
+
+  <!-- Post-Session SOAP Drafter Modal -->
+  <div id="soapModal" class="modal">
+    <div class="modal-content glass professional" style="max-width: 600px;">
+      <div class="modal-header">
+        <h2>Post-Session Summary & SOAP Draft</h2>
+        <span class="close" onclick="closeSoapModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="soap-grid">
+          <div class="form-group">
+            <label>Subjective (Patient's Report)</label>
+            <textarea id="soapSubjective" class="field-alt" style="height: 80px;"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Objective (MSE & Observations)</label>
+            <textarea id="soapObjective" class="field-alt" style="height: 80px;"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Assessment (Clinical Interpretation)</label>
+            <textarea id="soapAssessment" class="field-alt" style="height: 80px;"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Plan (Homework & Future Work)</label>
+            <textarea id="soapPlan" class="field-alt" style="height: 80px;"></textarea>
+          </div>
+        </div>
+
+        <div style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+          <label style="display: block; margin-bottom: 10px;">Therapeutic Alliance Score (1-10)</label>
+          <input type="range" min="1" max="10" value="8" style="width: 100%;" id="allianceScore">
+          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #888;">
+            <span>Initial/Strained</span>
+            <span>Strong/Collaborative</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeSoapModal()">Discard</button>
+        <button class="btn btn-primary" onclick="fileSoapNote()">File SOAP Note & Archive Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Session Initialization Modal -->
+  <div id="sessionModal" class="modal">
+    <div class="modal-content glass" style="max-width: 500px;">
+      <div class="modal-header">
+        <h2>Initialize Linked Session</h2>
+        <span class="close" onclick="closeSessionModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom: 20px; color: #666;">Linking this session to a patient profile ensures AI clinical continuity and automated note extraction.</p>
+        <div class="form-group">
+          <label style="display: block; margin-bottom: 8px; font-weight: 500;">Select Patient</label>
+          <select id="sessionPatientSelect" class="form-control" title="Select Patient for Session" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg);">
+            <!-- Patients injected by main.js -->
+          </select>
+        </div>
+        <div class="form-group" style="margin-top: 20px;">
+          <label style="display: block; margin-bottom: 8px; font-weight: 500;">Session Type</label>
+          <select class="form-control" title="Select Session Type" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg);">
+            <option>Clinical Consultation</option>
+            <option>Initial Intake / Screen</option>
+            <option>Emergency Crisis Intervention</option>
+            <option>Follow-up Review</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeSessionModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="startLinkedSession()">Start AI Scribe</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Patient Registration Modal -->
+  <div id="registerModal" class="modal">
+    <div class="modal-content glass" style="max-width: 500px;">
+      <div class="modal-header">
+        <h2>Register New Patient</h2>
+        <span class="close" onclick="closeRegisterModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <form id="registerPatientForm" onsubmit="event.preventDefault(); handleRegisterPatient();">
+          <div class="form-group" style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px;">Full Name</label>
+            <input type="text" id="regName" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg);">
+          </div>
+          <div class="form-group" style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px;">Diagnosis (Initial)</label>
+            <input type="text" id="regDiagnosis" placeholder="e.g. Anxiety, MDD" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg);">
+          </div>
+          <div class="form-group">
+            <label style="display: block; margin-bottom: 5px;">Initial Risk Level</label>
+            <select id="regRisk" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg);">
+              <option value="Low">Low</option>
+              <option value="Med">Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeRegisterModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="handleRegisterPatient()">Register Patient</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Clinical Report Viewer Modal -->
+  <div id="reportModal" class="modal">
+    <div class="modal-content glass professional" style="width: 1000px; height: 90vh; overflow-y: auto;">
+      <div class="modal-header" style="border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+          <div>
+            <h1 style="font-family: 'Outfit', sans-serif; color: var(--primary-dark);">Comprehensive Psychiatric Report</h1>
+            <p style="font-size: 13px; color: #666; margin-top: 5px;">Validated by AI Clinical Orchestrator • Dr. Heba Moustafa</p>
+          </div>
+          <button class="btn btn-secondary" onclick="window.print()">Print / Export PDF</button>
+        </div>
+        <span class="close" onclick="closeReportModal()">&times;</span>
+      </div>
+      <div id="reportViewerBody" class="modal-body report-template">
+        <!-- Professional Report HTML injected here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="notificationToast" class="glass" style="display: none; position: fixed; bottom: 30px; right: 30px; padding: 15px 25px; border-radius: 12px; background: var(--primary); color: white; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 11000; animation: slideIn 0.3s ease;">
+    <span id="toastMessage"></span>
   </div>
 
   <script type="module" src="./main.js"></script>

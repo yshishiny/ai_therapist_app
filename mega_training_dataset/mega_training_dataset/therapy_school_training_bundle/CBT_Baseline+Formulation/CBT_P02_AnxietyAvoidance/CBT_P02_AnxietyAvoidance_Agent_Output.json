@@ -1,0 +1,126 @@
+{
+  "patient_id": "CBT_P02_AnxietyAvoidance",
+  "context": "High worry and avoidance; safety behaviors; functioning impacted.",
+  "responses": [
+    {
+      "item": 1,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 2,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 3,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 4,
+      "score_0_to_4": 0
+    },
+    {
+      "item": 5,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 6,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 7,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 8,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 9,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 10,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 11,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 12,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 13,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 14,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 15,
+      "score_0_to_4": 0
+    },
+    {
+      "item": 16,
+      "score_0_to_4": 1
+    }
+  ],
+  "subscale_scores": {
+    "Depressed mood/Anhedonia": {
+      "total": 6,
+      "max": 12,
+      "band": "Moderate"
+    },
+    "Sleep/Energy/Appetite": {
+      "total": 4,
+      "max": 12,
+      "band": "Mild"
+    },
+    "Concentration": {
+      "total": 1,
+      "max": 4,
+      "band": "Mild"
+    },
+    "Anxiety/Worry": {
+      "total": 9,
+      "max": 12,
+      "band": "High"
+    },
+    "Avoidance/Safety behaviors": {
+      "total": 7,
+      "max": 12,
+      "band": "Moderate"
+    },
+    "Rumination/Cognitive reactivity": {
+      "total": 1,
+      "max": 8,
+      "band": "Minimal"
+    },
+    "Stress load": {
+      "total": 1,
+      "max": 4,
+      "band": "Mild"
+    }
+  },
+  "risk_flags": {
+    "any": false,
+    "items": []
+  },
+  "recommendations": [
+    {
+      "priority": 1,
+      "school": "CBT",
+      "text": "Problem list + coping plan; brief relaxation + sleep routine; monitor change weekly."
+    },
+    {
+      "priority": 2,
+      "school": "CBT",
+      "text": "Build an exposure ladder; identify and reduce safety behaviors; weekly practice plan."
+    }
+  ],
+  "notes": {
+    "screening_only": true
+  }
+}

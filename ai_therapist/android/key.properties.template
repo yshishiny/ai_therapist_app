@@ -1,0 +1,4 @@
+storePassword=PASSWORD_HERE
+keyPassword=PASSWORD_HERE
+keyAlias=upload
+storeFile=PATH_TO_YOUR_KEYSTORE_FILE

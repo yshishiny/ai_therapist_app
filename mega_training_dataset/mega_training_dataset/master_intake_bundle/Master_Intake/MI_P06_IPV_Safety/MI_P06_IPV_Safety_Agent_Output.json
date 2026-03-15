@@ -1,0 +1,247 @@
+{
+  "patient_id": "MI_P06_IPV_Safety",
+  "demographics": {
+    "age": 31,
+    "gender": "Female",
+    "language": "Arabic"
+  },
+  "narrative": {
+    "presenting_problem": "I feel afraid at home; arguments escalate.",
+    "goals_8_weeks": "Feel safe and find support."
+  },
+  "ratings": [
+    {
+      "item": 12,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 13,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 14,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 15,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 16,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 17,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 18,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 19,
+      "score_0_to_4": 0
+    },
+    {
+      "item": 20,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 21,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 22,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 23,
+      "score_0_to_4": 0
+    },
+    {
+      "item": 24,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 25,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 26,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 27,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 28,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 29,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 34,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 35,
+      "score_0_to_4": 0
+    },
+    {
+      "item": 36,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 37,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 38,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 39,
+      "score_0_to_4": 4
+    },
+    {
+      "item": 40,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 41,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 42,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 43,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 45,
+      "score_0_to_4": 0
+    },
+    {
+      "item": 46,
+      "score_0_to_4": 1
+    }
+  ],
+  "composites": {
+    "Functioning_Impact": {
+      "total": 9,
+      "max": 12,
+      "band": "High",
+      "items": [
+        12,
+        13,
+        14
+      ]
+    },
+    "Mood_Anhedonia": {
+      "total": 3,
+      "max": 8,
+      "band": "Mild",
+      "items": [
+        15,
+        16
+      ]
+    },
+    "Anxiety_Panic": {
+      "total": 3,
+      "max": 8,
+      "band": "Mild",
+      "items": [
+        17,
+        18
+      ]
+    },
+    "Trauma_Activation": {
+      "total": 8,
+      "max": 16,
+      "band": "Moderate",
+      "items": [
+        20,
+        21,
+        22,
+        26
+      ]
+    },
+    "OCD_Rumination": {
+      "total": 2,
+      "max": 8,
+      "band": "Mild",
+      "items": [
+        23,
+        24
+      ]
+    },
+    "Sleep_Substance": {
+      "total": 7,
+      "max": 16,
+      "band": "Mild",
+      "items": [
+        25,
+        27,
+        28,
+        29
+      ]
+    },
+    "Risk_Index": {
+      "total": 12,
+      "max": 24,
+      "band": "Moderate",
+      "items": [
+        34,
+        35,
+        36,
+        37,
+        38,
+        39
+      ]
+    },
+    "Strengths_Index": {
+      "total": 6,
+      "max": 16,
+      "band": "Mild",
+      "items": [
+        40,
+        41,
+        42,
+        43
+      ]
+    }
+  },
+  "risk_flags": {
+    "any": true,
+    "items": [
+      {
+        "item": 39,
+        "score": 4,
+        "note": "IPV/fear/intimidation"
+      }
+    ]
+  },
+  "routing": {
+    "suggested_school": "Safety + Systems/IPV pathway",
+    "why": "Risk index elevated → safety planning first; consider DBT distress tolerance.; IPV/fear endorsed → safety planning and appropriate referral; avoid unsafe conjoint work."
+  },
+  "recommendations": [
+    {
+      "priority": 1,
+      "text": "Do immediate risk assessment and safety plan; identify supports and crisis steps."
+    },
+    {
+      "priority": 2,
+      "text": "Teach 1–2 distress tolerance skills (paced breathing, grounding, STOP/TIPP) and assign daily practice."
+    }
+  ],
+  "notes": {
+    "screening_only": true,
+    "requires_clinician_judgment": true
+  }
+}
