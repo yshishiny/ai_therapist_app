@@ -38,7 +38,7 @@ jobs:
             echo "ERROR: KEYSTORE_BASE64 secret is empty or not set"
             exit 1
           fi
-          echo "$KEYSTORE_BASE64" | base64 -d > upload-keystore.jks
+          echo "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > upload-keystore.jks
           echo "Keystore size: $(wc -c < upload-keystore.jks) bytes"
 
       - name: Create key.properties
