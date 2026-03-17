@@ -29,6 +29,9 @@ jobs:
         working-directory: ai_therapist
         run: flutter pub get
 
+      - name: Remove Windows-only Java home from gradle.properties
+        run: sed -i '/org.gradle.java.home/d' ai_therapist/android/gradle.properties
+
       - name: Create key.properties
         working-directory: ai_therapist/android
         run: |
