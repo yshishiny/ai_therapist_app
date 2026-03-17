@@ -4,7 +4,6 @@ import java.io.FileInputStream
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -23,10 +22,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.ai_therapist"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -40,16 +36,29 @@ android {
             if (keystorePropertiesFile.exists()) {
                 keystoreProperties.load(FileInputStream(keystorePropertiesFile))
             }
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
+            keyAlias = keystoreProperties.getProperty("keyAlias") ?: "androiddebugkey"
+            keyPassword = keystoreProperties.getProperty("keyPassword") ?: "android"
+            storeFile = if (keystoreProperties.getProperty("storeFile") != null)
+                file(keystoreProperties.getProperty("storeFile")!!)
+            else
+                file(System.getProperty("user.home") + "/.android/debug.keystore")
+            storePassword = keystoreProperties.getProperty("storePassword") ?: "android"
         }
     }
 
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
+        }
+    }
+
+    applicationVariants.all {
+        val appVersionName = versionName ?: "1.0.0"
+        val appVersionCode = versionCode.toString()
+        val variantName = name
+        outputs.all {
+            val outputImpl = this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            outputImpl?.outputFileName = "AITherapist_${variantName}_v${appVersionName}_b${appVersionCode}.apk"
         }
     }
 }

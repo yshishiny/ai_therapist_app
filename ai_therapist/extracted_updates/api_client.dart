@@ -17,11 +17,11 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-import '../../core/secure_phi_storage.dart';
+import 'secure_phi_storage.dart';
 
 // ─── Token storage keys ───────────────────────────────────────────────────────
 
-const _kAccessToken  = 'auth.access_token';
+const _kAccessToken = 'auth.access_token';
 const _kRefreshToken = 'auth.refresh_token';
 
 // ─── ApiClient ────────────────────────────────────────────────────────────────
@@ -30,13 +30,13 @@ class ApiClient {
   ApiClient._();
   static final ApiClient instance = ApiClient._();
 
-  static final String _baseUrl = const String.fromEnvironment(
+  static const String _baseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'http://10.0.2.2:8000', // Android emulator → localhost
   );
 
   final _store = SecurePhiStorage.instance;
-  final _http  = http.Client();
+  final _http = http.Client();
 
   // ─── Token storage ──────────────────────────────────────────────────────────
 
@@ -44,7 +44,7 @@ class ApiClient {
     required String accessToken,
     required String refreshToken,
   }) async {
-    await _store.write(_kAccessToken,  accessToken);
+    await _store.write(_kAccessToken, accessToken);
     await _store.write(_kRefreshToken, refreshToken);
   }
 
@@ -53,7 +53,7 @@ class ApiClient {
     await _store.delete(_kRefreshToken);
   }
 
-  Future<String?> get _accessToken  => _store.read(_kAccessToken);
+  Future<String?> get _accessToken => _store.read(_kAccessToken);
   Future<String?> get _refreshToken => _store.read(_kRefreshToken);
 
   // ─── Login ─────────────────────────────────────────────────────────────────
@@ -68,7 +68,7 @@ class ApiClient {
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       await saveTokens(
-        accessToken:  body['access_token']  as String,
+        accessToken: body['access_token'] as String,
         refreshToken: body['refresh_token'] as String,
       );
     } else if (response.statusCode == 401) {
@@ -84,14 +84,12 @@ class ApiClient {
 
   // ─── Authenticated request with auto-refresh ────────────────────────────────
 
-  Future<http.Response> get(String path) =>
-      _request('GET', path);
+  Future<http.Response> get(String path) => _request('GET', path);
 
   Future<http.Response> post(String path, {Object? body}) =>
       _request('POST', path, body: body);
 
-  Future<http.Response> delete(String path) =>
-      _request('DELETE', path);
+  Future<http.Response> delete(String path) => _request('DELETE', path);
 
   Future<http.Response> _request(
     String method,
@@ -105,7 +103,7 @@ class ApiClient {
     final uri = Uri.parse('$_baseUrl$path');
     final headers = {
       HttpHeaders.authorizationHeader: 'Bearer $token',
-      HttpHeaders.contentTypeHeader:   'application/json',
+      HttpHeaders.contentTypeHeader: 'application/json',
     };
 
     final response = await _send(method, uri, headers, body);
@@ -132,10 +130,14 @@ class ApiClient {
   ) {
     final encodedBody = body != null ? jsonEncode(body) : null;
     switch (method) {
-      case 'GET':    return _http.get(uri, headers: headers);
-      case 'POST':   return _http.post(uri, headers: headers, body: encodedBody);
-      case 'DELETE': return _http.delete(uri, headers: headers);
-      default: throw ArgumentError('Unsupported HTTP method: $method');
+      case 'GET':
+        return _http.get(uri, headers: headers);
+      case 'POST':
+        return _http.post(uri, headers: headers, body: encodedBody);
+      case 'DELETE':
+        return _http.delete(uri, headers: headers);
+      default:
+        throw ArgumentError('Unsupported HTTP method: $method');
     }
   }
 
@@ -153,7 +155,7 @@ class ApiClient {
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
         await saveTokens(
-          accessToken:  body['access_token']  as String,
+          accessToken: body['access_token'] as String,
           refreshToken: body['refresh_token'] as String,
         );
         return true;
