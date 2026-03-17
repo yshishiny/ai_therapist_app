@@ -31,12 +31,20 @@ jobs:
 
       - name: Decode keystore
         working-directory: ai_therapist/android/app
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > upload-keystore.jks
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "ERROR: KEYSTORE_BASE64 secret is empty or not set"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > upload-keystore.jks
+          echo "Keystore size: $(wc -c < upload-keystore.jks) bytes"
 
       - name: Create key.properties
         working-directory: ai_therapist/android
         run: |
-          cat > key.properties <<EOF
+          cat > key.properties << 'EOF'
           storePassword=${{ secrets.STORE_PASSWORD }}
           keyPassword=${{ secrets.KEY_PASSWORD }}
           keyAlias=${{ secrets.KEY_ALIAS }}
@@ -48,6 +56,11 @@ jobs:
         run: |
           flutter build apk --release \
             --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL }}
+
+      - name: Rename APK
+        run: |
+          APK=$(find ai_therapist/build/app/outputs/flutter-apk/ -name "*.apk" | head -1)
+          echo "Built APK: $APK"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
