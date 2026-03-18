@@ -1,4 +1,9 @@
-FROM python:3.10-slim
+# -----------------------------------------------------------------------
+# PRODUCTION Dockerfile — used by Railway (railway.toml → dockerfilePath)
+# Build context MUST be the repository ROOT:
+#   docker build -f backend/Dockerfile -t ai_therapist_backend .
+# -----------------------------------------------------------------------
+FROM python:3.12-slim
 
 WORKDIR /app
 

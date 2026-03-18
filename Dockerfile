@@ -1,3 +1,8 @@
+# -----------------------------------------------------------------------
+# LOCAL DEV Dockerfile — used by docker-compose.yml only.
+# For Railway/production deployment see: backend/Dockerfile
+# Build context is the repository root (run from project root).
+# -----------------------------------------------------------------------
 FROM python:3.12-slim
 
 WORKDIR /app
