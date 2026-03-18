@@ -35,27 +35,28 @@ jobs:
       - name: Create key.properties
         working-directory: ai_therapist/android
         run: |
-          cat > key.properties << 'EOF'
-          storePassword=${{ secrets.STORE_PASSWORD }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
-          storeFile=upload-keystore.jks
-          EOF
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=%s\n' \
+            '${{ secrets.STORE_PASSWORD }}' \
+            '${{ secrets.KEY_PASSWORD }}' \
+            '${{ secrets.KEY_ALIAS }}' \
+            'app/upload-keystore.jks' \
+            > key.properties
+          echo "key.properties written:"
+          cat key.properties
 
       - name: Build release APK
         working-directory: ai_therapist
         run: |
           flutter build apk --release \
-            --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL }}
+            --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL }} \
+            -v 2>&1 | tail -50
 
-      - name: Rename APK
-        run: |
-          APK=$(find ai_therapist/build/app/outputs/flutter-apk/ -name "*.apk" | head -1)
-          echo "Built APK: $APK"
+      - name: List built APKs
+        run: find ai_therapist/build/app/outputs/flutter-apk/ -name "*.apk" -ls
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: AITherapist-release-v${{ github.run_number }}
-          path: ai_therapist/build/app/outputs/flutter-apk/AITherapist_release_*.apk
+          path: ai_therapist/build/app/outputs/flutter-apk/*.apk
           retention-days: 30
