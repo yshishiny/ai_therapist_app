@@ -1,24 +1,47 @@
 -- AI Therapist Database Schema
+
+-- ─── Auth tables (must come first) ───────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS organisations (
+    id   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS clinicians (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id        UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+    email         TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role          TEXT NOT NULL DEFAULT 'clinician', -- 'admin' | 'clinician'
+    active        BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ─── Clinical data tables ─────────────────────────────────────────────────────
+
 -- Patients
 CREATE TABLE IF NOT EXISTS patients (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
+    org_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
     therapist_id TEXT NOT NULL,
+    name TEXT,          -- display name (alias for full_name)
     full_name TEXT NOT NULL,
     dob DATE,
     gender VARCHAR(20),
     phone TEXT,
     email TEXT,
+    risk TEXT DEFAULT 'Low',
+    diagnosis TEXT DEFAULT '',
+    last_seen TIMESTAMP WITH TIME ZONE,
     emergency_contact_name TEXT,
     emergency_contact_phone TEXT,
     consent_ai_analysis BOOLEAN DEFAULT false,
-    status VARCHAR(20) DEFAULT 'ACTIVE', -- ACTIVE, PAUSED, DISCHARGED
-    created_at TIMESTAMP
-    WITH
-        TIME ZONE DEFAULT NOW (),
-        updated_at TIMESTAMP
-    WITH
-        TIME ZONE DEFAULT NOW ()
+    status VARCHAR(20) DEFAULT 'Active',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
 
 -- Clinical Profiles
 CREATE TABLE IF NOT EXISTS clinical_profiles (
