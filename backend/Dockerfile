@@ -2,19 +2,18 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Install system dependencies for asyncpg/psycopg2
+# Install system dependencies for asyncpg
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy and install Python dependencies
-# Works whether Docker context is repo root OR backend/
-COPY requirements.txt .
+# Copy requirements from backend/ subdirectory (repo root is the Docker context)
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend source code
-COPY . .
+COPY backend/ .
 
 # Expose port (Railway auto-injects PORT)
 EXPOSE $PORT
