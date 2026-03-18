@@ -30,6 +30,14 @@ jobs:
         working-directory: ai_therapist
         run: flutter pub get
 
+      # ── KEYSTORE SETUP ─────────────────────────────────────────────────────
+      # FIX: The keystore MUST be decoded before key.properties references it.
+      - name: Decode Android Keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 --decode \
+            > ai_therapist/android/app/upload-keystore.jks
+          echo "Keystore decoded: $(wc -c < ai_therapist/android/app/upload-keystore.jks) bytes"
+
       - name: Remove Windows-only Java home from gradle.properties
         run: sed -i '/org.gradle.java.home/d' ai_therapist/android/gradle.properties
 
@@ -45,6 +53,12 @@ jobs:
           echo "key.properties written:"
           cat key.properties
 
+      # ── TESTS ──────────────────────────────────────────────────────────────
+      - name: Run Flutter unit tests
+        working-directory: ai_therapist
+        run: flutter test --reporter compact
+
+      # ── BUILD ──────────────────────────────────────────────────────────────
       - name: Build release APK
         working-directory: ai_therapist
         run: |

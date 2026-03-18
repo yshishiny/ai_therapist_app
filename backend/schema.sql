@@ -203,14 +203,77 @@ CREATE TABLE IF NOT EXISTS audit_log (
         TIME ZONE DEFAULT NOW ()
 );
 
+-- ─── Assessment Results (linked to assessment_instances / standalone results) ──
+-- This table is used by app.py POST/GET /patients/{id}/assessments routes.
+
+CREATE TABLE IF NOT EXISTS assessment_results (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id      UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    assessment_id   TEXT NOT NULL,
+    raw_score       INTEGER NOT NULL,
+    severity        TEXT NOT NULL,
+    interpretation  TEXT NOT NULL,
+    answers         JSONB NOT NULL DEFAULT '{}',
+    submitted_by    UUID REFERENCES clinicians(id),
+    created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_patients_status ON patients (status);
+CREATE INDEX IF NOT EXISTS idx_assessment_results_patient ON assessment_results (patient_id);
 
 CREATE INDEX IF NOT EXISTS idx_appointments_patient ON appointments (patient_id);
 
 CREATE INDEX IF NOT EXISTS idx_appointments_time ON appointments (start_time);
 
 CREATE INDEX IF NOT EXISTS idx_assessment_patient ON assessment_instances (patient_id);
+
+-- ─── Admin-managed content tables ────────────────────────────────────────────
+
+-- Resources (books, handouts, articles) — uploaded by admins, available org-wide
+CREATE TABLE IF NOT EXISTS resources (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id       UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+    uploaded_by  UUID NOT NULL REFERENCES clinicians(id),
+    title        TEXT NOT NULL,
+    author       TEXT,
+    category     TEXT NOT NULL DEFAULT 'BOOK', -- BOOK | ARTICLE | HANDOUT | VIDEO | OTHER
+    description  TEXT,
+    file_url     TEXT,         -- S3/storage URL
+    tags         JSONB NOT NULL DEFAULT '[]',
+    created_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_resources_org ON resources (org_id);
+CREATE INDEX IF NOT EXISTS idx_resources_category ON resources (org_id, category);
+
+-- Contacts — bulk-importable client/referrer contacts
+CREATE TABLE IF NOT EXISTS contacts (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id       UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+    full_name    TEXT NOT NULL,
+    email        TEXT,
+    phone        TEXT,
+    role         TEXT DEFAULT 'REFERRER',  -- REFERRER | GP | SPECIALIST | OTHER
+    organisation TEXT,
+    notes        TEXT,
+    created_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_contacts_org ON contacts (org_id);
+
+-- Assessment Questions — custom items linked to assessment templates
+CREATE TABLE IF NOT EXISTS assessment_questions (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id          UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+    assessment_id   TEXT NOT NULL,           -- references assessment_templates.id
+    question_index  INTEGER NOT NULL,
+    question_text   TEXT NOT NULL,
+    response_type   TEXT NOT NULL DEFAULT 'LIKERT', -- LIKERT | YES_NO | FREE_TEXT | SCALE
+    options         JSONB,                   -- [{label, value}]
+    reverse_scored  BOOLEAN DEFAULT FALSE,
+    created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE (org_id, assessment_id, question_index)
+);
+CREATE INDEX IF NOT EXISTS idx_aq_assessment ON assessment_questions (org_id, assessment_id);
 
 CREATE INDEX IF NOT EXISTS idx_notes_patient ON session_notes (patient_id);
 

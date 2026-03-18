@@ -13,7 +13,7 @@ on:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
-    
+
     defaults:
       run:
         working-directory: ./backend
@@ -26,7 +26,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: 'pip' # caching pip dependencies
+          cache: 'pip'
 
       - name: Install dependencies
         run: |
@@ -41,6 +41,18 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           docker build -f backend/Dockerfile -t ai_therapist_backend .
-          
-      # Note: We do NOT push or deploy from here. 
-      # Railway automatically handles deployment on push to the connected main branch.
+
+      # ── RAILWAY DEPLOY ─────────────────────────────────────────────────────
+      # Triggered only on main branch push (not PRs).
+      # Railway auto-deploys via GitHub integration when connected.
+      # This step provides an explicit fallback via the Railway CLI.
+      - name: Deploy to Railway (main branch only)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        working-directory: ${{ github.workspace }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          # Install Railway CLI
+          npm install -g @railway/cli
+          # Deploy backend service
+          railway up --service backend --detach

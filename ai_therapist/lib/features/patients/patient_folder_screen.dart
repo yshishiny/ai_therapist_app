@@ -924,11 +924,12 @@ class _HomeworkTabState extends State<_HomeworkTab> {
     final tasks = await HomeworkService.getTasksForPatient(widget.patient.id);
     final summary =
         await HomeworkService.getAdherenceSummary(widget.patient.id);
-    if (mounted)
+    if (mounted) {
       setState(() {
         _tasks = tasks;
         _summary = summary;
       });
+    }
   }
 
   @override

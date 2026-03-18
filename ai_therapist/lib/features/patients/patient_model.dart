@@ -1,3 +1,6 @@
+/// patient_model.dart
+/// Unified Patient model with both API and mock factories.
+
 class Patient {
   final String id;
   final String name;
@@ -7,7 +10,7 @@ class Patient {
   final String lastSeen;
   final List<String> tags;
 
-  Patient({
+  const Patient({
     required this.id,
     required this.name,
     required this.status,
@@ -17,15 +20,53 @@ class Patient {
     this.tags = const [],
   });
 
+  /// Construct from backend API response (PatientOut schema).
+  factory Patient.fromApi(Map<String, dynamic> json) {
+    return Patient(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      status: json['status'] as String? ?? 'Active',
+      risk: _normaliseRisk(json['risk'] as String? ?? 'Low'),
+      diagnosis: json['diagnosis'] as String? ?? '',
+      lastSeen: _formatDate(json['last_seen'] as String?),
+      tags: const [],
+    );
+  }
+
+  /// Legacy factory for local/mock data.
   factory Patient.fromMock(Map<String, dynamic> json) {
     return Patient(
       id: json['id'].toString(),
-      name: json['name'],
-      status: json['status'],
-      risk: json['risk'],
-      diagnosis: json['diagnosis'],
-      lastSeen: json['lastSeen'] ?? 'N/A',
-      tags: List<String>.from(json['tags'] ?? []),
+      name: json['name'] as String,
+      status: json['status'] as String,
+      risk: json['risk'] as String,
+      diagnosis: json['diagnosis'] as String,
+      lastSeen: json['lastSeen'] as String? ?? 'N/A',
+      tags: List<String>.from(json['tags'] as List? ?? []),
     );
+  }
+
+  static String _normaliseRisk(String raw) {
+    switch (raw.toLowerCase()) {
+      case 'high':   return 'High';
+      case 'medium':
+      case 'med':    return 'Med';
+      case 'crisis': return 'Crisis';
+      default:       return 'Low';
+    }
+  }
+
+  static String _formatDate(String? iso) {
+    if (iso == null) return 'N/A';
+    try {
+      final dt = DateTime.parse(iso).toLocal();
+      final diff = DateTime.now().difference(dt);
+      if (diff.inDays == 0) return 'Today';
+      if (diff.inDays == 1) return 'Yesterday';
+      if (diff.inDays < 7) return '${diff.inDays} days ago';
+      return '${(diff.inDays / 7).round()} week(s) ago';
+    } catch (_) {
+      return 'N/A';
+    }
   }
 }

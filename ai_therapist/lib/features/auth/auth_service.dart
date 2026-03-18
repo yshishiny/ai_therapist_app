@@ -32,9 +32,20 @@ class AuthService with ChangeNotifier {
   }
 
   /// Clear persisted tokens and update state.
+  /// Called on explicit logout AND on 401 cascade (expired session).
   Future<void> logout() async {
     await ApiClient.instance.logout();
     _isAuthenticated = false;
     notifyListeners();
+  }
+
+  /// Called by screens/providers when they receive a 401 ApiException
+  /// after a token refresh attempt has already failed.
+  /// Clears auth state so AuthWrapper routes back to LoginScreen.
+  void forceLogout() {
+    ApiClient.instance.logout().then((_) {
+      _isAuthenticated = false;
+      notifyListeners();
+    });
   }
 }
