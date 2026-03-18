@@ -33,9 +33,25 @@ jobs:
       # ── KEYSTORE SETUP ─────────────────────────────────────────────────────
       - name: Decode Android Keystore
         run: |
-          KEYSTORE_ABS="${GITHUB_WORKSPACE}/ai_therapist/android/app/upload-keystore.p12"
-          echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 --decode > "${KEYSTORE_ABS}"
-          echo "Keystore decoded: $(wc -c < "${KEYSTORE_ABS}") bytes at ${KEYSTORE_ABS}"
+          JKS_PATH="${GITHUB_WORKSPACE}/ai_therapist/android/app/upload-keystore.jks"
+          P12_PATH="${GITHUB_WORKSPACE}/ai_therapist/android/app/upload-keystore.p12"
+          # Decode the secret (may be JKS or PKCS12)
+          echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 --decode > "${JKS_PATH}"
+          echo "Decoded $(wc -c < ${JKS_PATH}) bytes"
+          # Convert JKS → PKCS12 so AGP can read it reliably
+          keytool -importkeystore \
+            -srckeystore "${JKS_PATH}" \
+            -destkeystore "${P12_PATH}" \
+            -deststoretype PKCS12 \
+            -srcalias '${{ secrets.KEY_ALIAS }}' \
+            -destalias '${{ secrets.KEY_ALIAS }}' \
+            -srcstorepass '${{ secrets.STORE_PASSWORD }}' \
+            -deststorepass '${{ secrets.STORE_PASSWORD }}' \
+            -srckeypass '${{ secrets.KEY_PASSWORD }}' \
+            -destkeypass '${{ secrets.KEY_PASSWORD }}' \
+            -noprompt || true
+          # Verify output
+          echo "PKCS12 keystore: $(wc -c < ${P12_PATH} 2>/dev/null || echo 'not created') bytes"
 
       - name: Remove Windows-only Java home from gradle.properties
         run: sed -i '/org.gradle.java.home/d' ai_therapist/android/gradle.properties
