@@ -33,16 +33,16 @@ jobs:
       # ── KEYSTORE SETUP ─────────────────────────────────────────────────────
       - name: Decode Android Keystore
         run: |
-          KEYSTORE_PATH="${GITHUB_WORKSPACE}/ai_therapist/android/app/upload-keystore.jks"
-          echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 --decode > "${KEYSTORE_PATH}"
-          echo "Keystore decoded: $(wc -c < "${KEYSTORE_PATH}") bytes at ${KEYSTORE_PATH}"
+          KEYSTORE_ABS="${GITHUB_WORKSPACE}/ai_therapist/android/app/upload-keystore.p12"
+          echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 --decode > "${KEYSTORE_ABS}"
+          echo "Keystore decoded: $(wc -c < "${KEYSTORE_ABS}") bytes at ${KEYSTORE_ABS}"
 
       - name: Remove Windows-only Java home from gradle.properties
         run: sed -i '/org.gradle.java.home/d' ai_therapist/android/gradle.properties
 
       - name: Create key.properties
         run: |
-          KEYSTORE_ABS="${GITHUB_WORKSPACE}/ai_therapist/android/app/upload-keystore.jks"
+          KEYSTORE_ABS="${GITHUB_WORKSPACE}/ai_therapist/android/app/upload-keystore.p12"
           printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=%s\n' \
             '${{ secrets.STORE_PASSWORD }}' \
             '${{ secrets.KEY_PASSWORD }}' \
