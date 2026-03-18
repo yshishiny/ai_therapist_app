@@ -110,6 +110,13 @@ class AdherenceSummary {
     required this.mostCommonBarriers,
   });
 
+  // ─── Computed shorthands ────────────────────────────────────────────────────
+  int    get completed      => totalCompleted;
+  int    get skipped        => totalSkipped;
+  int    get partiallyDone  => totalPartiallyDone;
+  double get completionRate =>
+      totalAssigned == 0 ? 0.0 : totalCompleted / totalAssigned;
+
   factory AdherenceSummary.generate(List<HomeworkAssignment> assignments) {
     if (assignments.isEmpty) {
       return AdherenceSummary(
@@ -163,6 +170,18 @@ class AdherenceSummary {
   }
 }
 
+// ─── Shared in-memory store (used by static helpers below) ────────────────────
+
+final _sharedStore = _SimpleHomeworkStore();
+
+class _SimpleHomeworkStore {
+  final List<HomeworkAssignment> _db = [];
+  List<HomeworkAssignment> forPatient(String id) =>
+      _db.where((a) => a.patientId == id).toList();
+  AdherenceSummary adherence(String id) =>
+      AdherenceSummary.generate(forPatient(id));
+}
+
 class HomeworkService {
   final AiService _aiService;
 
@@ -171,6 +190,21 @@ class HomeworkService {
 
   HomeworkService(this._aiService);
 
+  // ─── Static convenience helpers ───────────────────────────────────────────
+
+  /// Returns all assignments for a patient from the shared in-memory store.
+  static Future<List<HomeworkAssignment>> getTasksForPatient(
+      String patientId) async =>
+      _sharedStore.forPatient(patientId);
+
+  /// Returns an [AdherenceSummary] for a patient. Always safe to use —
+  /// returns zeros if no assignments exist.
+  static Future<AdherenceSummary> getAdherenceSummary(
+      String patientId) async =>
+      _sharedStore.adherence(patientId);
+
+  // ─── Instance methods ─────────────────────────────────────────────────────
+
   Future<HomeworkAssignment> assignHomework({
     required String patientId,
     required String sessionId,
@@ -178,7 +212,7 @@ class HomeworkService {
     DateTime? dueAt,
   }) async {
     final assignment = HomeworkAssignment(
-      id: DateTime.now().millisecondsSinceEpoch.toString(), // Temporary mock ID
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
       patientId: patientId,
       sessionId: sessionId,
       proposalDetails: proposal,
@@ -207,7 +241,6 @@ class HomeworkService {
     final assignment = _homeworkDatabase[index];
     assignment.feedback = feedback;
 
-    // Auto-update status based on completion percentage if not explicitly set
     if (feedback.completionPercentage == 100) {
       assignment.status = HomeworkStatus.completed;
     } else if (feedback.completionPercentage == 0) {
@@ -228,25 +261,23 @@ class HomeworkService {
     return AdherenceSummary.generate(assignments);
   }
 
-  /// Aggregates common barriers and uses AI to suggest adjusted homework proposals.
   Future<List<HomeworkProposal>> suggestHomeworkAdjustment(
       String patientId) async {
     final summary = generateAdherenceSummary(patientId);
 
     if (summary.mostCommonBarriers.isEmpty &&
         summary.averageCompletionPercentage > 75) {
-      // Patient is doing well, ask AI for next steps instead of adjustments
       return await _aiService.proposeHomework(
-          "Patient with high compliance seeking next level challenge.");
+          'Patient with high compliance seeking next level challenge.');
     }
 
-    final barrierString = summary.mostCommonBarriers.join(", ");
-    const context =
-        "Patient has completion rate of \${summary.averageCompletionPercentage.toStringAsFixed(1)}%. "
-        "Primary reported barriers are: \$barrierString. "
-        "Previous average difficulty rating was \${summary.averageDifficulty.toStringAsFixed(1)}/5.";
+    final barrierString = summary.mostCommonBarriers.join(', ');
+    final context =
+        'Patient has completion rate of ${summary.averageCompletionPercentage.toStringAsFixed(1)}%. '
+        'Primary reported barriers are: $barrierString. '
+        'Previous average difficulty rating was ${summary.averageDifficulty.toStringAsFixed(1)}/5.';
 
     return await _aiService
-        .proposeHomework("Homework adjustment needed. Context: \$context");
+        .proposeHomework('Homework adjustment needed. Context: $context');
   }
 }

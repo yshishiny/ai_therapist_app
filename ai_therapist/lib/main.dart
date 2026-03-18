@@ -1,19 +1,19 @@
-/// main.dart — Release 2
-/// Wires all providers, initializes services, and runs the one-time
-/// data migration from SharedPreferences → SecurePhiStorage on startup.
+/// main.dart — Release 3
+/// Wires all providers, initializes services, and gates the app behind
+/// a real login screen connected to the Railway backend.
 
 library;
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'app/theme.dart';
 import 'features/auth/auth_service.dart';
+import 'features/auth/login_screen.dart';
 import 'features/dashboard/dashboard_provider.dart';
 import 'features/dashboard/dashboard_screen_r2.dart';
 import 'features/assessments/phq9_service.dart';
-import 'features/calendar/scheduling_service.dart';
+import 'core/notification_service.dart';
 
 const bool _kFirebaseEnabled =
     bool.fromEnvironment('FIREBASE', defaultValue: false);
@@ -26,7 +26,6 @@ void main() async {
     // await Firebase.initializeApp();
   }
 
-  // 2. Notification service
   await NotificationService.initialize();
 
   // 3. One-time PHI migration (SharedPreferences → SecurePhiStorage)
@@ -54,7 +53,33 @@ class AiTherapistApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.colorfulTheme,
       darkTheme: AppTheme.clinicalDarkTheme,
-      home: const DashboardScreen(),
+      home: const AuthWrapper(),
+    );
+  }
+}
+
+/// Routes unauthenticated users to [LoginScreen] and authenticated
+/// users to [DashboardScreen]. Shows a loading splash while
+/// [AuthService] checks for a persisted token on first run.
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AuthService>(
+      builder: (context, auth, _) {
+        if (auth.isInitializing) {
+          return const Scaffold(
+            backgroundColor: Color(0xFF8FB9A8),
+            body: Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
+          );
+        }
+        return auth.isAuthenticated
+            ? const DashboardScreen()
+            : const LoginScreen();
+      },
     );
   }
 }

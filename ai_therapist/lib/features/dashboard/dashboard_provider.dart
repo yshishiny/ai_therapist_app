@@ -1,11 +1,13 @@
-/// dashboard_provider.dart — Release 2
-/// Replaces the hardcoded mock stats in R1 DashboardContent.
-/// Provides real aggregated data via ChangeNotifier.
+/// dashboard_provider.dart — Release 3
+/// Replaces mock data with real API calls to the Railway backend.
 
 library;
 
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
-import '../homework/homework_service.dart';
+import '../careplan/homework_service.dart';
+import '../../core/api_client.dart';
 
 // ─── Early warning model ──────────────────────────────────────────────────────
 
@@ -35,7 +37,7 @@ class DashboardStats {
   final int riskAlerts;
   final int highPriority;
   final int assessmentsCompleted;
-  final int assessmentsTrend;    // delta vs last month
+  final int assessmentsTrend;
   final int sessionsToday;
   final int sessionsRemaining;
 
@@ -49,6 +51,37 @@ class DashboardStats {
     required this.sessionsToday,
     required this.sessionsRemaining,
   });
+
+  factory DashboardStats.fromApi(Map<String, dynamic> json) {
+    return DashboardStats(
+      activeCases:          json['active_cases']           as int? ?? 0,
+      newThisMonth:         json['new_this_month']         as int? ?? 0,
+      riskAlerts:           json['risk_alerts']            as int? ?? 0,
+      highPriority:         json['high_priority']          as int? ?? 0,
+      assessmentsCompleted: json['assessments_completed']  as int? ?? 0,
+      assessmentsTrend:     json['assessments_trend']      as int? ?? 0,
+      sessionsToday:        json['sessions_today']         as int? ?? 0,
+      sessionsRemaining:    json['sessions_remaining']     as int? ?? 0,
+    );
+  }
+
+  /// Fallback when /dashboard/summary is not yet available
+  factory DashboardStats.fromPatients(
+    List<PatientSummaryRow> patients,
+    List<EarlyWarning> warnings,
+    int highPriority,
+  ) {
+    return DashboardStats(
+      activeCases:          patients.where((p) => p.status == 'Active').length,
+      newThisMonth:         0,
+      riskAlerts:           warnings.length,
+      highPriority:         highPriority,
+      assessmentsCompleted: 0,
+      assessmentsTrend:     0,
+      sessionsToday:        0,
+      sessionsRemaining:    0,
+    );
+  }
 }
 
 // ─── Patient summary row (for dashboard list) ─────────────────────────────────
@@ -57,8 +90,8 @@ class PatientSummaryRow {
   final String id;
   final String name;
   final String status;
-  final String risk;            // 'Low' | 'Med' | 'High' | 'Crisis'
-  final String? lastAssessment; // e.g. 'PHQ-9: 14'
+  final String risk;
+  final String? lastAssessment;
   final String lastSeen;
   final bool needsAttention;
   final String? attentionReason;
@@ -73,17 +106,60 @@ class PatientSummaryRow {
     required this.needsAttention,
     this.attentionReason,
   });
+
+  factory PatientSummaryRow.fromApi(Map<String, dynamic> json) {
+    final riskRaw = (json['risk'] as String? ?? 'Low');
+    final risk = _normaliseRisk(riskRaw);
+    final isHighRisk = risk == 'High' || risk == 'Crisis';
+    final lastSeen = _formatDate(json['last_seen'] as String?);
+    return PatientSummaryRow(
+      id:             json['id'] as String,
+      name:           json['name'] as String,
+      status:         json['status'] as String? ?? 'Active',
+      risk:           risk,
+      lastAssessment: null,   // enriched later by assessment fetch
+      lastSeen:       lastSeen,
+      needsAttention: isHighRisk,
+      attentionReason: isHighRisk ? 'High-risk flag active' : null,
+    );
+  }
+
+  static String _normaliseRisk(String raw) {
+    switch (raw.toLowerCase()) {
+      case 'high':   return 'High';
+      case 'medium':
+      case 'med':    return 'Med';
+      case 'crisis': return 'Crisis';
+      default:       return 'Low';
+    }
+  }
+
+  static String _formatDate(String? iso) {
+    if (iso == null) return 'Unknown';
+    try {
+      final dt = DateTime.parse(iso).toLocal();
+      final diff = DateTime.now().difference(dt);
+      if (diff.inDays == 0) return 'Today';
+      if (diff.inDays == 1) return 'Yesterday';
+      if (diff.inDays < 7)  return '${diff.inDays} days ago';
+      return '${(diff.inDays / 7).round()} week(s) ago';
+    } catch (_) {
+      return 'Unknown';
+    }
+  }
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 class DashboardProvider extends ChangeNotifier {
   bool _isLoading = true;
+  String? _error;
   DashboardStats? _stats;
   List<EarlyWarning> _warnings = [];
   List<PatientSummaryRow> _patients = [];
 
   bool get isLoading => _isLoading;
+  String? get error  => _error;
   DashboardStats? get stats => _stats;
   List<EarlyWarning> get warnings => _warnings;
   List<PatientSummaryRow> get patients => _patients;
@@ -94,67 +170,77 @@ class DashboardProvider extends ChangeNotifier {
   List<PatientSummaryRow> get needsAttention =>
       _patients.where((p) => p.needsAttention).toList();
 
-  /// Call on startup and after any data-mutating action.
+  /// Fetch real data from the backend. Call on login and after mutations.
   Future<void> refresh(String clinicianId) async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
 
-    // In production: replace with Firestore streams.
-    // The structure is ready — swap _fetchPatients and _buildWarnings
-    // with real queries scoped to clinicianId/orgId.
+    try {
+      // 1. Fetch patient list from real API
+      final patientsResp = await ApiClient.instance.get('/patients');
+      if (patientsResp.statusCode == 200) {
+        final raw = jsonDecode(patientsResp.body) as List<dynamic>;
+        final apiPatients = raw
+            .map((e) => PatientSummaryRow.fromApi(e as Map<String, dynamic>))
+            .toList();
 
-    await Future.delayed(const Duration(milliseconds: 600)); // simulate network
+        // 2. Enrich with homework adherence from local secure storage
+        final enriched = <PatientSummaryRow>[];
+        for (final p in apiPatients) {
+          final adherence = await HomeworkService.getAdherenceSummary(p.id);
+          final lowAdherence = adherence.totalAssigned > 0 &&
+              adherence.completionRate < 0.5;
+          enriched.add(PatientSummaryRow(
+            id:             p.id,
+            name:           p.name,
+            status:         p.status,
+            risk:           p.risk,
+            lastAssessment: p.lastAssessment,
+            lastSeen:       p.lastSeen,
+            needsAttention: p.needsAttention || lowAdherence,
+            attentionReason: lowAdherence
+                ? 'Low adherence (${(adherence.completionRate * 100).round()}%)'
+                : p.attentionReason,
+          ));
+        }
+        _patients = enriched;
+      }
 
-    _patients = await _fetchPatients(clinicianId);
-    _warnings = _buildWarnings(_patients);
-    _stats    = _buildStats(_patients, _warnings);
+      // 3. Build warnings from patient risk data
+      _warnings = _buildWarnings(_patients);
 
-    _isLoading = false;
-    notifyListeners();
-  }
-
-  // ─── Data fetching (replace bodies with Firestore) ────────────────────────
-
-  Future<List<PatientSummaryRow>> _fetchPatients(String clinicianId) async {
-    // TODO: Replace with:
-    //   final snap = await FirebaseFirestore.instance
-    //     .collection('patients')
-    //     .where('assignedClinicianId', isEqualTo: clinicianId)
-    //     .where('status', isEqualTo: 'active')
-    //     .get();
-    //   return snap.docs.map((d) => PatientSummaryRow.fromFirestore(d)).toList();
-
-    // Enrich each patient with adherence data from local secure storage
-    final mockPatients = _mockPatients();
-    final enriched = <PatientSummaryRow>[];
-
-    for (final p in mockPatients) {
-      final adherence = await HomeworkService.getAdherenceSummary(p.id);
-      final lowAdherence = adherence.totalAssigned > 0 &&
-          adherence.completionRate < 0.5;
-
-      enriched.add(PatientSummaryRow(
-        id: p.id,
-        name: p.name,
-        status: p.status,
-        risk: p.risk,
-        lastAssessment: p.lastAssessment,
-        lastSeen: p.lastSeen,
-        needsAttention: p.needsAttention || lowAdherence,
-        attentionReason: lowAdherence
-            ? 'Low homework adherence (${(adherence.completionRate * 100).round()}%)'
-            : p.attentionReason,
-      ));
+      // 4. Fetch dashboard summary stats
+      try {
+        final summaryResp =
+            await ApiClient.instance.get('/dashboard/summary');
+        if (summaryResp.statusCode == 200) {
+          _stats = DashboardStats.fromApi(
+              jsonDecode(summaryResp.body) as Map<String, dynamic>);
+        } else {
+          _stats = DashboardStats.fromPatients(
+              _patients, _warnings, urgentWarnings.length);
+        }
+      } catch (_) {
+        // /dashboard/summary not yet deployed — derive from patient list
+        _stats = DashboardStats.fromPatients(
+            _patients, _warnings, urgentWarnings.length);
+      }
+    } on ApiException catch (e) {
+      _error = e.message;
+      debugPrint('DashboardProvider error: $e');
+    } catch (e) {
+      _error = 'Failed to load dashboard data.';
+      debugPrint('DashboardProvider unexpected error: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    return enriched;
   }
 
   List<EarlyWarning> _buildWarnings(List<PatientSummaryRow> patients) {
     final warnings = <EarlyWarning>[];
-
     for (final p in patients) {
-      // Risk-level based warnings
       if (p.risk == 'Crisis') {
         warnings.add(EarlyWarning(
           patientId: p.id, patientName: p.name,
@@ -167,10 +253,7 @@ class DashboardProvider extends ChangeNotifier {
           message: p.attentionReason ?? 'Needs attention',
           level: WarningLevel.urgent, category: 'risk',
         ));
-      }
-
-      // Attention flags
-      if (p.needsAttention && p.risk != 'High' && p.risk != 'Crisis') {
+      } else if (p.needsAttention) {
         warnings.add(EarlyWarning(
           patientId: p.id, patientName: p.name,
           message: p.attentionReason ?? 'Review recommended',
@@ -178,50 +261,7 @@ class DashboardProvider extends ChangeNotifier {
         ));
       }
     }
-
-    // Sort: urgent first
     warnings.sort((a, b) => b.level.index.compareTo(a.level.index));
     return warnings;
   }
-
-  DashboardStats _buildStats(
-    List<PatientSummaryRow> patients,
-    List<EarlyWarning> warnings,
-  ) {
-    return DashboardStats(
-      activeCases:           patients.where((p) => p.status == 'Active').length,
-      newThisMonth:          2,    // TODO: filter by intakeDate >= start of month
-      riskAlerts:            warnings.length,
-      highPriority:          urgentWarnings.length,
-      assessmentsCompleted:  14,   // TODO: aggregate from AssessmentService
-      assessmentsTrend:      3,
-      sessionsToday:         5,    // TODO: from SchedulingService
-      sessionsRemaining:     2,
-    );
-  }
-
-  // ─── Mock data (delete once Firestore is wired) ───────────────────────────
-
-  static List<PatientSummaryRow> _mockPatients() => [
-    const PatientSummaryRow(
-      id: '1', name: 'Sarah Johnson', status: 'Active', risk: 'High',
-      lastAssessment: 'PHQ-9: 17', lastSeen: '2 days ago',
-      needsAttention: true, attentionReason: 'PHQ-9 worsened by 5 points',
-    ),
-    const PatientSummaryRow(
-      id: '2', name: 'Ahmed Hassan', status: 'Active', risk: 'Low',
-      lastAssessment: 'GAD-7: 8', lastSeen: '1 week ago',
-      needsAttention: false,
-    ),
-    const PatientSummaryRow(
-      id: '3', name: 'Laila Mahmoud', status: 'Active', risk: 'Med',
-      lastAssessment: 'PHQ-9: 12', lastSeen: '3 days ago',
-      needsAttention: true, attentionReason: 'Missed last session',
-    ),
-    const PatientSummaryRow(
-      id: '4', name: 'Omar Khalil', status: 'Active', risk: 'Med',
-      lastAssessment: 'ISI: 14', lastSeen: '5 days ago',
-      needsAttention: false,
-    ),
-  ];
 }

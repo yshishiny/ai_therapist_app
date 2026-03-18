@@ -80,3 +80,11 @@ class ClinicalTheme {
     );
   }
 }
+
+/// Convenience wrapper so main.dart can use [AppTheme.colorfulTheme] and
+/// [AppTheme.clinicalDarkTheme] without knowing about [ClinicalTheme].
+class AppTheme {
+  AppTheme._();
+  static ThemeData get colorfulTheme    => ClinicalTheme.getTheme(false);
+  static ThemeData get clinicalDarkTheme => ClinicalTheme.getTheme(true);
+}
