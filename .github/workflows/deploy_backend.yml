@@ -43,16 +43,18 @@ jobs:
           docker build -f backend/Dockerfile -t ai_therapist_backend .
 
       # ── RAILWAY DEPLOY ─────────────────────────────────────────────────────
-      # Triggered only on main branch push (not PRs).
-      # Railway auto-deploys via GitHub integration when connected.
-      # This step provides an explicit fallback via the Railway CLI.
+      # Railway auto-deploys via its GitHub integration when connected.
+      # This explicit CLI step is a fallback — requires RAILWAY_TOKEN and
+      # RAILWAY_PROJECT_ID secrets set in GitHub → Settings → Secrets.
       - name: Deploy to Railway (main branch only)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        continue-on-error: true   # Railway GitHub integration is primary deploy mechanism
         working-directory: ${{ github.workspace }}
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
         run: |
           # Install Railway CLI
           npm install -g @railway/cli
-          # Deploy backend service
+          # Link project and deploy backend service
           railway up --service backend --detach

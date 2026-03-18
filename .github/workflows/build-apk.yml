@@ -31,27 +31,26 @@ jobs:
         run: flutter pub get
 
       # ── KEYSTORE SETUP ─────────────────────────────────────────────────────
-      # FIX: The keystore MUST be decoded before key.properties references it.
       - name: Decode Android Keystore
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 --decode \
-            > ai_therapist/android/app/upload-keystore.jks
-          echo "Keystore decoded: $(wc -c < ai_therapist/android/app/upload-keystore.jks) bytes"
+          KEYSTORE_PATH="${GITHUB_WORKSPACE}/ai_therapist/android/app/upload-keystore.jks"
+          echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 --decode > "${KEYSTORE_PATH}"
+          echo "Keystore decoded: $(wc -c < "${KEYSTORE_PATH}") bytes at ${KEYSTORE_PATH}"
 
       - name: Remove Windows-only Java home from gradle.properties
         run: sed -i '/org.gradle.java.home/d' ai_therapist/android/gradle.properties
 
       - name: Create key.properties
-        working-directory: ai_therapist/android
         run: |
-          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=%s\n' \
-            '${{ secrets.STORE_PASSWORD }}' \
-            '${{ secrets.KEY_PASSWORD }}' \
-            '${{ secrets.KEY_ALIAS }}' \
-            'app/upload-keystore.jks' \
-            > key.properties
+          KEYSTORE_PATH="${GITHUB_WORKSPACE}/ai_therapist/android/app/upload-keystore.jks"
+          cat > ai_therapist/android/key.properties <<EOF
+          storePassword=${{ secrets.STORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=${KEYSTORE_PATH}
+          EOF
           echo "key.properties written:"
-          cat key.properties
+          cat ai_therapist/android/key.properties
 
       # ── TESTS ──────────────────────────────────────────────────────────────
       - name: Run Flutter unit tests
