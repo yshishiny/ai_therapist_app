@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // --- Response Models ---
 
@@ -149,7 +148,11 @@ class HealingPlan {
 // --- Main AI Service ---
 
 class AiService {
-  String get _baseUrl => dotenv.env['AI_GATEWAY_URL'] ?? 'http://localhost:5051/chat';
+  static const String _aiGatewayUrl = String.fromEnvironment(
+    'AI_GATEWAY_URL',
+    defaultValue: 'http://localhost:5051/chat',
+  );
+  String get _baseUrl => _aiGatewayUrl;
 
   Future<String> _callAi(String prompt) async {
     try {
