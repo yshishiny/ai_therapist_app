@@ -1,15 +1,24 @@
 default_platform(:android)
 
 platform :android do
-  desc "Submit a new Beta Build to Crashlytics/Internal Testing"
+  desc "Submit a new Beta Build to Google Play Internal Testing track"
   lane :android_beta do
-    # Build the AAB
-    gradle(task: "bundle", build_type: "Release")
+    gradle(
+      task: "bundle",
+      build_type: "Release",
+      project_dir: ".",
+      properties: {
+        "android.injected.signing.store.file"     => ENV["P12_PATH"] || "app/upload-keystore.jks",
+        "android.injected.signing.store.password" => ENV["KEYSTORE_PASSWORD"],
+        "android.injected.signing.key.alias"      => ENV["KEY_ALIAS"],
+        "android.injected.signing.key.password"   => ENV["KEY_PASSWORD"],
+      }
+    )
 
-    # Upload to Google Play Internal Test Track
     upload_to_play_store(
-      track: 'internal',
-      aab: 'app/build/outputs/bundle/release/app-release.aab',
+      track: "internal",
+      aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
+      release_status: "draft",
       skip_upload_metadata: true,
       skip_upload_images: true,
       skip_upload_screenshots: true
@@ -18,13 +27,21 @@ platform :android do
 
   desc "Deploy a new version to the Google Play Store (Production)"
   lane :android_production do
-    # Build the AAB
-    gradle(task: "bundle", build_type: "Release")
+    gradle(
+      task: "bundle",
+      build_type: "Release",
+      project_dir: ".",
+      properties: {
+        "android.injected.signing.store.file"     => ENV["P12_PATH"] || "app/upload-keystore.jks",
+        "android.injected.signing.store.password" => ENV["KEYSTORE_PASSWORD"],
+        "android.injected.signing.key.alias"      => ENV["KEY_ALIAS"],
+        "android.injected.signing.key.password"   => ENV["KEY_PASSWORD"],
+      }
+    )
 
-    # Upload to Google Play Production Track
     upload_to_play_store(
-      track: 'production',
-      aab: 'app/build/outputs/bundle/release/app-release.aab',
+      track: "production",
+      aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
       skip_upload_metadata: false,
       skip_upload_images: false,
       skip_upload_screenshots: false

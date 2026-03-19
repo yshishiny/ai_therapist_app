@@ -28,7 +28,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.27.4'
+          flutter-version: '3.29.0'
           channel: 'stable'
 
       - name: Setup Fastlane
@@ -42,10 +42,23 @@ jobs:
         working-directory: ./ai_therapist
         run: flutter pub get
 
-      - name: Generate Android Keystore from Secret
+      - name: Decode and Convert Android Keystore
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 --decode > app/upload-keystore.jks
-        
+          JKS_PATH="${GITHUB_WORKSPACE}/ai_therapist/android/app/upload-keystore.jks"
+          P12_PATH="${GITHUB_WORKSPACE}/ai_therapist/android/app/upload-keystore.p12"
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > "${JKS_PATH}"
+          keytool -importkeystore \
+            -srckeystore "${JKS_PATH}" \
+            -destkeystore "${P12_PATH}" \
+            -deststoretype PKCS12 \
+            -srcalias '${{ secrets.KEY_ALIAS }}' \
+            -destalias '${{ secrets.KEY_ALIAS }}' \
+            -srcstorepass '${{ secrets.STORE_PASSWORD }}' \
+            -deststorepass '${{ secrets.STORE_PASSWORD }}' \
+            -srckeypass '${{ secrets.KEY_PASSWORD }}' \
+            -destkeypass '${{ secrets.KEY_PASSWORD }}' \
+            -noprompt || true
+
       - name: Inject Google Play Service Account JSON
         run: |
           echo "${{ secrets.PLAY_STORE_JSON_KEY }}" > play-store-service-account.json
@@ -61,16 +74,18 @@ jobs:
         if: github.ref == 'refs/heads/develop'
         env:
           SUPPLY_JSON_KEY: play-store-service-account.json
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          P12_PATH: ${{ github.workspace }}/ai_therapist/android/app/upload-keystore.p12
+          KEYSTORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: bundle exec fastlane android_beta
 
       - name: Run Fastlane (MAIN branch -> Production)
         if: github.ref == 'refs/heads/main'
         env:
           SUPPLY_JSON_KEY: play-store-service-account.json
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          P12_PATH: ${{ github.workspace }}/ai_therapist/android/app/upload-keystore.p12
+          KEYSTORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: bundle exec fastlane android_production
