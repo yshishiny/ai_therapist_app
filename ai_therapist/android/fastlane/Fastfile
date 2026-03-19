@@ -15,14 +15,19 @@ platform :android do
       }
     )
 
-    upload_to_play_store(
-      track: "internal",
-      aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
-      release_status: "draft",
-      skip_upload_metadata: true,
-      skip_upload_images: true,
-      skip_upload_screenshots: true
-    )
+    json_key = ENV["SUPPLY_JSON_KEY"]
+    if json_key && File.exist?(json_key) && File.size(json_key) > 10
+      upload_to_play_store(
+        track: "internal",
+        aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
+        release_status: "draft",
+        skip_upload_metadata: true,
+        skip_upload_images: true,
+        skip_upload_screenshots: true
+      )
+    else
+      UI.important("PLAY_STORE_JSON_KEY not configured — skipping Play Store upload. AAB is at: #{lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH]}")
+    end
   end
 
   desc "Deploy a new version to the Google Play Store (Production)"
@@ -39,12 +44,18 @@ platform :android do
       }
     )
 
-    upload_to_play_store(
-      track: "production",
-      aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
-      skip_upload_metadata: false,
-      skip_upload_images: false,
-      skip_upload_screenshots: false
-    )
+    json_key = ENV["SUPPLY_JSON_KEY"]
+    if json_key && File.exist?(json_key) && File.size(json_key) > 10
+      upload_to_play_store(
+        track: "production",
+        aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
+        skip_upload_metadata: false,
+        skip_upload_images: false,
+        skip_upload_screenshots: false
+      )
+    else
+      UI.important("PLAY_STORE_JSON_KEY not configured — skipping Play Store upload. AAB is at: #{lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH]}")
+    end
   end
 end
+
