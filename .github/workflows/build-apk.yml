@@ -56,6 +56,9 @@ jobs:
       - name: Remove Windows-only Java home from gradle.properties
         run: sed -i '/org.gradle.java.home/d' ai_therapist/android/gradle.properties
 
+      - name: Strip Windows tmpdir from Gradle JVM args
+        run: sed -i 's|-Djava.io.tmpdir=[^ ]*||g' ai_therapist/android/gradle.properties
+
       - name: Create key.properties
         run: |
           KEYSTORE_ABS="${GITHUB_WORKSPACE}/ai_therapist/android/app/upload-keystore.p12"
