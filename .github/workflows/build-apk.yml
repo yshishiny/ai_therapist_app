@@ -36,7 +36,7 @@ jobs:
           JKS_PATH="${GITHUB_WORKSPACE}/ai_therapist/android/app/upload-keystore.jks"
           P12_PATH="${GITHUB_WORKSPACE}/ai_therapist/android/app/upload-keystore.p12"
           # Decode the secret (may be JKS or PKCS12)
-          echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 --decode > "${JKS_PATH}"
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > "${JKS_PATH}"
           echo "Decoded $(wc -c < ${JKS_PATH}) bytes"
           # Convert JKS → PKCS12 so AGP can read it reliably
           keytool -importkeystore \
