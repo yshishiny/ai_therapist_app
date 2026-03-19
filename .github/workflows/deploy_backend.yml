@@ -38,9 +38,10 @@ jobs:
         run: pytest --tb=short -q
 
       - name: Verify Docker Build (Dry Run)
-        working-directory: ${{ github.workspace }}
+        working-directory: ${{ github.workspace }}/backend
         run: |
-          docker build -f backend/Dockerfile -t ai_therapist_backend .
+          # Build context = backend/ (matches Railway's Root Directory setting)
+          docker build -f Dockerfile -t ai_therapist_backend .
 
       # ── RAILWAY DEPLOY ─────────────────────────────────────────────────────
       # Railway auto-deploys via its GitHub integration when connected.
