@@ -28,7 +28,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title, style: GoogleFonts.outfit()),
+        title: Text(widget.title, style: GoogleFonts.inter()),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(4),
           child: LinearProgressIndicator(
@@ -54,7 +54,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                   const SizedBox(height: 16),
                   Text(
                     widget.questions[_currentStep],
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.inter(
                         fontSize: 22, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 40),

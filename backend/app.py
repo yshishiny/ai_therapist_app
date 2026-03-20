@@ -233,27 +233,42 @@ class DashboardSummaryOut(BaseModel):
 async def login(body: LoginRequest, db: DB):
     """
     Exchange email + password for an access/refresh token pair.
-    Global rate limit: 200 req/min per IP (via SlowAPIMiddleware).
-    Passwords are stored as bcrypt hashes — never plaintext.
+    Checks clinicians first, then patient_users — same error either way to
+    prevent user enumeration.
     """
+    # 1. Try clinician table
     row = await db.fetchrow(
         "SELECT id, org_id, role, password_hash FROM clinicians WHERE email = $1",
         body.email,
     )
-    if not row or not verify_password(body.password, row["password_hash"]):
-        # Return the same error whether the user doesn't exist or the
-        # password is wrong — prevents user enumeration.
-        logger.warning("Failed login attempt", extra={"email": body.email})
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials.",
+    if row and verify_password(body.password, row["password_hash"]):
+        logger.info("Clinician login", extra={"user_id": str(row["id"]), "role": row["role"]})
+        return create_token_pair(
+            user_id=str(row["id"]),
+            role=Role(row["role"]),
+            org_id=str(row["org_id"]),
         )
 
-    logger.info("Successful login", extra={"user_id": str(row["id"]), "role": row["role"]})
-    return create_token_pair(
-        user_id=str(row["id"]),
-        role=Role(row["role"]),
-        org_id=str(row["org_id"]),
+    # 2. Try patient_users table
+    p_row = await db.fetchrow(
+        """SELECT pu.id, pu.org_id, pu.patient_id, pu.password_hash
+           FROM patient_users pu
+           WHERE pu.email = $1 AND pu.active = TRUE""",
+        body.email,
+    )
+    if p_row and verify_password(body.password, p_row["password_hash"]):
+        logger.info("Patient login", extra={"patient_id": str(p_row["patient_id"])})
+        return create_token_pair(
+            user_id=str(p_row["patient_id"]),  # sub = patient row id
+            role=Role.PATIENT,
+            org_id=str(p_row["org_id"]),
+        )
+
+    # 3. Neither matched — same generic error
+    logger.warning("Failed login attempt", extra={"email": body.email})
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid credentials.",
     )
 
 
@@ -261,26 +276,26 @@ async def login(body: LoginRequest, db: DB):
 async def refresh(body: RefreshRequest, db: DB):
     """
     Rotate an access token using a valid refresh token.
-    The refresh token is validated server-side before issuing a new pair.
+    Supports both clinician and patient refresh flows.
     """
     payload = _decode(body.refresh_token, "refresh")
 
-    # Confirm the user still exists and is not suspended
-    row = await db.fetchrow(
-        "SELECT id, org_id, role FROM clinicians WHERE id = $1 AND active = TRUE",
-        uuid.UUID(payload.sub),
-    )
-    if not row:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User account not found or deactivated.",
+    if payload.role == Role.PATIENT:
+        row = await db.fetchrow(
+            "SELECT patient_id, org_id FROM patient_users WHERE patient_id = $1 AND active = TRUE",
+            uuid.UUID(payload.sub),
         )
-
-    return create_token_pair(
-        user_id=payload.sub,
-        role=Role(row["role"]),
-        org_id=str(row["org_id"]),
-    )
+        if not row:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Patient account not found or deactivated.")
+        return create_token_pair(user_id=payload.sub, role=Role.PATIENT, org_id=str(row["org_id"]))
+    else:
+        row = await db.fetchrow(
+            "SELECT id, org_id, role FROM clinicians WHERE id = $1 AND active = TRUE",
+            uuid.UUID(payload.sub),
+        )
+        if not row:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User account not found or deactivated.")
+        return create_token_pair(user_id=payload.sub, role=Role(row["role"]), org_id=str(row["org_id"]))
 
 
 # ─── Patient routes — PROTECTED ───────────────────────────────────────────────
@@ -797,6 +812,207 @@ async def create_careplan(patient_id: str, body: CarePlanIn, user: CurrentUser, 
         goals=body.goals, created_at=now,
     )
 
+@app.get(
+    "/patients/{patient_id}/careplans/active",
+    tags=["careplans"],
+)
+async def get_active_careplan(patient_id: str, user: CurrentUser, db: DB):
+    """Get the active care plan for a patient and its phases."""
+    exists = await db.fetchval(
+        "SELECT 1 FROM patients WHERE id=$1 AND org_id=$2",
+        uuid.UUID(patient_id), uuid.UUID(user.org_id),
+    )
+    if not exists:
+        raise HTTPException(status_code=404, detail="Patient not found.")
+
+    plan = await db.fetchrow(
+        "SELECT * FROM care_plans WHERE patient_id=$1 AND status='ACTIVE' ORDER BY created_at DESC LIMIT 1",
+        uuid.UUID(patient_id)
+    )
+    if not plan:
+        plan = await db.fetchrow(
+            "SELECT * FROM care_plans WHERE patient_id=$1 ORDER BY created_at DESC LIMIT 1",
+            uuid.UUID(patient_id)
+        )
+        if not plan:
+            raise HTTPException(status_code=404, detail="No care plan found.")
+            
+    phases = await db.fetch(
+        "SELECT * FROM care_plan_phases WHERE careplan_id=$1 ORDER BY phase_index ASC",
+        plan["id"]
+    )
+    
+    import json
+    d = dict(plan)
+    d["id"] = str(d["id"])
+    d["patient_id"] = str(d["patient_id"])
+    d["goals"] = json.loads(d["goals"]) if isinstance(d["goals"], str) else d["goals"]
+    d["created_at"] = d["created_at"].isoformat() if d["created_at"] else None
+    d["updated_at"] = d["updated_at"].isoformat() if d["updated_at"] else None
+    
+    phases_list = []
+    for p in phases:
+        pd = dict(p)
+        pd["id"] = str(pd["id"])
+        pd["careplan_id"] = str(pd["careplan_id"])
+        pd["methods"] = json.loads(pd["methods"]) if isinstance(pd["methods"], str) else pd["methods"]
+        pd["homework_templates"] = json.loads(pd["homework_templates"]) if isinstance(pd["homework_templates"], str) else pd["homework_templates"]
+        pd["measures_to_track"] = json.loads(pd["measures_to_track"]) if isinstance(pd["measures_to_track"], str) else pd["measures_to_track"]
+        phases_list.append(pd)
+        
+    d["phases"] = phases_list
+    return d
+
+# ─── Homework ─────────────────────────────────────────────────────────────────
+
+class HomeworkFeedbackIn(BaseModel):
+    completionPercentage: int = 0
+    difficultyRating: int = 3
+    helpfulnessRating: int = 3
+    barriers: list[str] = []
+    additionalComments: str = ""
+
+@app.get(
+    "/patients/{patient_id}/homework",
+    tags=["homework"],
+)
+async def list_homework(patient_id: str, user: CurrentUser, db: DB):
+    """List all homework tasks for a patient."""
+    rows = await db.fetch(
+        """SELECT id, patient_id, careplan_phase_id, title, instructions,
+                  due_date, status, patient_feedback, therapist_notes
+           FROM homework_tasks WHERE patient_id=$1 ORDER BY due_date ASC NULLS LAST""",
+        uuid.UUID(patient_id),
+    )
+    import json
+    results = []
+    for r in rows:
+        d = dict(r)
+        d["id"] = str(d["id"])
+        d["patient_id"] = str(d["patient_id"])
+        d["careplan_phase_id"] = str(d["careplan_phase_id"]) if d["careplan_phase_id"] else None
+        d["due_date"] = d["due_date"].isoformat() if d["due_date"] else None
+        d["patient_feedback"] = json.loads(d["patient_feedback"]) if d["patient_feedback"] else None
+        results.append(d)
+    return results
+
+@app.post(
+    "/patients/{patient_id}/homework",
+    tags=["homework"],
+)
+async def assign_homework(patient_id: str, body: HomeworkIn, user: CurrentUser, db: DB):
+    """Assign a homework task to a patient."""
+    new_id = uuid.uuid4()
+    due_date = None
+    if body.due_date:
+        due_date = datetime.strptime(body.due_date, "%Y-%m-%d").date()
+        
+    await db.execute(
+        """INSERT INTO homework_tasks
+               (id, patient_id, title, instructions, due_date, status)
+           VALUES ($1,$2,$3,$4,$5,'ASSIGNED')""",
+        new_id, uuid.UUID(patient_id), body.title, body.instructions, due_date
+    )
+    return {"id": str(new_id), "status": "ASSIGNED"}
+
+@app.post(
+    "/homework/{task_id}/feedback",
+    tags=["homework"],
+)
+async def submit_homework_feedback(task_id: str, body: HomeworkFeedbackIn, user: CurrentUser, db: DB):
+    """Submit patient feedback and update the homework status dynamically."""
+    import json
+    feedback_json = json.dumps(body.dict())
+    
+    status_val = "COMPLETED" if body.completionPercentage == 100 else ("SKIPPED" if body.completionPercentage == 0 else "PARTIALLY_DONE")
+    
+    updated = await db.execute(
+        "UPDATE homework_tasks SET patient_feedback=$1, status=$2 WHERE id=$3",
+        feedback_json, status_val, uuid.UUID(task_id)
+    )
+    if updated == "UPDATE 0":
+        raise HTTPException(status_code=404, detail="Homework task not found.")
+        
+    return {"status": "success", "new_status": status_val}
+
+# ─── Assessments & AI Orchestrator ────────────────────────────────────────────
+
+@app.get("/assessments/templates", tags=["assessments"])
+async def list_assessment_templates(user: CurrentUser, db: DB):
+    """Returns all assessment configurations (psych, somatic, art therapy)"""
+    rows = await db.fetch("SELECT * FROM assessment_templates ORDER BY id")
+    import json
+    results = []
+    for r in rows:
+        d = dict(r)
+        d["scoring_rules"] = json.loads(d["scoring_rules"]) if isinstance(d["scoring_rules"], str) else d["scoring_rules"]
+        d["interpretation_rules"] = json.loads(d["interpretation_rules"]) if d["interpretation_rules"] and isinstance(d["interpretation_rules"], str) else d["interpretation_rules"]
+        results.append(d)
+    return results
+
+class AssessmentSubmissionIn(BaseModel):
+    template_id: str
+    raw_answers: dict
+    score_total: int | None = None
+    subscale_scores: dict | None = None
+    severity_band: str | None = None
+    interpretation_text: str | None = None
+    context: str = "IN_SESSION"
+    flagged: bool = False
+
+@app.get("/patients/{patient_id}/assessments", tags=["assessments"])
+async def list_patient_assessments(patient_id: str, user: CurrentUser, db: DB):
+    """List all past assessment results for longitudinal graphing."""
+    rows = await db.fetch(
+        "SELECT * FROM assessment_instances WHERE patient_id=$1 ORDER BY taken_at DESC",
+        uuid.UUID(patient_id)
+    )
+    import json
+    results = []
+    for r in rows:
+        d = dict(r)
+        d["id"] = str(d["id"])
+        d["patient_id"] = str(d["patient_id"])
+        d["taken_at"] = d["taken_at"].isoformat() if d["taken_at"] else None
+        d["raw_answers"] = json.loads(d["raw_answers"]) if isinstance(d["raw_answers"], str) else d["raw_answers"]
+        d["subscale_scores"] = json.loads(d["subscale_scores"]) if d["subscale_scores"] and isinstance(d["subscale_scores"], str) else d["subscale_scores"]
+        results.append(d)
+    return results
+
+@app.post("/patients/{patient_id}/assessments", tags=["assessments"])
+async def submit_assessment(patient_id: str, body: AssessmentSubmissionIn, user: CurrentUser, db: DB):
+    """Saves a completed assessment (including multidimensional answers)."""
+    new_id = uuid.uuid4()
+    import json
+    await db.execute(
+        """INSERT INTO assessment_instances 
+           (id, patient_id, template_id, context, raw_answers, score_total, 
+            subscale_scores, severity_band, interpretation_text, flagged)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)""",
+        new_id, uuid.UUID(patient_id), body.template_id, body.context,
+        json.dumps(body.raw_answers), body.score_total, 
+        json.dumps(body.subscale_scores) if body.subscale_scores else None,
+        body.severity_band, body.interpretation_text, body.flagged
+    )
+    return {"id": str(new_id), "status": "saved"}
+
+class ReportGenerationRequest(BaseModel):
+    include_homework: bool = True
+    include_assessments: bool = True
+    include_sessions: bool = True
+
+@app.post("/patients/{patient_id}/report/generate", tags=["ai", "reporting"])
+async def generate_clinical_synthesis(patient_id: str, body: ReportGenerationRequest, user: CurrentUser, db: DB):
+    """
+    The Crown Jewel Endpoint: 
+    Orchestrates AI to read all context and generate a cohesive Clinical Synthesis.
+    """
+    # Later: Use AiService to generate actual clinical synthesis payload
+    return {
+        "status": "processing",
+        "message": "AI Orchestrator is synthesizing patient history...",
+        "report_id": str(uuid.uuid4())
+    }
 
 # ─── Admin: Resources (Books, Handouts, Articles) ────────────────────────────
 
@@ -1059,3 +1275,218 @@ async def create_assessment_question(
         response_type=body.response_type,
         options=body.options,
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PATIENT PORTAL — /me/* routes
+# Every endpoint here is gated to role=PATIENT and scoped to the caller's own
+# patient record (identified by the `sub` claim == patient id in the JWT).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── Pydantic schemas ───────────────────────────────────────────────────────────
+
+class MoodLogIn(BaseModel):
+    mood_score: int       # 1–5
+    energy_score: int     # 1–5
+    note: str | None = None
+    emotions: list[str] = []   # e.g. ["anxious", "hopeful"]
+
+class HomeworkSubmitIn(BaseModel):
+    completion_notes: str | None = None
+    helpfulness_rating: int | None = None  # 1–5
+
+class AiChatMessageIn(BaseModel):
+    message: str
+    conversation_id: str | None = None   # None = start new thread
+
+
+# ── Helper — verify caller is the patient or raise 403 ────────────────────────
+
+def _patient_id_from_jwt(user: CurrentUser) -> str:
+    """The JWT `sub` field stores the patient UUID for patient-role users."""
+    if user.role != Role.PATIENT:
+        raise HTTPException(status_code=403, detail="Patient access only.")
+    return user.sub   # sub == patient row id for patient tokens
+
+
+# ── GET /me/profile ────────────────────────────────────────────────────────────
+
+@app.get("/me/profile", tags=["patient"])
+async def get_my_profile(user: CurrentUser, db: DB):
+    """Return the authenticated patient's own demographic + clinical summary."""
+    patient_id = _patient_id_from_jwt(user)
+    row = await db.fetchrow(
+        """SELECT id, full_name, gender, dob, primary_diagnosis,
+                  status, risk_level, therapist_id
+           FROM patients
+           WHERE id=$1 AND org_id=$2""",
+        uuid.UUID(patient_id), uuid.UUID(user.org_id),
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Patient profile not found.")
+    return dict(row)
+
+
+# ── POST /me/mood ──────────────────────────────────────────────────────────────
+
+@app.post("/me/mood", status_code=status.HTTP_201_CREATED, tags=["patient"])
+async def log_mood(body: MoodLogIn, user: CurrentUser, db: DB):
+    """Record a mood + energy check-in for the authenticated patient."""
+    import json as _json
+    patient_id = _patient_id_from_jwt(user)
+    entry_id = uuid.uuid4()
+    await db.execute(
+        """INSERT INTO mood_logs (id, patient_id, org_id, mood_score,
+                                  energy_score, note, emotions, logged_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, NOW())""",
+        entry_id,
+        uuid.UUID(patient_id),
+        uuid.UUID(user.org_id),
+        body.mood_score,
+        body.energy_score,
+        body.note,
+        _json.dumps(body.emotions),
+    )
+    return {"id": str(entry_id), "status": "logged"}
+
+
+# ── GET /me/mood ───────────────────────────────────────────────────────────────
+
+@app.get("/me/mood", tags=["patient"])
+async def get_mood_history(user: CurrentUser, db: DB, days: int = 30):
+    """Return the last `days` days of mood entries for the caller."""
+    patient_id = _patient_id_from_jwt(user)
+    rows = await db.fetch(
+        """SELECT id, mood_score, energy_score, note, emotions, logged_at
+           FROM mood_logs
+           WHERE patient_id=$1 AND org_id=$2
+             AND logged_at > NOW() - ($3 || ' days')::interval
+           ORDER BY logged_at ASC""",
+        uuid.UUID(patient_id), uuid.UUID(user.org_id), str(days),
+    )
+    return [dict(r) for r in rows]
+
+
+# ── GET /me/homework ───────────────────────────────────────────────────────────
+
+@app.get("/me/homework", tags=["patient"])
+async def get_my_homework(user: CurrentUser, db: DB):
+    """Return homework tasks assigned to the authenticated patient."""
+    patient_id = _patient_id_from_jwt(user)
+    rows = await db.fetch(
+        """SELECT id, title, description, task_type, status,
+                  due_date, assigned_at, patient_feedback
+           FROM homework_tasks
+           WHERE patient_id=$1 AND org_id=$2
+           ORDER BY due_date ASC NULLS LAST""",
+        uuid.UUID(patient_id), uuid.UUID(user.org_id),
+    )
+    return [dict(r) for r in rows]
+
+
+# ── POST /me/homework/{task_id}/submit ────────────────────────────────────────
+
+@app.post("/me/homework/{task_id}/submit", tags=["patient"])
+async def submit_my_homework(
+    task_id: str, body: HomeworkSubmitIn, user: CurrentUser, db: DB
+):
+    """Patient submits completion notes and helpfulness rating for a task."""
+    import json as _json
+    patient_id = _patient_id_from_jwt(user)
+    feedback = _json.dumps({
+        "notes": body.completion_notes,
+        "helpfulness_rating": body.helpfulness_rating,
+    })
+    result = await db.execute(
+        """UPDATE homework_tasks
+           SET patient_feedback=$1, status='completed', completed_at=NOW()
+           WHERE id=$2 AND patient_id=$3 AND org_id=$4""",
+        feedback,
+        uuid.UUID(task_id),
+        uuid.UUID(patient_id),
+        uuid.UUID(user.org_id),
+    )
+    if result == "UPDATE 0":
+        raise HTTPException(status_code=404, detail="Task not found.")
+    return {"status": "submitted"}
+
+
+# ── GET /me/sessions ───────────────────────────────────────────────────────────
+
+@app.get("/me/sessions", tags=["patient"])
+async def get_my_sessions(user: CurrentUser, db: DB, upcoming_only: bool = False):
+    """Return sessions for the authenticated patient."""
+    patient_id = _patient_id_from_jwt(user)
+    filter_clause = "AND scheduled_at > NOW()" if upcoming_only else ""
+    rows = await db.fetch(
+        f"""SELECT id, session_type, scheduled_at, duration_minutes,
+                   status, summary_snippet
+            FROM sessions
+            WHERE patient_id=$1 AND org_id=$2 {filter_clause}
+            ORDER BY scheduled_at DESC
+            LIMIT 20""",
+        uuid.UUID(patient_id), uuid.UUID(user.org_id),
+    )
+    return [dict(r) for r in rows]
+
+
+# ── POST /me/ai-chat ───────────────────────────────────────────────────────────
+
+@app.post("/me/ai-chat", tags=["patient"])
+async def patient_ai_chat(body: AiChatMessageIn, user: CurrentUser, db: DB):
+    """
+    Patient sends a message to the AI Companion.
+    The AI response is contextually informed by recent mood logs and homework status.
+    """
+    import json as _json
+    patient_id = _patient_id_from_jwt(user)
+
+    # Fetch recent context to prime the AI
+    recent_moods = await db.fetch(
+        """SELECT mood_score, energy_score, logged_at FROM mood_logs
+           WHERE patient_id=$1 ORDER BY logged_at DESC LIMIT 3""",
+        uuid.UUID(patient_id),
+    )
+    mood_context = ", ".join([
+        f"mood={r['mood_score']}/5 on {r['logged_at'].strftime('%b %d')}"
+        for r in recent_moods
+    ]) or "No recent mood logs."
+
+    pending_hw = await db.fetchval(
+        """SELECT COUNT(*) FROM homework_tasks
+           WHERE patient_id=$1 AND status='pending'""",
+        uuid.UUID(patient_id),
+    )
+
+    system_prompt = f"""You are a compassionate AI therapeutic companion.
+You are NOT a replacement for a licensed therapist, and must remind the user of this if they are in crisis.
+Patient context:
+- Recent mood history: {mood_context}
+- Pending homework tasks: {pending_hw}
+Respond with empathy, validate feelings, and gently encourage engagement with homework when appropriate.
+Keep responses concise (2-4 sentences) unless the user explicitly needs more detail."""
+
+    # Use the AiService to call the underlying LLM
+    from ai_service import AiService
+    ai = AiService()
+    try:
+        ai_reply = await ai.chat(system_prompt=system_prompt, user_message=body.message)
+    except Exception as e:
+        logger.warning("AI companion error", extra={"error": str(e)})
+        ai_reply = "I'm here for you. I'm having a little trouble connecting right now — please try again in a moment."
+
+    # Persist the conversation turn
+    conv_id = body.conversation_id or str(uuid.uuid4())
+    await db.execute(
+        """INSERT INTO ai_conversations (id, patient_id, org_id, role, content, created_at)
+           VALUES ($1, $2, $3, 'user', $4, NOW()),
+                  ($1, $2, $3, 'assistant', $5, NOW())""",
+        uuid.UUID(conv_id), uuid.UUID(patient_id), uuid.UUID(user.org_id),
+        body.message, ai_reply,
+    )
+
+    return {
+        "conversation_id": conv_id,
+        "reply": ai_reply,
+    }
+

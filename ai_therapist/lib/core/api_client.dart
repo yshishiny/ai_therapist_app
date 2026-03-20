@@ -65,6 +65,24 @@ class ApiClient {
     await _store.delete(_kRefreshToken);
   }
 
+  /// Decode the stored JWT payload and return the `role` claim string,
+  /// or null if no token is stored or the payload is malformed.
+  Future<String?> getStoredRole() async {
+    final token = await _store.read(_kAccessToken);
+    if (token == null) return null;
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      // JWT payload is base64url-encoded (no padding)
+      final payload = parts[1];
+      final normalized = base64Url.normalize(payload);
+      final decoded = jsonDecode(utf8.decode(base64Url.decode(normalized))) as Map<String, dynamic>;
+      return decoded['role'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<String?> get _accessToken => _store.read(_kAccessToken);
   Future<String?> get _refreshToken => _store.read(_kRefreshToken);
 

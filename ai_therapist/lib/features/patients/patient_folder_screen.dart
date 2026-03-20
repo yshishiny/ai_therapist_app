@@ -14,6 +14,10 @@ import '../patients/patient_folder_model.dart';
 import '../homework/homework_service.dart';
 import '../sessions/session_ai_review_screen.dart';
 import '../sessions/session_note_screen.dart';
+import '../assessments/universal_assessment_screen.dart';
+import 'patient_trends_tab.dart';
+import '../../core/api_client.dart';
+import 'dart:convert';
 
 class PatientFolderScreen extends StatefulWidget {
   final PatientFolder patient;
@@ -113,7 +117,7 @@ class _PatientFolderScreenState extends State<PatientFolderScreen>
                     const Color(0xFF8FB9A8).withValues(alpha: 0.15),
                 child: Text(
                   _patient.initials,
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFF8FB9A8),
@@ -127,7 +131,7 @@ class _PatientFolderScreenState extends State<PatientFolderScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(_patient.fullName,
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                             fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 2),
                     Text(
@@ -629,272 +633,110 @@ class _TimelineEntry {
 
 // ─── Tab 3: Assessments ───────────────────────────────────────────────────────
 
-class _AssessmentsTab extends StatelessWidget {
+class _AssessmentsTab extends StatefulWidget {
   final PatientFolder patient;
   const _AssessmentsTab({required this.patient});
 
-  // Mock score history — replace with AssessmentService.getHistory(patientId)
-  static const _phq9Scores = [17, 15, 14, 13, 12];
-  static const _gad7Scores = [16, 14, 12, 11, 10];
-
   @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const _Card(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _SectionHeader('Score trends', Icons.show_chart, Colors.purple),
-              SizedBox(height: 16),
-              _SparklineChart(
-                label: 'PHQ-9 (depression)',
-                scores: _phq9Scores,
-                color: Color(0xFF6C63FF),
-                maxScore: 27,
-                thresholds: [5, 10, 15, 20],
-              ),
-              SizedBox(height: 20),
-              _SparklineChart(
-                label: 'GAD-7 (anxiety)',
-                scores: _gad7Scores,
-                color: Colors.teal,
-                maxScore: 21,
-                thresholds: [5, 10, 15],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        _Card(
-          borderColor: Colors.blue.shade200,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _SectionHeader(
-                  'Recommended next', Icons.lightbulb_outline, Colors.blue),
-              const SizedBox(height: 10),
-              const Text(
-                'Based on PHQ-9 scores stabilizing, consider the MDQ '
-                '(Mood Disorder Questionnaire) to screen for bipolar spectrum '
-                'before adjusting the treatment plan.',
-                style: TextStyle(fontSize: 13, height: 1.6),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.play_arrow, size: 18),
-                  label: const Text('Start MDQ assessment'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        _Card(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _SectionHeader('History', Icons.history, Colors.grey),
-              const SizedBox(height: 10),
-              _AssessmentHistoryRow('PHQ-9', 12, 'Moderate', Colors.amber,
-                  DateTime.now().subtract(const Duration(days: 4))),
-              const Divider(height: 16),
-              _AssessmentHistoryRow('GAD-7', 10, 'Moderate', Colors.orange,
-                  DateTime.now().subtract(const Duration(days: 4))),
-              const Divider(height: 16),
-              _AssessmentHistoryRow(
-                  'PHQ-9',
-                  17,
-                  'Moderately severe',
-                  Colors.orange,
-                  DateTime.now().subtract(const Duration(days: 32))),
-            ],
-          ),
-        ),
-        const SizedBox(height: 80),
-      ],
-    );
-  }
+  State<_AssessmentsTab> createState() => _AssessmentsTabState();
 }
 
-class _SparklineChart extends StatelessWidget {
-  final String label;
-  final List<int> scores;
-  final Color color;
-  final int maxScore;
-  final List<int> thresholds;
+class _AssessmentsTabState extends State<_AssessmentsTab> {
+  List<dynamic> _templates = [];
+  bool _loading = true;
 
-  const _SparklineChart({
-    required this.label,
-    required this.scores,
-    required this.color,
-    required this.maxScore,
-    required this.thresholds,
-  });
+  @override
+  void initState() {
+    super.initState();
+    _fetchTemplates();
+  }
+
+  Future<void> _fetchTemplates() async {
+    try {
+      final resp = await ApiClient.instance.get('/assessments/templates');
+      if (resp.statusCode == 200) {
+        if (mounted) setState(() => _templates = jsonDecode(resp.body));
+      }
+    } catch (_) {
+      // Handle silently for now
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final last = scores.last;
-    final prev = scores.length > 1 ? scores[scores.length - 2] : last;
-    final delta = last - prev;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(label,
-                style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            const Spacer(),
-            Text('$last/$maxScore',
-                style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold, color: color)),
-            const SizedBox(width: 6),
-            Icon(
-              delta <= 0 ? Icons.arrow_downward : Icons.arrow_upward,
-              size: 14,
-              color: delta <= 0 ? Colors.green : Colors.red,
-            ),
-            Text(
-              '${delta.abs()}',
-              style: TextStyle(
-                fontSize: 12,
-                color: delta <= 0 ? Colors.green : Colors.red,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+          child: Text('Available Templates', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2D3748))),
         ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 60,
-          child: CustomPaint(
-            painter: _SparklinePainter(
-              scores: scores,
-              maxScore: maxScore,
-              color: color,
-              thresholds: thresholds,
-            ),
-            size: const Size(double.infinity, 60),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SparklinePainter extends CustomPainter {
-  final List<int> scores;
-  final int maxScore;
-  final Color color;
-  final List<int> thresholds;
-
-  _SparklinePainter({
-    required this.scores,
-    required this.maxScore,
-    required this.color,
-    required this.thresholds,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (scores.isEmpty) return;
-
-    // Threshold lines
-    final threshPaint = Paint()
-      ..color = Colors.grey.withValues(alpha: 0.2)
-      ..strokeWidth = 0.5
-      ..style = PaintingStyle.stroke;
-    for (final t in thresholds) {
-      final y = size.height - (t / maxScore * size.height);
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), threshPaint);
-    }
-
-    // Line
-    final linePaint = Paint()
-      ..color = color
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final path = Path();
-    for (int i = 0; i < scores.length; i++) {
-      final x = scores.length == 1
-          ? size.width / 2
-          : i / (scores.length - 1) * size.width;
-      final y = size.height - (scores[i] / maxScore * size.height);
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    canvas.drawPath(path, linePaint);
-
-    // Dots
-    final dotPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-    final dotBg = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    for (int i = 0; i < scores.length; i++) {
-      final x = scores.length == 1
-          ? size.width / 2
-          : i / (scores.length - 1) * size.width;
-      final y = size.height - (scores[i] / maxScore * size.height);
-      canvas.drawCircle(Offset(x, y), 4, dotBg);
-      canvas.drawCircle(Offset(x, y), 3, dotPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_SparklinePainter old) => false;
-}
-
-class _AssessmentHistoryRow extends StatelessWidget {
-  final String code;
-  final int score;
-  final String severity;
-  final Color color;
-  final DateTime date;
-
-  const _AssessmentHistoryRow(
-      this.code, this.score, this.severity, this.color, this.date);
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(code,
-              style: TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.bold, color: color)),
-        ),
-        const SizedBox(width: 12),
-        Expanded(child: Text(severity, style: const TextStyle(fontSize: 13))),
-        Text('$score',
-            style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.bold, color: color)),
-        const SizedBox(width: 8),
-        Text('${date.day}/${date.month}',
-            style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        if (_loading)
+           const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator(color: Color(0xFF8FB9A8))))
+        else if (_templates.isEmpty)
+           const Padding(padding: EdgeInsets.all(20), child: Text('No templates loaded from server.'))
+        else
+           SizedBox(
+             height: 120,
+             child: ListView.builder(
+               scrollDirection: Axis.horizontal,
+               padding: const EdgeInsets.symmetric(horizontal: 16),
+               itemCount: _templates.length,
+               itemBuilder: (context, i) {
+                 final t = _templates[i];
+                 return Container(
+                   width: 160,
+                   margin: const EdgeInsets.only(right: 12),
+                   child: InkWell(
+                     onTap: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => UniversalAssessmentScreen(
+                             patientId: widget.patient.id,
+                             templateId: t['id'],
+                             templateName: t['name'],
+                             type: t['template_type'],
+                             scoringRules: t['scoring_rules'],
+                          ))
+                        );
+                        // If they took a test, we can refresh the trends below
+                        if (result == true) {
+                           setState((){}); // rebuild forces trend tab to re-fetch
+                        }
+                     },
+                     borderRadius: BorderRadius.circular(16),
+                     child: Container(
+                       padding: const EdgeInsets.all(16),
+                       decoration: BoxDecoration(
+                         color: Colors.white,
+                         borderRadius: BorderRadius.circular(16),
+                         border: Border.all(color: Colors.grey.shade200),
+                       ),
+                       child: Column(
+                         crossAxisAlignment: CrossAxisAlignment.start,
+                         mainAxisAlignment: MainAxisAlignment.center,
+                         children: [
+                            Icon(
+                              t['template_type'] == 'ART_THERAPY' ? Icons.palette_outlined : 
+                              (t['template_type'] == 'SOMATIC' ? Icons.accessibility_new_rounded : Icons.assignment_outlined),
+                              color: const Color(0xFF8FB9A8),
+                              size: 28,
+                            ),
+                            const Spacer(),
+                            Text(t['name'], style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
+                         ],
+                       ),
+                     ),
+                   ),
+                 );
+               },
+             ),
+           ),
+        const Divider(height: 32),
+        // The trends tab handles fetching the history and charting
+        Expanded(child: PatientTrendsTab(key: UniqueKey(), patientId: widget.patient.id)),
       ],
     );
   }

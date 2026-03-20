@@ -1,47 +1,131 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/api_client.dart';
 
-class CarePlanScreen extends StatelessWidget {
-  const CarePlanScreen({super.key});
+class CarePlanScreen extends StatefulWidget {
+  final String patientId;
+
+  const CarePlanScreen({super.key, required this.patientId});
+
+  @override
+  State<CarePlanScreen> createState() => _CarePlanScreenState();
+}
+
+class _CarePlanScreenState extends State<CarePlanScreen> {
+  Map<String, dynamic>? _carePlan;
+  List<dynamic> _phases = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchRoadmap();
+  }
+
+  Future<void> _fetchRoadmap() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final carePlanId = await ApiClient.instance.get('/patients/${widget.patientId}/careplans/active');
+      if (carePlanId.statusCode == 200) {
+         final data = jsonDecode(carePlanId.body) as Map<String, dynamic>;
+         setState(() {
+            _carePlan = data;
+            _phases = data['phases'] as List<dynamic>? ?? [];
+         });
+      } else if (carePlanId.statusCode == 404) {
+         setState(() => _error = 'No phased healing roadmap has been generated for this patient yet.');
+      } else {
+         setState(() => _error = 'Failed to load care plan. Status: ${carePlanId.statusCode}');
+      }
+    } catch (e) {
+      setState(() => _error = 'Network error fetching the roadmap.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Phased Healing Roadmap', style: GoogleFonts.outfit()),
-        actions: [
-          IconButton(icon: const Icon(Icons.auto_awesome), onPressed: () {}),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          _buildPhaseCard(
-            'Phase 1: Stabilization',
-            'Focus on safety, therapeutic alliance, and immediate symptom relief.',
-            ['Weekly CBT', 'Basic Mindfulness', 'Sleep Hygiene'],
-            Colors.blue.shade50,
-            Colors.blue,
-            true,
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF8FB9A8)));
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+               Icon(Icons.map_outlined, size: 64, color: Colors.grey.shade300),
+               const SizedBox(height: 16),
+               Text(
+                 _error!,
+                 textAlign: TextAlign.center,
+                 style: GoogleFonts.inter(color: Colors.grey.shade600),
+               ),
+               const SizedBox(height: 24),
+               ElevatedButton.icon(
+                 onPressed: _fetchRoadmap,
+                 icon: const Icon(Icons.refresh),
+                 label: const Text('Retry'),
+                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8FB9A8), foregroundColor: Colors.white),
+               )
+            ],
           ),
-          _buildPhaseCard(
-            'Phase 2: Core Processing',
-            'Deep dive into trauma processing and cognitive restructuring.',
-            ['EMDR Sessions', 'Thought Recording', 'Emotion Regulation'],
-            Colors.purple.shade50,
-            Colors.purple,
-            false,
-          ),
-          _buildPhaseCard(
-            'Phase 3: Consolidation',
-            'Relapse prevention and building long-term resilience.',
-            ['Future Planning', 'Resource Building', 'Bi-weekly Check-ins'],
-            Colors.green.shade50,
-            Colors.green,
-            false,
-          ),
-        ],
-      ),
+        ),
+      );
+    }
+
+    if (_phases.isEmpty) {
+      return Center(
+        child: Text('Draft care plan has no phases yet.', style: GoogleFonts.inter(color: Colors.grey)),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(20),
+      itemCount: _phases.length,
+      itemBuilder: (context, index) {
+        final phase = _phases[index] as Map<String, dynamic>;
+        
+        // Cycle through standard colors for phases
+        final colors = [
+           (Colors.blue.shade50, Colors.blue),
+           (Colors.purple.shade50, Colors.purple),
+           (Colors.green.shade50, Colors.green),
+           (Colors.orange.shade50, Colors.orange),
+        ];
+        
+        final colorPair = colors[index % colors.length];
+        
+        // Parse methods safely
+        List<String> methods = [];
+        if (phase['methods'] != null) {
+           if (phase['methods'] is List) {
+              methods = (phase['methods'] as List).map((e) => e.toString()).toList();
+           } else if (phase['methods'] is String) {
+              methods = [phase['methods'] as String];
+           }
+        }
+        
+        final isActive = index == 0 && _carePlan?['status'] == 'ACTIVE';
+
+        return _buildPhaseCard(
+          'Phase ${phase["phase_index"] ?? (index+1)}: ${phase["title"] ?? "Core Work"}',
+          phase['objectives'] ?? 'No objective specified for this phase.',
+          methods,
+          colorPair.$1,
+          colorPair.$2,
+          isActive,
+        );
+      },
     );
   }
 
@@ -59,8 +143,7 @@ class CarePlanScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(title, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: accent)),
-              const Spacer(),
+              Expanded(child: Text(title, style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: accent))),
               if (isActive) 
                 const Chip(label: Text('ACTIVE', style: TextStyle(fontSize: 10, color: Colors.white)), backgroundColor: Colors.blue),
             ],
@@ -71,10 +154,11 @@ class CarePlanScreen extends StatelessWidget {
           ...items.map((item) => Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(Icons.check_circle_outline, size: 16, color: accent),
                 const SizedBox(width: 8),
-                Text(item, style: const TextStyle(fontSize: 12)),
+                Expanded(child: Text(item, style: const TextStyle(fontSize: 12))),
               ],
             ),
           )),

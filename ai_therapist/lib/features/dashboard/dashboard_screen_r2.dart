@@ -134,7 +134,7 @@ class _DashboardHome extends StatelessWidget {
       backgroundColor: Colors.white,
       elevation: 0,
       title: Text('Clinical overview',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
       actions: [
         if (provider.urgentWarnings.isNotEmpty)
           Stack(
@@ -178,7 +178,7 @@ class _DashboardHome extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('نظرة عامة طبية',
-            style: GoogleFonts.outfit(
+            style: GoogleFonts.inter(
               fontSize: 22,
               fontWeight: FontWeight.bold,
               color: const Color(0xFF8FB9A8),
@@ -272,7 +272,7 @@ class _DashboardHome extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('Needs attention',
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.inter(
                     fontSize: 16, fontWeight: FontWeight.bold)),
             Text('${p.needsAttention.length}',
                 style: const TextStyle(fontSize: 13, color: Colors.red)),
@@ -301,7 +301,7 @@ class _DashboardHome extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('All patients',
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                       fontSize: 16, fontWeight: FontWeight.bold)),
               TextButton(
                 onPressed: () {},
@@ -375,7 +375,7 @@ class _StatCard extends StatelessWidget {
           Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
           const Spacer(),
           Text(value,
-              style: GoogleFonts.outfit(
+              style: GoogleFonts.inter(
                   fontSize: 26, fontWeight: FontWeight.bold)),
           Text(trend,
               style: TextStyle(

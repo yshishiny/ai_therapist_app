@@ -31,13 +31,13 @@ class ClinicalTheme {
       outline: isDark ? Colors.white24 : Colors.black12,
     );
 
-    final textTheme = GoogleFonts.outfitTextTheme().copyWith(
-      displayLarge: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.w700),
-      headlineMedium: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w600),
-      titleLarge: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600),
-      bodyLarge: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w400, height: 1.6),
-      bodyMedium: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w400, height: 1.5),
-      labelLarge: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w500),
+    final textTheme = GoogleFonts.interTextTheme().copyWith(
+      displayLarge: GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.w700),
+      headlineMedium: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w600),
+      titleLarge: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600),
+      bodyLarge: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w400, height: 1.6),
+      bodyMedium: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w400, height: 1.5),
+      labelLarge: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500),
     );
 
     return ThemeData(

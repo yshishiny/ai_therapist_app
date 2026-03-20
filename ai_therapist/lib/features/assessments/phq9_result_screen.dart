@@ -81,7 +81,7 @@ class _Phq9ResultScreenState extends State<Phq9ResultScreen>
         elevation: 0,
         automaticallyImplyLeading: false,
         title: Text('PHQ-9 Results',
-            style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+            style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
         actions: [
           TextButton.icon(
             onPressed: _shareResult,
@@ -172,7 +172,7 @@ class _Phq9ResultScreenState extends State<Phq9ResultScreen>
               if (widget.patientName != null)
                 Text(
                   widget.patientName!,
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                       fontWeight: FontWeight.w600,
                       color: Colors.black87),
                 ),
@@ -236,7 +236,7 @@ class _Phq9ResultScreenState extends State<Phq9ResultScreen>
               Expanded(
                 child: Text(
                   'Suicidal Ideation Endorsed',
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.red.shade800,
@@ -557,7 +557,7 @@ class _Gauge extends StatelessWidget {
             children: [
               Text(
                 '$score',
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.inter(
                   fontSize: 56,
                   fontWeight: FontWeight.bold,
                   color: color,
@@ -572,7 +572,7 @@ class _Gauge extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 severity.label,
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.inter(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                   color: color,
@@ -884,7 +884,7 @@ class _SectionCard extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 title,
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,

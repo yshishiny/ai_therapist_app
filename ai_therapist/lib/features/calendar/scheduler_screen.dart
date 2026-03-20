@@ -17,7 +17,7 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Session Scheduler', style: GoogleFonts.outfit()),
+        title: Text('Session Scheduler', style: GoogleFonts.inter()),
         actions: [
           IconButton(
               icon: const Icon(Icons.today),
@@ -37,7 +37,7 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
               children: [
                 Text(
                   'Upcoming Sessions',
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[800],
@@ -113,7 +113,7 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
                   const SizedBox(height: 8),
                   Text(
                     '${date.day}',
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.inter(
                       color: isSelected ? Colors.white : Colors.black87,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -155,7 +155,7 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
             children: [
               Text(
                 time.split(' ')[0],
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.inter(
                     fontWeight: FontWeight.bold, fontSize: 16),
               ),
               Text(
@@ -173,7 +173,7 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
               children: [
                 Text(
                   patient,
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                       fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 const SizedBox(height: 4),

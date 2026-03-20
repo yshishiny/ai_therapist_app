@@ -1,117 +1,174 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-// import 'package:url_launcher/url_launcher.dart'; // Uncomment if url_launcher is added
+import '../../core/api_client.dart';
 
-class ReferenceLibraryScreen extends StatelessWidget {
+class Resource {
+  final String id;
+  final String title;
+  final String category;
+  final String? author;
+  final String? description;
+  final String? fileUrl;
+
+  const Resource({
+    required this.id,
+    required this.title,
+    required this.category,
+    this.author,
+    this.description,
+    this.fileUrl,
+  });
+
+  factory Resource.fromApi(Map<String, dynamic> j) => Resource(
+        id: j['id'] as String,
+        title: j['title'] as String,
+        category: j['category'] as String? ?? 'BOOK',
+        author: j['author'] as String?,
+        description: j['description'] as String?,
+        fileUrl: j['file_url'] as String?,
+      );
+}
+
+class ReferenceLibraryScreen extends StatefulWidget {
   const ReferenceLibraryScreen({super.key});
+
+  @override
+  State<ReferenceLibraryScreen> createState() => _ReferenceLibraryScreenState();
+}
+
+class _ReferenceLibraryScreenState extends State<ReferenceLibraryScreen> {
+  List<Resource> _allResources = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchResources();
+  }
+
+  Future<void> _fetchResources() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final resp = await ApiClient.instance.get('/admin/resources');
+      if (resp.statusCode == 200) {
+        final raw = jsonDecode(resp.body) as List<dynamic>;
+        setState(() {
+          _allResources = raw
+              .map((e) => Resource.fromApi(e as Map<String, dynamic>))
+              .toList();
+        });
+      } else {
+        setState(() => _error = 'Failed to load. Code: ${resp.statusCode}');
+      }
+    } catch (e) {
+      setState(() => _error = 'Network error loading resources.');
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
+        backgroundColor: const Color(0xFFF5F7F8),
         appBar: AppBar(
-          title: Text('Reference Room', style: GoogleFonts.outfit()),
-          bottom: const TabBar(
-            indicatorColor: Color(0xFF6C63FF),
-            labelColor: Color(0xFF6C63FF),
-            tabs: [
+          title: Text('Reference Room',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF2D3142),
+          elevation: 0,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _fetchResources,
+            )
+          ],
+          bottom: TabBar(
+            indicatorColor: const Color(0xFF8FB9A8),
+            labelColor: const Color(0xFF8FB9A8),
+            unselectedLabelColor: Colors.grey,
+            tabs: const [
               Tab(text: 'Guidelines'),
               Tab(text: 'Books'),
               Tab(text: 'Tools'),
             ],
           ),
         ),
-        body: TabBarView(
-          children: [
-            _buildGuidelinesTab(),
-            _buildBooksTab(),
-            _buildToolsTab(),
-          ],
+        body: _loading
+            ? const Center(
+                child: CircularProgressIndicator(color: Color(0xFF8FB9A8)))
+            : _error != null
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error_outline,
+                            size: 48, color: Colors.red.shade300),
+                        const SizedBox(height: 16),
+                        Text(_error!,
+                            style: const TextStyle(color: Colors.red)),
+                      ],
+                    ),
+                  )
+                : TabBarView(
+                    children: [
+                      _buildList(
+                          ['ARTICLE', 'OTHER'], Icons.article, Colors.indigo),
+                      _buildList(['BOOK'], Icons.menu_book, Colors.orange),
+                      _buildList(
+                          ['HANDOUT', 'VIDEO'], Icons.build, Colors.teal),
+                    ],
+                  ),
+      ),
+    );
+  }
+
+  Widget _buildList(
+      List<String> categories, IconData defaultIcon, Color iconColor) {
+    final items =
+        _allResources.where((r) => categories.contains(r.category)).toList();
+
+    if (items.isEmpty) {
+      return Center(
+        child: Text(
+          'No items found in this section.',
+          style: GoogleFonts.inter(color: Colors.grey),
         ),
-      ),
-    );
-  }
+      );
+    }
 
-  Widget _buildGuidelinesTab() {
-    return ListView(
+    return ListView.builder(
       padding: const EdgeInsets.all(16),
-      children: [
-        _buildSectionHeader('Diagnostic Manuals'),
-        _buildResourceCard(
-            'DSM-5-TR',
-            'Diagnostic and Statistical Manual of Mental Disorders',
-            'American Psychiatric Association',
-            Icons.menu_book,
-            Colors.blue),
-        _buildResourceCard('ICD-10', 'International Classification of Diseases',
-            'World Health Organization', Icons.language, Colors.teal),
-        const SizedBox(height: 24),
-        _buildSectionHeader('Clinical Practice Guidelines'),
-        _buildResourceCard(
-            'APA Practice Guidelines',
-            'Treatment of Major Depressive Disorder',
-            '2019 Edition',
-            Icons.description,
-            Colors.indigo),
-        _buildResourceCard('NICE Guidelines', 'Anxiety disorders in adults',
-            'CG113', Icons.description, Colors.purple),
-      ],
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        final r = items[index];
+        return _buildResourceCard(
+          title: r.title,
+          subtitle: r.author ?? r.category,
+          description: r.description ?? '',
+          icon: defaultIcon,
+          color: iconColor,
+          fileUrl: r.fileUrl,
+        );
+      },
     );
   }
 
-  Widget _buildBooksTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildSectionHeader('Core Texts'),
-        _buildResourceCard('Cognitive Behavior Therapy', 'Basics and Beyond',
-            'Judith S. Beck', Icons.book, Colors.orange),
-        _buildResourceCard(
-            'The Body Keeps the Score',
-            'Brain, Mind, and Body in the Healing of Trauma',
-            'Bessel van der Kolk',
-            Icons.book,
-            Colors.redAccent),
-        _buildResourceCard('Motivational Interviewing', 'Helping People Change',
-            'Miller & Rollnick', Icons.book, Colors.green),
-      ],
-    );
-  }
-
-  Widget _buildToolsTab() {
-    return GridView.count(
-      crossAxisCount: 2,
-      padding: const EdgeInsets.all(16),
-      mainAxisSpacing: 16,
-      crossAxisSpacing: 16,
-      childAspectRatio: 1.3,
-      children: [
-        _buildToolCard(
-            'CBT Worksheet', 'Thought Record', Icons.edit_note, Colors.blue),
-        _buildToolCard(
-            'Safety Plan', 'Suicide Prevention', Icons.shield, Colors.red),
-        _buildToolCard('Mindfulness', 'Guided Exercises',
-            Icons.self_improvement, Colors.teal),
-        _buildToolCard(
-            'Medication', 'Interaction Checker', Icons.medication, Colors.pink),
-      ],
-    );
-  }
-
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(
-        title,
-        style: GoogleFonts.outfit(
-            fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[800]),
-      ),
-    );
-  }
-
-  Widget _buildResourceCard(String title, String subtitle, String author,
-      IconData icon, Color color) {
+  Widget _buildResourceCard({
+    required String title,
+    required String subtitle,
+    required String description,
+    required IconData icon,
+    required Color color,
+    String? fileUrl,
+  }) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
@@ -121,7 +178,16 @@ class ReferenceLibraryScreen extends StatelessWidget {
       ),
       child: InkWell(
         onTap: () {
-          // Future: Implement Open URL or PDF
+          if (fileUrl != null && fileUrl.isNotEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Opening: \$fileUrl')),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('No file attached to this resource.')),
+            );
+          }
         },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
@@ -131,7 +197,7 @@ class ReferenceLibraryScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: color),
@@ -142,55 +208,33 @@ class ReferenceLibraryScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(title,
-                        style: const TextStyle(
+                        style: GoogleFonts.inter(
                             fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 4),
                     Text(subtitle,
-                        style: const TextStyle(
-                            fontSize: 13, color: Colors.black87)),
-                    Text(author,
-                        style:
-                            const TextStyle(fontSize: 12, color: Colors.grey)),
+                        style: GoogleFonts.inter(
+                            fontSize: 13, color: Colors.blueGrey)),
+                    if (description.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                              fontSize: 12, color: Colors.grey.shade600)),
+                    ]
                   ],
                 ),
               ),
-              const Icon(Icons.open_in_new, size: 16, color: Colors.grey),
+              Icon(
+                fileUrl != null && fileUrl.isNotEmpty
+                    ? Icons.download
+                    : Icons.chevron_right,
+                size: 20,
+                color: Colors.grey.shade400,
+              ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildToolCard(
-      String title, String subtitle, IconData icon, Color color) {
-    return Container(
-      decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withOpacity(0.02),
-                blurRadius: 4,
-                offset: const Offset(0, 2))
-          ]),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 28),
-          ),
-          const SizedBox(height: 12),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-          Text(subtitle,
-              style: const TextStyle(fontSize: 11, color: Colors.grey)),
-        ],
       ),
     );
   }

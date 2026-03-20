@@ -13,6 +13,7 @@ import 'features/auth/login_screen.dart';
 import 'features/dashboard/dashboard_provider.dart';
 import 'features/dashboard/dashboard_screen_r2.dart';
 import 'features/assessments/phq9_service.dart';
+import 'features/patient_portal/patient_app.dart';
 import 'core/notification_service.dart';
 
 const bool _kFirebaseEnabled =
@@ -76,9 +77,10 @@ class AuthWrapper extends StatelessWidget {
             ),
           );
         }
-        return auth.isAuthenticated
-            ? const DashboardScreen()
-            : const LoginScreen();
+        if (!auth.isAuthenticated) return const LoginScreen();
+        // Route based on JWT role
+        if (auth.userRole == 'patient') return const PatientApp();
+        return const DashboardScreen(); // clinician / admin / supervisor
       },
     );
   }

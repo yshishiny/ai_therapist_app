@@ -53,6 +53,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 # ─── Role model ───────────────────────────────────────────────────────────────
 
 class Role(str, Enum):
+    PATIENT = "patient"
     CLINICIAN = "clinician"
     SUPERVISOR = "supervisor"
     ADMIN = "admin"

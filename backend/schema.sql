@@ -358,6 +358,27 @@ VALUES
         'ART_THERAPY',
         'LICENSED',
         '{"directive": "Draw a person picking an apple from a tree", "scoring": "FEATS"}'
+    ),
+    (
+        'pcl5',
+        'PCL-5 (PTSD Checklist for DSM-5)',
+        'TRAUMA',
+        'FREE',
+        '{"max": 80, "items": 20, "bands": [{"min":0,"max":32,"label":"Low"},{"min":33,"max":80,"label":"Provisional PTSD Diagnosis"}]}'
+    ),
+    (
+        'metahealth_scan',
+        'Metahealth Symptom Mapper',
+        'SOMATIC',
+        'FREE',
+        '{"ui": "BODY_CATEGORIES", "dimensions": ["Brain Relay", "Organ Tissue", "Conflict Plot", "Healing Phase"]}'
+    ),
+    (
+        'reflexology_map',
+        'Foot Reflexology Meridian Matrix',
+        'BODY_MAP',
+        'FREE',
+        '{"ui": "INTERACTIVE_IMAGE", "map_type": "FOOT_ZONES", "scoring": "PAIN_INTENSITY"}'
     ) ON CONFLICT (id) DO NOTHING;
 
 -- Seed Mindfulness Techniques

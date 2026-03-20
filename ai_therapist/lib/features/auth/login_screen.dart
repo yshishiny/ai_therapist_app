@@ -94,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 24),
                 Text(
                   'AI Therapist',
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFF2D3142),
@@ -103,7 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 6),
                 Text(
                   'Clinical Management Platform',
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     fontSize: 14,
                     color: Colors.grey.shade500,
                   ),
@@ -131,7 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         Text(
                           'Sign in to your account',
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.inter(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: const Color(0xFF2D3142),
@@ -213,7 +213,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   )
                                 : Text(
                                     'Sign in',
-                                    style: GoogleFonts.outfit(
+                                    style: GoogleFonts.inter(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
                                     ),
