@@ -112,6 +112,16 @@ class ApiClient {
     await clearTokens();
   }
 
+  /// Public (unauthenticated) POST — used for registration etc.
+  Future<http.Response> postPublic(String path, {Object? body}) async {
+    final uri = Uri.parse('$_baseUrl$path');
+    return _http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: body,
+    );
+  }
+
   // ─── Authenticated request with auto-refresh ────────────────────────────────
 
   Future<http.Response> get(String path) => _request('GET', path);

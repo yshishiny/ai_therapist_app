@@ -229,6 +229,63 @@ class DashboardSummaryOut(BaseModel):
 
 # ─── Auth routes ─────────────────────────────────────────────────────────────
 
+class PatientRegisterRequest(BaseModel):
+    full_name: str
+    email: str
+    password: str
+    gender: str | None = None
+    dob: str | None = None       # ISO date string
+    phone: str | None = None
+
+
+@app.post("/auth/register-patient", response_model=TokenPair, status_code=status.HTTP_201_CREATED, tags=["auth"])
+async def register_patient(body: PatientRegisterRequest, db: DB):
+    """
+    Patient self-registration.
+    Creates a patients row + patient_users credential row, then returns
+    a JWT pair so the patient is immediately logged in.
+    """
+    # Check uniqueness
+    existing = await db.fetchval(
+        "SELECT 1 FROM patient_users WHERE email=$1", body.email
+    )
+    if existing:
+        raise HTTPException(status_code=409, detail="An account with this email already exists.")
+
+    # Pick the first organisation (multi-org signup can be added later)
+    org_id = await db.fetchval("SELECT id FROM organisations LIMIT 1")
+    if not org_id:
+        raise HTTPException(status_code=500, detail="No organisation configured.")
+
+    # Create patient record
+    patient_id = uuid.uuid4()
+    await db.execute(
+        """INSERT INTO patients (id, org_id, therapist_id, full_name, name, gender, dob, email, status, risk)
+           VALUES ($1, $2, 'unassigned', $3, $4, $5, $6, $7, 'Active', 'Low')""",
+        patient_id, org_id,
+        body.full_name,
+        body.full_name.split()[0],   # short name
+        body.gender,
+        body.dob,
+        body.email,
+    )
+
+    # Create credential record
+    from auth import hash_password
+    pu_id = uuid.uuid4()
+    await db.execute(
+        """INSERT INTO patient_users (id, org_id, patient_id, email, password_hash)
+           VALUES ($1, $2, $3, $4, $5)""",
+        pu_id, org_id, patient_id, body.email, hash_password(body.password),
+    )
+
+    logger.info("Patient registered", extra={"patient_id": str(patient_id), "email": body.email})
+    return create_token_pair(
+        user_id=str(patient_id),
+        role=Role.PATIENT,
+        org_id=str(org_id),
+    )
+
 @app.post("/auth/login", response_model=TokenPair, tags=["auth"])
 async def login(body: LoginRequest, db: DB):
     """
@@ -1004,14 +1061,73 @@ class ReportGenerationRequest(BaseModel):
 @app.post("/patients/{patient_id}/report/generate", tags=["ai", "reporting"])
 async def generate_clinical_synthesis(patient_id: str, body: ReportGenerationRequest, user: CurrentUser, db: DB):
     """
-    The Crown Jewel Endpoint: 
+    The Crown Jewel Endpoint:
     Orchestrates AI to read all context and generate a cohesive Clinical Synthesis.
     """
-    # Later: Use AiService to generate actual clinical synthesis payload
+    from ai_service import AiService
+
+    # ── Gather patient info ──────────────────────────────────────────────────
+    patient = await db.fetchrow(
+        "SELECT full_name, dob, gender, diagnosis, risk, status FROM patients WHERE id=$1 AND org_id=$2",
+        uuid.UUID(patient_id), uuid.UUID(user.org_id),
+    )
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found.")
+
+    # ── Gather sessions ──────────────────────────────────────────────────────
+    sessions_data = []
+    if body.include_sessions:
+        rows = await db.fetch(
+            """SELECT sn.template, sn.subjective, sn.objective, sn.assessment, sn.plan,
+                      sn.free_text, sn.ai_draft_summary, sn.created_at
+               FROM session_notes sn
+               WHERE sn.patient_id=$1
+               ORDER BY sn.created_at DESC LIMIT 10""",
+            uuid.UUID(patient_id),
+        )
+        sessions_data = [dict(r) for r in rows]
+
+    # ── Gather assessments ───────────────────────────────────────────────────
+    assessments_data = []
+    if body.include_assessments:
+        rows = await db.fetch(
+            """SELECT ar.assessment_id, ar.raw_score, ar.severity, ar.interpretation, ar.created_at
+               FROM assessment_results ar
+               WHERE ar.patient_id=$1
+               ORDER BY ar.created_at DESC LIMIT 20""",
+            uuid.UUID(patient_id),
+        )
+        assessments_data = [dict(r) for r in rows]
+
+    # ── Gather homework ──────────────────────────────────────────────────────
+    homework_data = []
+    if body.include_homework:
+        rows = await db.fetch(
+            """SELECT title, task_type, status, patient_feedback, due_date
+               FROM homework_tasks
+               WHERE patient_id=$1
+               ORDER BY due_date DESC NULLS LAST LIMIT 15""",
+            uuid.UUID(patient_id),
+        )
+        homework_data = [dict(r) for r in rows]
+
+    # ── Call AI ──────────────────────────────────────────────────────────────
+    ai = AiService()
+    try:
+        report_md = await ai.generate_clinical_report(
+            patient_name=patient["full_name"],
+            sessions_data=sessions_data,
+            assessments_data=assessments_data,
+            homework_data=homework_data,
+        )
+    except Exception as e:
+        logger.error("AI report generation failed", extra={"error": str(e)})
+        raise HTTPException(status_code=502, detail="AI service unavailable. Please try again.")
+
     return {
-        "status": "processing",
-        "message": "AI Orchestrator is synthesizing patient history...",
-        "report_id": str(uuid.uuid4())
+        "status": "completed",
+        "report_markdown": report_md,
+        "report_id": str(uuid.uuid4()),
     }
 
 # ─── Admin: Resources (Books, Handouts, Articles) ────────────────────────────

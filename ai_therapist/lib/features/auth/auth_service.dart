@@ -52,7 +52,16 @@ class AuthService with ChangeNotifier {
   void forceLogout() {
     ApiClient.instance.logout().then((_) {
       _isAuthenticated = false;
+      _userRole = null;
       notifyListeners();
     });
+  }
+
+  /// Called after registration auto-saves tokens.
+  /// Reads the role from the new JWT and triggers AuthWrapper rebuild.
+  Future<void> notifyExternalLogin() async {
+    _userRole = await ApiClient.instance.getStoredRole();
+    _isAuthenticated = true;
+    notifyListeners();
   }
 }
