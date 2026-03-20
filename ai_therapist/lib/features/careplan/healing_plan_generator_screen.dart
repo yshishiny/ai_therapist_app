@@ -107,7 +107,7 @@ class _HealingPlanGeneratorScreenState extends State<HealingPlanGeneratorScreen>
               ),
               const SizedBox(height: 16),
               Text(
-                'This will analyze \${widget.patient.firstName}\\'s chief complaint, identified triggers, and goals to build a structured 3-phase treatment trajectory.',
+                'This will analyze the patient\'s chief complaint, identified triggers, and goals to build a structured 3-phase treatment trajectory.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 16, color: Colors.black54),
               ),

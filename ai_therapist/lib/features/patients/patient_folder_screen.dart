@@ -11,7 +11,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../patients/patient_folder_model.dart';
-import '../homework/homework_service.dart';
+import '../careplan/homework_service.dart';
 import '../sessions/session_ai_review_screen.dart';
 import '../sessions/session_note_screen.dart';
 import '../assessments/universal_assessment_screen.dart';
@@ -85,7 +85,7 @@ class _PatientFolderScreenState extends State<PatientFolderScreen>
 
   Widget _buildSliverHeader() {
     final risk = _patient.riskLevel;
-    final riskColor = Color(risk.colorValue);
+    final riskColor = risk == 'high' ? Colors.red : risk == 'moderate' ? Colors.orange : Colors.green;
 
     return SliverAppBar(
       expandedHeight: 180,
@@ -136,10 +136,9 @@ class _PatientFolderScreenState extends State<PatientFolderScreen>
                     const SizedBox(height: 2),
                     Text(
                       [
-                        if (_patient.ageYears != null) '${_patient.ageYears}y',
-                        _patient.gender.name,
-                        if (_patient.primaryDiagnosis != null)
-                          _patient.primaryDiagnosis!,
+                        '${_patient.ageYears}y',
+                        _patient.gender,
+                        _patient.primaryDiagnosis,
                       ].join(' · '),
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                       maxLines: 1,
@@ -149,8 +148,8 @@ class _PatientFolderScreenState extends State<PatientFolderScreen>
                     Wrap(
                       spacing: 6,
                       children: [
-                        _Pill(_patient.status.label, Colors.blue),
-                        _Pill(risk.label, riskColor),
+                        _Pill(_patient.status, Colors.blue),
+                        _Pill(risk, riskColor),
                         if (_patient.hasActiveRiskFlags)
                           const _Pill('Risk flags', Colors.red),
                         if (!_patient.hasAiConsent)
