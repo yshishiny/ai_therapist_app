@@ -30,13 +30,16 @@ class ApiClient {
   ApiClient._();
   static final ApiClient instance = ApiClient._();
 
+  static const String _defaultProdUrl = 'https://aitherapistapp-production.up.railway.app';
   static const String _envBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000', // Android emulator → localhost
+    defaultValue: _defaultProdUrl,
   );
 
   static final String _baseUrl = () {
     String url = _envBaseUrl.trim();
+    if (url.isEmpty) return _defaultProdUrl; // Failsafe if GitHub secret was empty
+    
     if (url.endsWith('/')) url = url.substring(0, url.length - 1);
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://$url';
