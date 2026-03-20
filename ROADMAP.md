@@ -93,8 +93,8 @@
 | # | Feature | Priority | Effort | Details |
 |---|---|---|---|---|
 | 1 | **Run migration on Railway DB** | 🔴 Critical | 5 min | Execute `migration_patient_portal.sql` against production Postgres |
-| 2 | **Generate real bcrypt hash for demo patient** | 🔴 Critical | 5 min | The seeded hash should be regenerated or the password changed |
-| 3 | **Wire AiService to a real LLM** | 🔴 Critical | 4 hrs | `ai_service.py` → connect to OpenAI/Gemini API for report generation and AI chat |
+| 2 | ~~**Generate real bcrypt hash for demo patient**~~ | ✅ Done | — | Seeded in migration with hash for `welcome123` |
+| 3 | ~~**Wire AiService to a real LLM**~~ | ✅ Done | — | `ai_service.py` — dual Gemini/OpenAI provider. Set `GEMINI_API_KEY` env var. |
 | 4 | **End-to-end auth flow testing** | 🔴 Critical | 2 hrs | Test clinician login, patient login, token refresh, and route gating on device |
 | 5 | **PDF report export** | 🟡 High | 3 hrs | Convert AI markdown reports to downloadable PDF (use `pdf` package in Flutter) |
 
@@ -102,7 +102,7 @@
 
 | # | Feature | Priority | Effort | Details |
 |---|---|---|---|---|
-| 6 | **Patient registration / self-signup** | 🟡 High | 4 hrs | Flutter signup screen → `POST /auth/register-patient` endpoint |
+| 6 | ~~**Patient registration / self-signup**~~ | ✅ Done | — | `POST /auth/register-patient` + `PatientRegisterScreen` + login link |
 | 7 | **Push notifications** | 🟡 High | 4 hrs | Firebase Cloud Messaging for homework reminders, session reminders, mood log nudges |
 | 8 | **Interactive body map (Somatic assessments)** | 🟡 High | 6 hrs | Replace placeholder with SVG touch-regions for Reflexology / Metahealth |
 | 9 | **Art therapy image upload** | 🟡 High | 4 hrs | Camera/gallery picker → S3/Firebase Storage → FEATS scoring submission |
