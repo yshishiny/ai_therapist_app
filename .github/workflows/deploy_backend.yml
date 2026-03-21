@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - roadmap
     paths:
       - 'backend/**'
   pull_request:
