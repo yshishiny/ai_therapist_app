@@ -38,6 +38,7 @@ from auth import (
     get_current_user,
     hash_password,
     require_role,
+    revoke_token,
     verify_password,
     _decode,        # used only in /auth/refresh
 )
@@ -55,8 +56,32 @@ logging.basicConfig(level=logging.INFO, handlers=[_handler])
 logger = logging.getLogger("ai_therapist")
 
 # ─── Rate Limiter ─────────────────────────────────────────────────────────────
+#
+# Key on the authenticated user's sub (UUID) when a valid Bearer token is
+# present, so the per-user limit is independent of NAT/shared IP. Falls back
+# to IP for unauthenticated routes (e.g. /auth/login).
 
-limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
+import base64 as _b64
+import json as _json
+
+
+def _rate_limit_key(request: Request) -> str:
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        try:
+            parts = auth[7:].split(".")
+            if len(parts) == 3:
+                padded = parts[1] + "=" * (-len(parts[1]) % 4)
+                payload = _json.loads(_b64.urlsafe_b64decode(padded))
+                sub = payload.get("sub")
+                if sub:
+                    return f"user:{sub}"
+        except Exception:
+            pass
+    return get_remote_address(request)
+
+
+limiter = Limiter(key_func=_rate_limit_key, default_limits=["200/minute"])
 
 
 # ─── App setup ────────────────────────────────────────────────────────────────
@@ -400,6 +425,17 @@ async def refresh(body: RefreshRequest, db: DB):
         if not row:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User account not found or deactivated.")
         return create_token_pair(user_id=payload.sub, role=Role(row["role"]), org_id=str(row["org_id"]))
+
+
+@app.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT, tags=["auth"])
+async def logout(user: CurrentUser):
+    """
+    Revoke the current access token immediately.
+    The client should also discard its stored refresh token.
+    The JTI is added to an in-memory denylist — effective until server restart
+    or natural token expiry, whichever comes first.
+    """
+    revoke_token(user.jti)
 
 
 # ─── Patient routes — PROTECTED ───────────────────────────────────────────────

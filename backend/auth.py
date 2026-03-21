@@ -20,6 +20,7 @@ Generate a safe secret:
 from __future__ import annotations
 
 import os
+import uuid
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Annotated
@@ -68,6 +69,7 @@ class TokenPayload(BaseModel):
     exp: datetime
     iat: datetime
     type: str          # "access" | "refresh"
+    jti: str           # unique token ID — used for revocation
 
 
 class TokenPair(BaseModel):
@@ -77,6 +79,20 @@ class TokenPair(BaseModel):
 
 
 # ─── Token creation ───────────────────────────────────────────────────────────
+
+# ─── Token revocation denylist ────────────────────────────────────────────────
+#
+# In-memory set of revoked JTIs. Sufficient for a single Railway instance.
+# On restart the set is empty — revoked tokens expire naturally within TTL.
+# Upgrade path: back this with Redis or a DB table for multi-instance deploys.
+
+_revoked_jtis: set[str] = set()
+
+
+def revoke_token(jti: str) -> None:
+    """Add a token JTI to the in-memory denylist."""
+    _revoked_jtis.add(jti)
+
 
 def _make_token(
     user_id: str,
@@ -93,6 +109,7 @@ def _make_token(
         "iat":    now,
         "exp":    now + ttl,
         "type":   token_type,
+        "jti":    str(uuid.uuid4()),
     }
     return jwt.encode(payload, _SECRET_KEY, algorithm=_ALGORITHM)
 
@@ -135,6 +152,14 @@ def _decode(token: str, expected_type: str) -> TokenPayload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Expected a {expected_type} token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    jti = raw.get("jti", "")
+    if jti in _revoked_jtis:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked. Please log in again.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

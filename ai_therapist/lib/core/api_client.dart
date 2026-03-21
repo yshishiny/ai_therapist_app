@@ -109,6 +109,11 @@ class ApiClient {
   }
 
   Future<void> logout() async {
+    // Revoke access token server-side before clearing local storage.
+    // Best-effort — clear tokens even if the network call fails.
+    try {
+      await _request('POST', '/auth/logout');
+    } catch (_) {}
     await clearTokens();
   }
 
