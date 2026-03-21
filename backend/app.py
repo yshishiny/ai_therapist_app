@@ -14,13 +14,15 @@ from __future__ import annotations
 
 import logging
 import os
+import traceback
 import uuid
 from datetime import datetime, timezone
 from typing import Annotated
 
 import asyncpg
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pythonjsonlogger import jsonlogger
 from pydantic import BaseModel, EmailStr
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -73,6 +75,51 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ─── Correlation-ID middleware (Railway log tracing) ─────────────────────────
+
+@app.middleware("http")
+async def correlation_id_middleware(request: Request, call_next):
+    correlation_id = request.headers.get("X-Correlation-ID", str(uuid.uuid4()))
+    request.state.correlation_id = correlation_id
+    logger.info(
+        "Request started",
+        extra={
+            "correlation_id": correlation_id,
+            "method": request.method,
+            "path": request.url.path,
+        },
+    )
+    response = await call_next(request)
+    response.headers["X-Correlation-ID"] = correlation_id
+    logger.info(
+        "Request finished",
+        extra={
+            "correlation_id": correlation_id,
+            "status_code": response.status_code,
+        },
+    )
+    return response
+
+
+# ─── Global exception handler (prevents raw tracebacks leaking to clients) ───
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    correlation_id = getattr(request.state, "correlation_id", "unknown")
+    logger.error(
+        "Unhandled exception",
+        extra={
+            "correlation_id": correlation_id,
+            "path": request.url.path,
+            "error": str(exc),
+            "traceback": traceback.format_exc(),
+        },
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error.", "correlation_id": correlation_id},
+    )
 
 # ─── DB pool ─────────────────────────────────────────────────────────────────
 
@@ -358,10 +405,11 @@ async def refresh(body: RefreshRequest, db: DB):
 # ─── Patient routes — PROTECTED ───────────────────────────────────────────────
 
 @app.get("/patients", response_model=list[PatientOut], tags=["patients"])
-async def list_patients(user: CurrentUser, db: DB):
+async def list_patients(user: CurrentUser, db: DB, limit: int = 50, offset: int = 0):
     """
     Returns only patients belonging to the authenticated user's organisation.
     IDOR fix: org_id is taken from the verified JWT, never from request params.
+    Paginated: default 50 per page.
     """
     rows = await db.fetch(
         """
@@ -369,8 +417,11 @@ async def list_patients(user: CurrentUser, db: DB):
         FROM   patients
         WHERE  org_id = $1
         ORDER  BY last_seen DESC NULLS LAST
+        LIMIT  $2 OFFSET $3
         """,
         uuid.UUID(user.org_id),
+        limit,
+        offset,
     )
     return [dict(r) for r in rows]
 
@@ -934,12 +985,16 @@ class HomeworkFeedbackIn(BaseModel):
     tags=["homework"],
 )
 async def list_homework(patient_id: str, user: CurrentUser, db: DB):
-    """List all homework tasks for a patient."""
+    """List all homework tasks for a patient. Scoped to caller's org_id."""
     rows = await db.fetch(
-        """SELECT id, patient_id, careplan_phase_id, title, instructions,
-                  due_date, status, patient_feedback, therapist_notes
-           FROM homework_tasks WHERE patient_id=$1 ORDER BY due_date ASC NULLS LAST""",
+        """SELECT ht.id, ht.patient_id, ht.careplan_phase_id, ht.title, ht.instructions,
+                  ht.due_date, ht.status, ht.patient_feedback, ht.therapist_notes
+           FROM homework_tasks ht
+           JOIN patients p ON p.id = ht.patient_id
+           WHERE ht.patient_id = $1 AND p.org_id = $2
+           ORDER BY ht.due_date ASC NULLS LAST""",
         uuid.UUID(patient_id),
+        uuid.UUID(user.org_id),
     )
     import json
     results = []
@@ -958,12 +1013,22 @@ async def list_homework(patient_id: str, user: CurrentUser, db: DB):
     tags=["homework"],
 )
 async def assign_homework(patient_id: str, body: HomeworkIn, user: CurrentUser, db: DB):
-    """Assign a homework task to a patient."""
+    """Assign a homework task to a patient. Verifies patient belongs to caller's org."""
+    patient_row = await db.fetchrow(
+        "SELECT id FROM patients WHERE id = $1 AND org_id = $2",
+        uuid.UUID(patient_id), uuid.UUID(user.org_id),
+    )
+    if not patient_row:
+        raise HTTPException(status_code=404, detail="Patient not found.")
+
     new_id = uuid.uuid4()
     due_date = None
     if body.due_date:
-        due_date = datetime.strptime(body.due_date, "%Y-%m-%d").date()
-        
+        try:
+            due_date = datetime.strptime(body.due_date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="due_date must be YYYY-MM-DD.")
+
     await db.execute(
         """INSERT INTO homework_tasks
                (id, patient_id, title, instructions, due_date, status)
@@ -984,8 +1049,11 @@ async def submit_homework_feedback(task_id: str, body: HomeworkFeedbackIn, user:
     status_val = "COMPLETED" if body.completionPercentage == 100 else ("SKIPPED" if body.completionPercentage == 0 else "PARTIALLY_DONE")
     
     updated = await db.execute(
-        "UPDATE homework_tasks SET patient_feedback=$1, status=$2 WHERE id=$3",
-        feedback_json, status_val, uuid.UUID(task_id)
+        """UPDATE homework_tasks ht
+           SET patient_feedback=$1, status=$2
+           FROM patients p
+           WHERE ht.id = $3 AND ht.patient_id = p.id AND p.org_id = $4""",
+        feedback_json, status_val, uuid.UUID(task_id), uuid.UUID(user.org_id),
     )
     if updated == "UPDATE 0":
         raise HTTPException(status_code=404, detail="Homework task not found.")
@@ -1018,11 +1086,15 @@ class AssessmentSubmissionIn(BaseModel):
     flagged: bool = False
 
 @app.get("/patients/{patient_id}/assessments", tags=["assessments"])
-async def list_patient_assessments(patient_id: str, user: CurrentUser, db: DB):
-    """List all past assessment results for longitudinal graphing."""
+async def list_patient_assessments(patient_id: str, user: CurrentUser, db: DB, limit: int = 100, offset: int = 0):
+    """List all past assessment results for longitudinal graphing. Scoped to caller's org. Paginated."""
     rows = await db.fetch(
-        "SELECT * FROM assessment_instances WHERE patient_id=$1 ORDER BY taken_at DESC",
-        uuid.UUID(patient_id)
+        """SELECT ai.* FROM assessment_instances ai
+           JOIN patients p ON p.id = ai.patient_id
+           WHERE ai.patient_id = $1 AND p.org_id = $2
+           ORDER BY ai.taken_at DESC
+           LIMIT $3 OFFSET $4""",
+        uuid.UUID(patient_id), uuid.UUID(user.org_id), limit, offset,
     )
     import json
     results = []

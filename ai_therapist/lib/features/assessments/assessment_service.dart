@@ -1,7 +1,7 @@
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../core/api_client.dart';
+import '../../core/secure_phi_storage.dart';
 
 class AssessmentResult {
   final String assessmentId;
@@ -167,18 +167,13 @@ class AssessmentService {
     AssessmentResult result, {
     String? patientId,
   }) async {
-    // 1. Local persistence (offline-first)
-    final prefs = await SharedPreferences.getInstance();
-    final List<String> history = prefs.getStringList(_storageKey) ?? [];
-    history.add(jsonEncode(result.toJson()));
-    await prefs.setStringList(_storageKey, history);
+    // 1. Local persistence (offline-first) — encrypted via SecurePhiStorage
+    await SecurePhiStorage.instance.appendToList(_storageKey, result.toJson());
 
     // 2. Backend sync — fire-and-forget (don't block UI on network)
     if (patientId != null) {
       _syncToBackend(result, patientId).catchError((e) {
-        // Log but don't throw — local save succeeded
-        // ignore: avoid_print
-        print('Assessment backend sync failed: $e');
+        debugPrint('Assessment backend sync failed: $e');
       });
     }
   }
@@ -199,17 +194,14 @@ class AssessmentService {
   }
 
   static Future<List<AssessmentResult>> getHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    final List<String> history = prefs.getStringList(_storageKey) ?? [];
-    return history
-        .map((e) => AssessmentResult.fromJson(
-            jsonDecode(e) as Map<String, dynamic>))
-        .toList()
-      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    final results = await SecurePhiStorage.instance.readList<AssessmentResult>(
+      _storageKey,
+      (json) => AssessmentResult.fromJson(json as Map<String, dynamic>),
+    );
+    return results..sort((a, b) => b.timestamp.compareTo(a.timestamp));
   }
 
   static Future<void> clearHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_storageKey);
+    await SecurePhiStorage.instance.delete(_storageKey);
   }
 }
