@@ -19,14 +19,12 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
-// Force all plugin subprojects (e.g. printing) to use compileSdk 35
+// Force all plugin subprojects (e.g. printing) to compile against SDK 35
 // so that android:attr/lStar (API 31+) is always available.
 subprojects {
-    afterEvaluate {
-        if (extensions.findByName("android") != null) {
-            val androidExt = extensions.getByName("android")
-            val compileSdkMethod = androidExt.javaClass.methods.find { it.name == "setCompileSdkVersion" && it.parameterCount == 1 && it.parameterTypes[0] == Int::class.java }
-            compileSdkMethod?.invoke(androidExt, 35)
+    plugins.withId("com.android.library") {
+        extensions.configure<com.android.build.gradle.LibraryExtension> {
+            compileSdk = 35
         }
     }
 }
