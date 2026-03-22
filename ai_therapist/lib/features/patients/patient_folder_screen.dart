@@ -235,27 +235,27 @@ class _ProfileTab extends StatelessWidget {
                 fontStyle: FontStyle.italic,
                 color: Colors.black87),
           ),
-          if (patient.primaryDiagnosis != null) ...[
-            const Divider(height: 24),
-            const _SectionHeader('Primary diagnosis',
-                Icons.local_hospital_outlined, Colors.blue),
-            const SizedBox(height: 8),
-            Text(patient.primaryDiagnosis!,
-                style:
-                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-            if (patient.comorbidities.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: patient.comorbidities
-                    .map((c) => Chip(
-                        label: Text(c, style: const TextStyle(fontSize: 11)),
-                        visualDensity: VisualDensity.compact))
-                    .toList(),
-              ),
-            ],
+          ...[
+          const Divider(height: 24),
+          const _SectionHeader('Primary diagnosis',
+              Icons.local_hospital_outlined, Colors.blue),
+          const SizedBox(height: 8),
+          Text(patient.primaryDiagnosis!,
+              style:
+                  const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+          if (patient.comorbidities.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: patient.comorbidities
+                  .map((c) => Chip(
+                      label: Text(c, style: const TextStyle(fontSize: 11)),
+                      visualDensity: VisualDensity.compact))
+                  .toList(),
+            ),
           ],
+        ],
         ],
       ),
     );
@@ -377,38 +377,38 @@ class _ProfileTab extends StatelessWidget {
           const _SectionHeader(
               'Clinical history', Icons.history_edu_outlined, Colors.purple),
           const SizedBox(height: 10),
-          if (patient.presentingHistory != null) ...[
-            const Text('Presenting history',
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey)),
-            const SizedBox(height: 4),
-            Text(patient.presentingHistory!,
-                style: const TextStyle(fontSize: 13, height: 1.6)),
-            const SizedBox(height: 12),
-          ],
-          if (patient.relevantHistory != null) ...[
-            const Text('Relevant background',
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey)),
-            const SizedBox(height: 4),
-            Text(patient.relevantHistory!,
-                style: const TextStyle(fontSize: 13, height: 1.6)),
-          ],
-          if (patient.medicationsNotes != null) ...[
-            const SizedBox(height: 12),
-            const Text('Medications note',
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey)),
-            const SizedBox(height: 4),
-            Text(patient.medicationsNotes!,
-                style: const TextStyle(fontSize: 13, height: 1.6)),
-          ],
+          ...[
+          const Text('Presenting history',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey)),
+          const SizedBox(height: 4),
+          Text(patient.presentingHistory!,
+              style: const TextStyle(fontSize: 13, height: 1.6)),
+          const SizedBox(height: 12),
+        ],
+          ...[
+          const Text('Relevant background',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey)),
+          const SizedBox(height: 4),
+          Text(patient.relevantHistory!,
+              style: const TextStyle(fontSize: 13, height: 1.6)),
+        ],
+          ...[
+          const SizedBox(height: 12),
+          const Text('Medications note',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey)),
+          const SizedBox(height: 4),
+          Text(patient.medicationsNotes!,
+              style: const TextStyle(fontSize: 13, height: 1.6)),
+        ],
         ],
       ),
     );
@@ -773,69 +773,194 @@ class _HomeworkTabState extends State<_HomeworkTab> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final summary = _summary;
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        if (summary != null && summary.totalAssigned > 0) ...[
-          _Card(
+  Future<void> _showAssignDialog() async {
+    final titleCtrl = TextEditingController();
+    final instructionsCtrl = TextEditingController();
+    DateTime? dueDate;
+    final formKey = GlobalKey<FormState>();
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) => Padding(
+          padding: EdgeInsets.only(
+              left: 24, right: 24, top: 24,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
+          child: Form(
+            key: formKey,
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _SectionHeader('Adherence overview',
-                    Icons.bar_chart_outlined, Colors.teal),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    _AdherenceStat('Assigned', summary.totalAssigned.toString(),
-                        Colors.grey),
-                    _AdherenceStat('Completed', summary.completed.toString(),
-                        Colors.green),
-                    _AdherenceStat('Partial', summary.partiallyDone.toString(),
-                        Colors.blue),
-                    _AdherenceStat(
-                        'Skipped', summary.skipped.toString(), Colors.orange),
-                  ],
+                Text('Assign Homework',
+                    style: GoogleFonts.inter(
+                        fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: titleCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Task title *',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Required' : null,
                 ),
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: summary.completionRate,
-                    minHeight: 8,
-                    backgroundColor: Colors.grey.shade100,
-                    valueColor:
-                        const AlwaysStoppedAnimation<Color>(Colors.teal),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: instructionsCtrl,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: 'Instructions',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  '${(summary.completionRate * 100).round()}% completion rate',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.calendar_today, size: 16),
+                  label: Text(dueDate == null
+                      ? 'Set due date (optional)'
+                      : 'Due: ${dueDate!.year}-${dueDate!.month.toString().padLeft(2, '0')}-${dueDate!.day.toString().padLeft(2, '0')}'),
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: ctx,
+                      initialDate:
+                          DateTime.now().add(const Duration(days: 7)),
+                      firstDate: DateTime.now(),
+                      lastDate:
+                          DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null) setModal(() => dueDate = picked);
+                  },
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF8FB9A8),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () async {
+                      if (!formKey.currentState!.validate()) return;
+                      Navigator.pop(ctx);
+                      try {
+                        await ApiClient.instance.post(
+                          '/patients/${widget.patient.id}/homework',
+                          body: jsonEncode({
+                            'title': titleCtrl.text.trim(),
+                            'instructions': instructionsCtrl.text.trim(),
+                            if (dueDate != null)
+                              'due_date':
+                                  '${dueDate!.year}-${dueDate!.month.toString().padLeft(2, '0')}-${dueDate!.day.toString().padLeft(2, '0')}',
+                          }),
+                        );
+                        await _load();
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Failed to assign: $e')));
+                        }
+                      }
+                    },
+                    child: const Text('Assign Task',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
-        ],
-        if (_tasks.isEmpty)
-          const _Card(
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('No homework assigned yet.',
-                    style: TextStyle(color: Colors.grey)),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = _summary;
+    return Stack(
+      children: [
+        ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            if (summary != null && summary.totalAssigned > 0) ...[
+              _Card(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _SectionHeader('Adherence overview',
+                        Icons.bar_chart_outlined, Colors.teal),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        _AdherenceStat('Assigned',
+                            summary.totalAssigned.toString(), Colors.grey),
+                        _AdherenceStat('Completed',
+                            summary.completed.toString(), Colors.green),
+                        _AdherenceStat('Partial',
+                            summary.partiallyDone.toString(), Colors.blue),
+                        _AdherenceStat('Skipped',
+                            summary.skipped.toString(), Colors.orange),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: summary.completionRate,
+                        minHeight: 8,
+                        backgroundColor: Colors.grey.shade100,
+                        valueColor:
+                            const AlwaysStoppedAnimation<Color>(Colors.teal),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${(summary.completionRate * 100).round()}% completion rate',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          )
-        else
-          ..._tasks.map((task) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _HomeworkCard(task: task, onUpdated: _load),
-              )),
-        const SizedBox(height: 80),
+              const SizedBox(height: 12),
+            ],
+            if (_tasks.isEmpty)
+              const _Card(
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text('No homework assigned yet.',
+                        style: TextStyle(color: Colors.grey)),
+                  ),
+                ),
+              )
+            else
+              ..._tasks.map((task) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _HomeworkCard(task: task, onUpdated: _load),
+                  )),
+            const SizedBox(height: 80),
+          ],
+        ),
+        Positioned(
+          bottom: 16,
+          right: 16,
+          child: FloatingActionButton.extended(
+            heroTag: 'assign_hw',
+            onPressed: _showAssignDialog,
+            backgroundColor: const Color(0xFF8FB9A8),
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: const Text('Assign Task',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ),
       ],
     );
   }

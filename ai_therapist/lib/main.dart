@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import 'app/theme.dart';
 import 'core/api_client.dart';
+import 'core/fcm_service.dart';
 import 'core/notification_service.dart';
 import 'features/assessments/phq9_service.dart';
 import 'features/auth/auth_service.dart';
@@ -26,6 +27,7 @@ void main() async {
   // 1. Firebase (guarded — needs google-services.json + flag)
   if (_kFirebaseEnabled) {
     // await Firebase.initializeApp();
+    await FcmService.instance.initialize();
   }
 
   await NotificationService.initialize();

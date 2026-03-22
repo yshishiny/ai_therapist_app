@@ -745,6 +745,11 @@ async def create_session(patient_id: str, body: SessionNoteIn, user: CurrentUser
         "UPDATE patients SET last_seen=$1 WHERE id=$2",
         now, uuid.UUID(patient_id),
     )
+    # Notify patient that a session has been logged
+    await _push(db, patient_id, "Session Recorded 📝",
+                "Your therapist has logged today's session.",
+                {"type": "session", "session_id": str(new_id)})
+
     return SessionNoteOut(
         id=str(new_id), patient_id=patient_id,
         template=body.template, subjective=body.subjective,
@@ -1071,6 +1076,10 @@ async def assign_homework(patient_id: str, body: HomeworkIn, user: CurrentUser, 
            VALUES ($1,$2,$3,$4,$5,'ASSIGNED')""",
         new_id, uuid.UUID(patient_id), body.title, body.instructions, due_date
     )
+    # Notify patient via FCM (best-effort, does not block response)
+    await _push(db, patient_id, "New Homework Assigned 📋",
+                f"Your therapist has assigned: {body.title}",
+                {"type": "homework", "task_id": str(new_id)})
     return {"id": str(new_id), "status": "ASSIGNED"}
 
 @app.post(
@@ -1509,6 +1518,9 @@ async def create_assessment_question(
 
 # ── Pydantic schemas ───────────────────────────────────────────────────────────
 
+class FcmTokenIn(BaseModel):
+    fcm_token: str
+
 class MoodLogIn(BaseModel):
     mood_score: int       # 1–5
     energy_score: int     # 1–5
@@ -1531,6 +1543,60 @@ def _patient_id_from_jwt(user: CurrentUser) -> str:
     if user.role != Role.PATIENT:
         raise HTTPException(status_code=403, detail="Patient access only.")
     return user.sub   # sub == patient row id for patient tokens
+
+
+# ── FCM push helper ────────────────────────────────────────────────────────────
+
+import firebase_admin
+from firebase_admin import credentials as fb_credentials, messaging as fb_messaging
+
+def _init_firebase():
+    """Initialise firebase-admin once using FIREBASE_CREDENTIALS_JSON env var."""
+    if firebase_admin._apps:
+        return True
+    cred_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
+    if not cred_json:
+        return False
+    try:
+        import json as _j
+        cred = fb_credentials.Certificate(_j.loads(cred_json))
+        firebase_admin.initialize_app(cred)
+        return True
+    except Exception as e:
+        logger.warning("Firebase init failed — push disabled", extra={"error": str(e)})
+        return False
+
+async def _push(db, patient_id: str, title: str, body: str, data: dict | None = None):
+    """Send an FCM push to a patient's registered device. Best-effort."""
+    if not _init_firebase():
+        return
+    row = await db.fetchrow(
+        "SELECT fcm_token FROM patient_users WHERE patient_id = $1 AND fcm_token IS NOT NULL",
+        uuid.UUID(patient_id),
+    )
+    if not row:
+        return
+    try:
+        fb_messaging.send(fb_messaging.Message(
+            notification=fb_messaging.Notification(title=title, body=body),
+            data=data or {},
+            token=row["fcm_token"],
+        ))
+        logger.info("FCM push sent", extra={"patient_id": patient_id, "title": title})
+    except Exception as e:
+        logger.warning("FCM push failed", extra={"patient_id": patient_id, "error": str(e)})
+
+
+# ── POST /me/fcm-token ────────────────────────────────────────────────────────
+
+@app.post("/me/fcm-token", status_code=status.HTTP_204_NO_CONTENT, tags=["patient"])
+async def register_fcm_token(body: FcmTokenIn, user: CurrentUser, db: DB):
+    """Store or refresh the device FCM token for the authenticated patient."""
+    patient_id = _patient_id_from_jwt(user)
+    await db.execute(
+        "UPDATE patient_users SET fcm_token = $1 WHERE patient_id = $2",
+        body.fcm_token, uuid.UUID(patient_id),
+    )
 
 
 # ── GET /me/profile ────────────────────────────────────────────────────────────
