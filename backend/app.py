@@ -1720,6 +1720,37 @@ async def get_my_sessions(user: CurrentUser, db: DB, upcoming_only: bool = False
     return [dict(r) for r in rows]
 
 
+# ── POST /me/sessions/request ─────────────────────────────────────────────────
+
+class SessionRequestIn(BaseModel):
+    preferred_date: Optional[str] = None   # YYYY-MM-DD
+    notes: Optional[str] = None
+
+
+@app.post("/me/sessions/request", status_code=201, tags=["patient"])
+async def request_session(body: SessionRequestIn, user: CurrentUser, db: DB):
+    """Patient requests a new session. Creates a 'requested' session row."""
+    patient_id = _patient_id_from_jwt(user)
+
+    scheduled_at = None
+    if body.preferred_date:
+        try:
+            scheduled_at = datetime.strptime(body.preferred_date, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="preferred_date must be YYYY-MM-DD")
+
+    row = await db.fetchrow(
+        """INSERT INTO sessions
+               (patient_id, org_id, session_type, scheduled_at, status, summary_snippet)
+           VALUES ($1, $2, 'Individual', $3, 'requested', $4)
+           RETURNING id, status, scheduled_at""",
+        uuid.UUID(patient_id), uuid.UUID(user.org_id),
+        scheduled_at, body.notes or None,
+    )
+    return {"id": str(row["id"]), "status": row["status"],
+            "scheduled_at": row["scheduled_at"]}
+
+
 # ── POST /me/ai-chat ───────────────────────────────────────────────────────────
 
 @app.post("/me/ai-chat", tags=["patient"])

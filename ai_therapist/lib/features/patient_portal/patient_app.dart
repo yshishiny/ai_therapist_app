@@ -3,6 +3,7 @@ import 'patient_home_tab.dart';
 import 'patient_homework_tab.dart';
 import 'patient_progress_tab.dart';
 import 'patient_chat_tab.dart';
+import 'patient_sessions_tab.dart';
 
 /// Root scaffold for the patient-facing experience.
 /// Reached from AuthWrapper when the decoded JWT role == "patient".
@@ -21,6 +22,7 @@ class _PatientAppState extends State<PatientApp> {
     PatientHomeworkTab(),
     PatientProgressTab(),
     PatientChatTab(),
+    PatientSessionsTab(),
   ];
 
   @override
@@ -57,6 +59,11 @@ class _PatientAppState extends State<PatientApp> {
             icon: Icon(Icons.chat_bubble_outline),
             selectedIcon: Icon(Icons.chat_bubble, color: Color(0xFF8FB9A8)),
             label: 'AI Chat',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.event_outlined),
+            selectedIcon: Icon(Icons.event, color: Color(0xFF8FB9A8)),
+            label: 'Sessions',
           ),
         ],
       ),
