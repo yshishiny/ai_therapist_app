@@ -1,6 +1,6 @@
 # AI Therapist — Latest Updates
 
-> **Last updated:** 2026-03-21
+> **Last updated:** 2026-03-21 (Sprint 3 complete)
 > **Branch:** `roadmap`
 > **Author:** Yasser Elshishiny
 
@@ -202,3 +202,29 @@ A comprehensive code review was performed across `backend/app.py` and all Dart s
 | `migration_patient_portal.sql` | Production DB migration — must be run on Railway |
 | `.github/workflows/build-apk.yml` | APK build CI |
 | `.github/workflows/deploy_backend.yml` | Railway backend deploy CI |
+| `ai_therapist/lib/features/patient_portal/patient_sessions_tab.dart` | Patient session list + request form (Sprint 3) |
+
+---
+
+## Sprint 3 Additions — Patient-Side Session Scheduling (Issue #18)
+
+### What was built
+Patients can now view their upcoming/past sessions and request new appointments directly from the mobile app.
+
+### Files changed
+| File | Change |
+|---|---|
+| `ai_therapist/lib/features/patient_portal/patient_sessions_tab.dart` | New — full session tab widget |
+| `ai_therapist/lib/features/patient_portal/patient_app.dart` | Added Sessions as 5th bottom-nav tab |
+| `backend/app.py` | Added `POST /me/sessions/request` endpoint |
+
+### How it works
+1. Patient opens the **Sessions** tab (calendar icon, 5th tab)
+2. Loads `GET /me/sessions` — shows cards with session type, date, summary snippet
+3. Taps **Request Session** FAB → bottom sheet with optional preferred date picker + notes field
+4. Submits → `POST /me/sessions/request` inserts a `status='requested'` row in the `sessions` table
+5. Therapist sees the request in the existing sessions dashboard
+
+### GitHub
+- Issue [#18](https://github.com/yshishiny/ai_therapist_app/issues/18) closed as completed
+- Commit: `97e7890` on `roadmap` branch
