@@ -17,7 +17,7 @@ import os
 import traceback
 import uuid
 from datetime import datetime, timezone
-from typing import Annotated
+from typing import Annotated, Optional
 
 import asyncpg
 from fastapi import Depends, FastAPI, HTTPException, Request, status
