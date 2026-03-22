@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "com.example.ai_therapist"
-    compileSdk = 35  // printing package requires API 31+; explicit avoids flutter default resolving lower
+    compileSdk = 36  // image_picker, flutter_plugin_android_lifecycle, path_provider, shared_preferences all require 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {
