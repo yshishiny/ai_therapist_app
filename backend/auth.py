@@ -29,7 +29,7 @@ from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import ExpiredSignatureError, JWTError, jwt
 from passlib.context import CryptContext
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # ─── Config (pulled from environment) ────────────────────────────────────────
 
@@ -69,7 +69,7 @@ class TokenPayload(BaseModel):
     exp: datetime
     iat: datetime
     type: str          # "access" | "refresh"
-    jti: str           # unique token ID — used for revocation
+    jti: str = Field(default_factory=lambda: str(uuid.uuid4()))  # unique token ID — used for revocation
 
 
 class TokenPair(BaseModel):
