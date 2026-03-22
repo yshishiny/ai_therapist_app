@@ -82,14 +82,16 @@ jobs:
         run: |
           flutter build apk --release \
             --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL }} \
-            -v 2>&1 | tail -50
+            2>&1 | tee /tmp/flutter-build.log
+          grep -E "Built|FAILURE|error:|Exception" /tmp/flutter-build.log | tail -20 || true
 
       - name: List built APKs
-        run: find ai_therapist/build/app/outputs/flutter-apk/ -name "*.apk" -ls
+        run: find ai_therapist/build/app/outputs/flutter-apk/ -name "*.apk" -ls || echo "APK not found — check build log above"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: AITherapist-release-v${{ github.run_number }}
           path: ai_therapist/build/app/outputs/flutter-apk/*.apk
+          if-no-files-found: error
           retention-days: 30
