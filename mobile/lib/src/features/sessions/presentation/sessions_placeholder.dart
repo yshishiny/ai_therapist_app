@@ -1,0 +1,3 @@
+class SessionsFeaturePlaceholder {
+  const SessionsFeaturePlaceholder();
+}
