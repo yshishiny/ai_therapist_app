@@ -1,0 +1,3 @@
+class AppointmentsFeaturePlaceholder {
+  const AppointmentsFeaturePlaceholder();
+}
