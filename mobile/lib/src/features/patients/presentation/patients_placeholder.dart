@@ -1,0 +1,3 @@
+class PatientsFeaturePlaceholder {
+  const PatientsFeaturePlaceholder();
+}
