@@ -1,0 +1,3 @@
+class CareplansFeaturePlaceholder {
+  const CareplansFeaturePlaceholder();
+}
