@@ -1,0 +1,3 @@
+class AssessmentsFeaturePlaceholder {
+  const AssessmentsFeaturePlaceholder();
+}
