@@ -1009,8 +1009,12 @@ class _HomeworkCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade100),
-        borderLeft: Border(left: BorderSide(color: statusColor, width: 3)),
+        border: Border(
+          left: BorderSide(color: statusColor, width: 3),
+          top: BorderSide(color: Colors.grey.shade100),
+          right: BorderSide(color: Colors.grey.shade100),
+          bottom: BorderSide(color: Colors.grey.shade100),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1190,9 +1194,10 @@ class _ConsentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = consent.status == ConsentStatus.granted
+    final normalizedStatus = consent.status.toLowerCase();
+    final color = normalizedStatus == 'granted'
         ? Colors.green
-        : consent.status == ConsentStatus.denied
+        : normalizedStatus == 'denied'
             ? Colors.red
             : Colors.orange;
     return Padding(
@@ -1200,7 +1205,7 @@ class _ConsentRow extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            consent.status == ConsentStatus.granted
+            normalizedStatus == 'granted'
                 ? Icons.check_circle_outline
                 : Icons.cancel_outlined,
             size: 18,
@@ -1227,7 +1232,7 @@ class _ConsentRow extends StatelessWidget {
               color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(consent.status.name,
+            child: Text(consent.status,
                 style: TextStyle(
                     fontSize: 10, color: color, fontWeight: FontWeight.bold)),
           ),
@@ -1236,6 +1241,7 @@ class _ConsentRow extends StatelessWidget {
     );
   }
 }
+
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 

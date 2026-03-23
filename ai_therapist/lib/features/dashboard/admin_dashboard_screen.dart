@@ -263,11 +263,11 @@ class _ResourcesTabState extends State<_ResourcesTab> {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFF2D3250).withOpacity(0.15)),
           ),
-          child: Row(
+          child: const Row(
             children: [
-              const Icon(Icons.upload_file, color: Color(0xFF2D3250)),
-              const SizedBox(width: 10),
-              const Expanded(
+              Icon(Icons.upload_file, color: Color(0xFF2D3250)),
+              SizedBox(width: 10),
+              Expanded(
                 child: Text(
                   'Bulk upload: POST /admin/resources/import with a CSV file.\n'
                   'Columns: title, author, category, description, file_url',

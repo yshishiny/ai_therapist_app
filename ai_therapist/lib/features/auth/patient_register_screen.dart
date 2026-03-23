@@ -156,7 +156,7 @@ class _PatientRegisterScreenState extends State<PatientRegisterScreen> {
 
                         // Gender dropdown
                         DropdownButtonFormField<String>(
-                          value: _selectedGender,
+                          initialValue: _selectedGender,
                           onChanged: (v) => setState(() => _selectedGender = v),
                           decoration: _inputDecoration(label: 'Gender (optional)', icon: Icons.wc_outlined),
                           items: const [
