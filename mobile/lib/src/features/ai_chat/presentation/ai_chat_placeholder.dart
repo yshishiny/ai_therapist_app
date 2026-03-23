@@ -1,0 +1,3 @@
+class AiChatFeaturePlaceholder {
+  const AiChatFeaturePlaceholder();
+}
