@@ -8,7 +8,7 @@ class CalendarScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Clinical Calendar', style: GoogleFonts.outfit()),
+        title: Text('Clinical Calendar', style: GoogleFonts.inter()),
         actions: [
           IconButton(icon: const Icon(Icons.add), onPressed: () {}),
         ],
@@ -88,7 +88,7 @@ class CalendarScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(patient, style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+                Text(patient, style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
                 Text(label, style: TextStyle(color: accent, fontSize: 12)),
               ],
             ),

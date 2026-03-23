@@ -95,7 +95,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7F8),
       appBar: AppBar(
-        title: Text('Admin Dashboard', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        title: Text('Admin Dashboard', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF2D3250),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -203,7 +203,7 @@ class _ResourcesTabState extends State<_ResourcesTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Add Resource', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text('Add Resource', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -395,7 +395,7 @@ class _ContactsTabState extends State<_ContactsTab> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Add Contact', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text('Add Contact', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)),
                   // CSV template download hint
                   TextButton.icon(
                     onPressed: () {
@@ -543,7 +543,7 @@ class _AssessmentQuestionsTabState extends State<_AssessmentQuestionsTab> {
             children: [
               Row(
                 children: [
-                  Text('Assessment:', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                  Text('Assessment:', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                   const SizedBox(width: 12),
                   DropdownButton<String>(
                     value: _selectedAssessment,
@@ -562,7 +562,7 @@ class _AssessmentQuestionsTabState extends State<_AssessmentQuestionsTab> {
                 ],
               ),
               const Divider(),
-              Text('Add Question', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 15)),
+              Text('Add Question', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15)),
               const SizedBox(height: 8),
               TextField(
                 controller: _questionCtrl,

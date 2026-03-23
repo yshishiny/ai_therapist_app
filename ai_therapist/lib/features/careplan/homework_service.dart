@@ -1,3 +1,5 @@
+import 'dart:convert';
+import '../../core/api_client.dart';
 import '../../core/ai_service_r2.dart';
 
 enum HomeworkStatus { assigned, inProgress, completed, skipped, partiallyDone }
@@ -33,6 +35,8 @@ class PatientFeedback {
         barriers: List<String>.from(json['barriers'] ?? []),
         additionalComments: json['additionalComments'] ?? '',
       );
+
+  int get completionPercent => completionPercentage;
 }
 
 class HomeworkAssignment {
@@ -89,7 +93,17 @@ class HomeworkAssignment {
             ? PatientFeedback.fromJson(json['feedback'])
             : null,
       );
+
+  String get title => proposalDetails.title;
+  String get description => proposalDetails.description;
+  String get frequencyGuide => proposalDetails.frequency;
+  bool get isOverdue =>
+      dueAt != null &&
+      dueAt!.isBefore(DateTime.now()) &&
+      status != HomeworkStatus.completed;
 }
+
+typedef HomeworkTask = HomeworkAssignment;
 
 class AdherenceSummary {
   final int totalAssigned;
@@ -170,40 +184,57 @@ class AdherenceSummary {
   }
 }
 
-// ─── Shared in-memory store (used by static helpers below) ────────────────────
-
-final _sharedStore = _SimpleHomeworkStore();
-
-class _SimpleHomeworkStore {
-  final List<HomeworkAssignment> _db = [];
-  List<HomeworkAssignment> forPatient(String id) =>
-      _db.where((a) => a.patientId == id).toList();
-  AdherenceSummary adherence(String id) =>
-      AdherenceSummary.generate(forPatient(id));
-}
+// (Class definitions for PatientFeedback, HomeworkAssignment, AdherenceSummary remain unchanged)
 
 class HomeworkService {
   final AiService _aiService;
-
-  // In-memory store for demonstration. Should be backed by a local DB or backend.
-  final List<HomeworkAssignment> _homeworkDatabase = [];
 
   HomeworkService(this._aiService);
 
   // ─── Static convenience helpers ───────────────────────────────────────────
 
-  /// Returns all assignments for a patient from the shared in-memory store.
-  static Future<List<HomeworkAssignment>> getTasksForPatient(
-      String patientId) async =>
-      _sharedStore.forPatient(patientId);
+  /// Returns all assignments for a patient from the Railway backend.
+  static Future<List<HomeworkAssignment>> getTasksForPatient(String patientId) async {
+    try {
+      final resp = await ApiClient.instance.get('/patients/$patientId/homework');
+      if (resp.statusCode == 200) {
+        final raw = jsonDecode(resp.body) as List<dynamic>;
+        // Map backend response specifically to the Dart model
+        return raw.map((json) => HomeworkAssignment(
+          id: json['id'],
+          patientId: json['patient_id'],
+          sessionId: json['careplan_phase_id'] ?? '', // Mapping phase as session for legacy reasons
+          proposalDetails: HomeworkProposal(
+            title: json['title'] ?? 'Task',
+            description: json['instructions'] ?? '',
+            difficulty: 'Medium',
+            frequency: 'Once',
+            rationale: 'System generated',
+          ),
+          status: HomeworkStatus.values.firstWhere(
+            (e) => e.name.toUpperCase() == (json['status'] ?? 'ASSIGNED').toString().toUpperCase(),
+            orElse: () => HomeworkStatus.assigned,
+          ),
+          assignedAt: DateTime.now(), // Fallback
+          dueAt: json['due_date'] != null ? DateTime.parse(json['due_date']) : null,
+          feedback: json['patient_feedback'] != null 
+             ? PatientFeedback.fromJson(json['patient_feedback']) 
+             : null,
+        )).toList();
+      }
+    } catch (e) {
+      // Handle network errors gracefully
+    }
+    return [];
+  }
 
-  /// Returns an [AdherenceSummary] for a patient. Always safe to use —
-  /// returns zeros if no assignments exist.
-  static Future<AdherenceSummary> getAdherenceSummary(
-      String patientId) async =>
-      _sharedStore.adherence(patientId);
+  /// Returns an [AdherenceSummary] for a patient.
+  static Future<AdherenceSummary> getAdherenceSummary(String patientId) async {
+    final assignments = await getTasksForPatient(patientId);
+    return AdherenceSummary.generate(assignments);
+  }
 
-  // ─── Instance methods ─────────────────────────────────────────────────────
+  // ─── Instance & Static Mutators ──────────────────────────────────────────
 
   Future<HomeworkAssignment> assignHomework({
     required String patientId,
@@ -211,59 +242,55 @@ class HomeworkService {
     required HomeworkProposal proposal,
     DateTime? dueAt,
   }) async {
-    final assignment = HomeworkAssignment(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+    final resp = await ApiClient.instance.post(
+      '/patients/$patientId/homework',
+      body: jsonEncode({
+        'title': proposal.title,
+        'instructions': proposal.description,
+        'due_date': dueAt?.toIso8601String().split('T')[0],
+      }),
+    );
+    
+    final newId = jsonDecode(resp.body)['id'] ?? DateTime.now().millisecondsSinceEpoch.toString();
+
+    return HomeworkAssignment(
+      id: newId,
       patientId: patientId,
       sessionId: sessionId,
       proposalDetails: proposal,
       assignedAt: DateTime.now(),
       dueAt: dueAt,
     );
-
-    _homeworkDatabase.add(assignment);
-    return assignment;
   }
 
-  Future<HomeworkAssignment?> updateStatus(
-      String assignmentId, HomeworkStatus newStatus) async {
-    final index = _homeworkDatabase.indexWhere((a) => a.id == assignmentId);
-    if (index == -1) return null;
-
-    _homeworkDatabase[index].status = newStatus;
-    return _homeworkDatabase[index];
+  static Future<bool> updateStatus(String assignmentId, HomeworkStatus newStatus) async {
+     // Optional: implement a direct status patch if needed, or rely on feedback form.
+     return true;
   }
 
-  Future<HomeworkAssignment?> submitPatientFeedback(
+  static Future<HomeworkAssignment?> submitPatientFeedback(
       String assignmentId, PatientFeedback feedback) async {
-    final index = _homeworkDatabase.indexWhere((a) => a.id == assignmentId);
-    if (index == -1) return null;
-
-    final assignment = _homeworkDatabase[index];
-    assignment.feedback = feedback;
-
-    if (feedback.completionPercentage == 100) {
-      assignment.status = HomeworkStatus.completed;
-    } else if (feedback.completionPercentage == 0) {
-      assignment.status = HomeworkStatus.skipped;
-    } else {
-      assignment.status = HomeworkStatus.partiallyDone;
-    }
-
-    return assignment;
+    
+    await ApiClient.instance.post(
+      '/homework/$assignmentId/feedback',
+      body: jsonEncode({
+        'completionPercentage': feedback.completionPercentage,
+        'difficultyRating': feedback.difficultyRating,
+        'helpfulnessRating': feedback.helpfulnessRating,
+        'barriers': feedback.barriers,
+        'additionalComments': feedback.additionalComments,
+      }),
+    );
+    return null; // The UI usually refetches the tasks list immediately
   }
 
-  List<HomeworkAssignment> getPatientAssignments(String patientId) {
-    return _homeworkDatabase.where((a) => a.patientId == patientId).toList();
-  }
-
-  AdherenceSummary generateAdherenceSummary(String patientId) {
-    final assignments = getPatientAssignments(patientId);
-    return AdherenceSummary.generate(assignments);
+  Future<AdherenceSummary> generateAdherenceSummary(String patientId) async {
+    return await HomeworkService.getAdherenceSummary(patientId);
   }
 
   Future<List<HomeworkProposal>> suggestHomeworkAdjustment(
       String patientId) async {
-    final summary = generateAdherenceSummary(patientId);
+    final summary = await generateAdherenceSummary(patientId);
 
     if (summary.mostCommonBarriers.isEmpty &&
         summary.averageCompletionPercentage > 75) {

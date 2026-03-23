@@ -428,7 +428,7 @@ class _MindfulnessLibraryScreenState extends State<MindfulnessLibraryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Mindfulness library', style: GoogleFonts.outfit()),
+        title: Text('Mindfulness library', style: GoogleFonts.inter()),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(56),
           child: Padding(
@@ -554,7 +554,7 @@ class _TechniqueCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(technique.name,
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                             fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 2),
                     Container(
@@ -622,7 +622,7 @@ class _TechniqueDetailScreenState extends State<TechniqueDetailScreen>
     final t = widget.technique;
     return Scaffold(
       appBar: AppBar(
-        title: Text(t.name, style: GoogleFonts.outfit()),
+        title: Text(t.name, style: GoogleFonts.inter()),
         bottom: TabBar(
           controller: _tabs,
           labelColor: t.color,

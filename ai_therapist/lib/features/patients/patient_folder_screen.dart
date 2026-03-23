@@ -11,9 +11,13 @@ library;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../patients/patient_folder_model.dart';
-import '../homework/homework_service.dart';
+import '../careplan/homework_service.dart';
 import '../sessions/session_ai_review_screen.dart';
 import '../sessions/session_note_screen.dart';
+import '../assessments/universal_assessment_screen.dart';
+import 'patient_trends_tab.dart';
+import '../../core/api_client.dart';
+import 'dart:convert';
 
 class PatientFolderScreen extends StatefulWidget {
   final PatientFolder patient;
@@ -81,7 +85,7 @@ class _PatientFolderScreenState extends State<PatientFolderScreen>
 
   Widget _buildSliverHeader() {
     final risk = _patient.riskLevel;
-    final riskColor = Color(risk.colorValue);
+    final riskColor = risk == 'high' ? Colors.red : risk == 'moderate' ? Colors.orange : Colors.green;
 
     return SliverAppBar(
       expandedHeight: 180,
@@ -113,7 +117,7 @@ class _PatientFolderScreenState extends State<PatientFolderScreen>
                     const Color(0xFF8FB9A8).withValues(alpha: 0.15),
                 child: Text(
                   _patient.initials,
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFF8FB9A8),
@@ -127,15 +131,14 @@ class _PatientFolderScreenState extends State<PatientFolderScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(_patient.fullName,
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                             fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 2),
                     Text(
                       [
-                        if (_patient.ageYears != null) '${_patient.ageYears}y',
-                        _patient.gender.name,
-                        if (_patient.primaryDiagnosis != null)
-                          _patient.primaryDiagnosis!,
+                        '${_patient.ageYears}y',
+                        _patient.gender,
+                        _patient.primaryDiagnosis,
                       ].join(' · '),
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                       maxLines: 1,
@@ -145,8 +148,8 @@ class _PatientFolderScreenState extends State<PatientFolderScreen>
                     Wrap(
                       spacing: 6,
                       children: [
-                        _Pill(_patient.status.label, Colors.blue),
-                        _Pill(risk.label, riskColor),
+                        _Pill(_patient.status, Colors.blue),
+                        _Pill(risk, riskColor),
                         if (_patient.hasActiveRiskFlags)
                           const _Pill('Risk flags', Colors.red),
                         if (!_patient.hasAiConsent)
@@ -232,27 +235,27 @@ class _ProfileTab extends StatelessWidget {
                 fontStyle: FontStyle.italic,
                 color: Colors.black87),
           ),
-          if (patient.primaryDiagnosis != null) ...[
-            const Divider(height: 24),
-            const _SectionHeader('Primary diagnosis',
-                Icons.local_hospital_outlined, Colors.blue),
-            const SizedBox(height: 8),
-            Text(patient.primaryDiagnosis!,
-                style:
-                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-            if (patient.comorbidities.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: patient.comorbidities
-                    .map((c) => Chip(
-                        label: Text(c, style: const TextStyle(fontSize: 11)),
-                        visualDensity: VisualDensity.compact))
-                    .toList(),
-              ),
-            ],
+          ...[
+          const Divider(height: 24),
+          const _SectionHeader('Primary diagnosis',
+              Icons.local_hospital_outlined, Colors.blue),
+          const SizedBox(height: 8),
+          Text(patient.primaryDiagnosis!,
+              style:
+                  const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+          if (patient.comorbidities.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: patient.comorbidities
+                  .map((c) => Chip(
+                      label: Text(c, style: const TextStyle(fontSize: 11)),
+                      visualDensity: VisualDensity.compact))
+                  .toList(),
+            ),
           ],
+        ],
         ],
       ),
     );
@@ -374,38 +377,38 @@ class _ProfileTab extends StatelessWidget {
           const _SectionHeader(
               'Clinical history', Icons.history_edu_outlined, Colors.purple),
           const SizedBox(height: 10),
-          if (patient.presentingHistory != null) ...[
-            const Text('Presenting history',
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey)),
-            const SizedBox(height: 4),
-            Text(patient.presentingHistory!,
-                style: const TextStyle(fontSize: 13, height: 1.6)),
-            const SizedBox(height: 12),
-          ],
-          if (patient.relevantHistory != null) ...[
-            const Text('Relevant background',
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey)),
-            const SizedBox(height: 4),
-            Text(patient.relevantHistory!,
-                style: const TextStyle(fontSize: 13, height: 1.6)),
-          ],
-          if (patient.medicationsNotes != null) ...[
-            const SizedBox(height: 12),
-            const Text('Medications note',
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey)),
-            const SizedBox(height: 4),
-            Text(patient.medicationsNotes!,
-                style: const TextStyle(fontSize: 13, height: 1.6)),
-          ],
+          ...[
+          const Text('Presenting history',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey)),
+          const SizedBox(height: 4),
+          Text(patient.presentingHistory!,
+              style: const TextStyle(fontSize: 13, height: 1.6)),
+          const SizedBox(height: 12),
+        ],
+          ...[
+          const Text('Relevant background',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey)),
+          const SizedBox(height: 4),
+          Text(patient.relevantHistory!,
+              style: const TextStyle(fontSize: 13, height: 1.6)),
+        ],
+          ...[
+          const SizedBox(height: 12),
+          const Text('Medications note',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey)),
+          const SizedBox(height: 4),
+          Text(patient.medicationsNotes!,
+              style: const TextStyle(fontSize: 13, height: 1.6)),
+        ],
         ],
       ),
     );
@@ -629,272 +632,110 @@ class _TimelineEntry {
 
 // ─── Tab 3: Assessments ───────────────────────────────────────────────────────
 
-class _AssessmentsTab extends StatelessWidget {
+class _AssessmentsTab extends StatefulWidget {
   final PatientFolder patient;
   const _AssessmentsTab({required this.patient});
 
-  // Mock score history — replace with AssessmentService.getHistory(patientId)
-  static const _phq9Scores = [17, 15, 14, 13, 12];
-  static const _gad7Scores = [16, 14, 12, 11, 10];
-
   @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const _Card(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _SectionHeader('Score trends', Icons.show_chart, Colors.purple),
-              SizedBox(height: 16),
-              _SparklineChart(
-                label: 'PHQ-9 (depression)',
-                scores: _phq9Scores,
-                color: Color(0xFF6C63FF),
-                maxScore: 27,
-                thresholds: [5, 10, 15, 20],
-              ),
-              SizedBox(height: 20),
-              _SparklineChart(
-                label: 'GAD-7 (anxiety)',
-                scores: _gad7Scores,
-                color: Colors.teal,
-                maxScore: 21,
-                thresholds: [5, 10, 15],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        _Card(
-          borderColor: Colors.blue.shade200,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _SectionHeader(
-                  'Recommended next', Icons.lightbulb_outline, Colors.blue),
-              const SizedBox(height: 10),
-              const Text(
-                'Based on PHQ-9 scores stabilizing, consider the MDQ '
-                '(Mood Disorder Questionnaire) to screen for bipolar spectrum '
-                'before adjusting the treatment plan.',
-                style: TextStyle(fontSize: 13, height: 1.6),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.play_arrow, size: 18),
-                  label: const Text('Start MDQ assessment'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        _Card(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _SectionHeader('History', Icons.history, Colors.grey),
-              const SizedBox(height: 10),
-              _AssessmentHistoryRow('PHQ-9', 12, 'Moderate', Colors.amber,
-                  DateTime.now().subtract(const Duration(days: 4))),
-              const Divider(height: 16),
-              _AssessmentHistoryRow('GAD-7', 10, 'Moderate', Colors.orange,
-                  DateTime.now().subtract(const Duration(days: 4))),
-              const Divider(height: 16),
-              _AssessmentHistoryRow(
-                  'PHQ-9',
-                  17,
-                  'Moderately severe',
-                  Colors.orange,
-                  DateTime.now().subtract(const Duration(days: 32))),
-            ],
-          ),
-        ),
-        const SizedBox(height: 80),
-      ],
-    );
-  }
+  State<_AssessmentsTab> createState() => _AssessmentsTabState();
 }
 
-class _SparklineChart extends StatelessWidget {
-  final String label;
-  final List<int> scores;
-  final Color color;
-  final int maxScore;
-  final List<int> thresholds;
+class _AssessmentsTabState extends State<_AssessmentsTab> {
+  List<dynamic> _templates = [];
+  bool _loading = true;
 
-  const _SparklineChart({
-    required this.label,
-    required this.scores,
-    required this.color,
-    required this.maxScore,
-    required this.thresholds,
-  });
+  @override
+  void initState() {
+    super.initState();
+    _fetchTemplates();
+  }
+
+  Future<void> _fetchTemplates() async {
+    try {
+      final resp = await ApiClient.instance.get('/assessments/templates');
+      if (resp.statusCode == 200) {
+        if (mounted) setState(() => _templates = jsonDecode(resp.body));
+      }
+    } catch (_) {
+      // Handle silently for now
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final last = scores.last;
-    final prev = scores.length > 1 ? scores[scores.length - 2] : last;
-    final delta = last - prev;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(label,
-                style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            const Spacer(),
-            Text('$last/$maxScore',
-                style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold, color: color)),
-            const SizedBox(width: 6),
-            Icon(
-              delta <= 0 ? Icons.arrow_downward : Icons.arrow_upward,
-              size: 14,
-              color: delta <= 0 ? Colors.green : Colors.red,
-            ),
-            Text(
-              '${delta.abs()}',
-              style: TextStyle(
-                fontSize: 12,
-                color: delta <= 0 ? Colors.green : Colors.red,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+          child: Text('Available Templates', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2D3748))),
         ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 60,
-          child: CustomPaint(
-            painter: _SparklinePainter(
-              scores: scores,
-              maxScore: maxScore,
-              color: color,
-              thresholds: thresholds,
-            ),
-            size: const Size(double.infinity, 60),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SparklinePainter extends CustomPainter {
-  final List<int> scores;
-  final int maxScore;
-  final Color color;
-  final List<int> thresholds;
-
-  _SparklinePainter({
-    required this.scores,
-    required this.maxScore,
-    required this.color,
-    required this.thresholds,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (scores.isEmpty) return;
-
-    // Threshold lines
-    final threshPaint = Paint()
-      ..color = Colors.grey.withValues(alpha: 0.2)
-      ..strokeWidth = 0.5
-      ..style = PaintingStyle.stroke;
-    for (final t in thresholds) {
-      final y = size.height - (t / maxScore * size.height);
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), threshPaint);
-    }
-
-    // Line
-    final linePaint = Paint()
-      ..color = color
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final path = Path();
-    for (int i = 0; i < scores.length; i++) {
-      final x = scores.length == 1
-          ? size.width / 2
-          : i / (scores.length - 1) * size.width;
-      final y = size.height - (scores[i] / maxScore * size.height);
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    canvas.drawPath(path, linePaint);
-
-    // Dots
-    final dotPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-    final dotBg = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    for (int i = 0; i < scores.length; i++) {
-      final x = scores.length == 1
-          ? size.width / 2
-          : i / (scores.length - 1) * size.width;
-      final y = size.height - (scores[i] / maxScore * size.height);
-      canvas.drawCircle(Offset(x, y), 4, dotBg);
-      canvas.drawCircle(Offset(x, y), 3, dotPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_SparklinePainter old) => false;
-}
-
-class _AssessmentHistoryRow extends StatelessWidget {
-  final String code;
-  final int score;
-  final String severity;
-  final Color color;
-  final DateTime date;
-
-  const _AssessmentHistoryRow(
-      this.code, this.score, this.severity, this.color, this.date);
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(code,
-              style: TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.bold, color: color)),
-        ),
-        const SizedBox(width: 12),
-        Expanded(child: Text(severity, style: const TextStyle(fontSize: 13))),
-        Text('$score',
-            style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.bold, color: color)),
-        const SizedBox(width: 8),
-        Text('${date.day}/${date.month}',
-            style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        if (_loading)
+           const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator(color: Color(0xFF8FB9A8))))
+        else if (_templates.isEmpty)
+           const Padding(padding: EdgeInsets.all(20), child: Text('No templates loaded from server.'))
+        else
+           SizedBox(
+             height: 120,
+             child: ListView.builder(
+               scrollDirection: Axis.horizontal,
+               padding: const EdgeInsets.symmetric(horizontal: 16),
+               itemCount: _templates.length,
+               itemBuilder: (context, i) {
+                 final t = _templates[i];
+                 return Container(
+                   width: 160,
+                   margin: const EdgeInsets.only(right: 12),
+                   child: InkWell(
+                     onTap: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => UniversalAssessmentScreen(
+                             patientId: widget.patient.id,
+                             templateId: t['id'],
+                             templateName: t['name'],
+                             type: t['template_type'],
+                             scoringRules: t['scoring_rules'],
+                          ))
+                        );
+                        // If they took a test, we can refresh the trends below
+                        if (result == true) {
+                           setState((){}); // rebuild forces trend tab to re-fetch
+                        }
+                     },
+                     borderRadius: BorderRadius.circular(16),
+                     child: Container(
+                       padding: const EdgeInsets.all(16),
+                       decoration: BoxDecoration(
+                         color: Colors.white,
+                         borderRadius: BorderRadius.circular(16),
+                         border: Border.all(color: Colors.grey.shade200),
+                       ),
+                       child: Column(
+                         crossAxisAlignment: CrossAxisAlignment.start,
+                         mainAxisAlignment: MainAxisAlignment.center,
+                         children: [
+                            Icon(
+                              t['template_type'] == 'ART_THERAPY' ? Icons.palette_outlined : 
+                              (t['template_type'] == 'SOMATIC' ? Icons.accessibility_new_rounded : Icons.assignment_outlined),
+                              color: const Color(0xFF8FB9A8),
+                              size: 28,
+                            ),
+                            const Spacer(),
+                            Text(t['name'], style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
+                         ],
+                       ),
+                     ),
+                   ),
+                 );
+               },
+             ),
+           ),
+        const Divider(height: 32),
+        // The trends tab handles fetching the history and charting
+        Expanded(child: PatientTrendsTab(key: UniqueKey(), patientId: widget.patient.id)),
       ],
     );
   }
@@ -932,69 +773,194 @@ class _HomeworkTabState extends State<_HomeworkTab> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final summary = _summary;
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        if (summary != null && summary.totalAssigned > 0) ...[
-          _Card(
+  Future<void> _showAssignDialog() async {
+    final titleCtrl = TextEditingController();
+    final instructionsCtrl = TextEditingController();
+    DateTime? dueDate;
+    final formKey = GlobalKey<FormState>();
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) => Padding(
+          padding: EdgeInsets.only(
+              left: 24, right: 24, top: 24,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
+          child: Form(
+            key: formKey,
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _SectionHeader('Adherence overview',
-                    Icons.bar_chart_outlined, Colors.teal),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    _AdherenceStat('Assigned', summary.totalAssigned.toString(),
-                        Colors.grey),
-                    _AdherenceStat('Completed', summary.completed.toString(),
-                        Colors.green),
-                    _AdherenceStat('Partial', summary.partiallyDone.toString(),
-                        Colors.blue),
-                    _AdherenceStat(
-                        'Skipped', summary.skipped.toString(), Colors.orange),
-                  ],
+                Text('Assign Homework',
+                    style: GoogleFonts.inter(
+                        fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: titleCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Task title *',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Required' : null,
                 ),
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: summary.completionRate,
-                    minHeight: 8,
-                    backgroundColor: Colors.grey.shade100,
-                    valueColor:
-                        const AlwaysStoppedAnimation<Color>(Colors.teal),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: instructionsCtrl,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: 'Instructions',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  '${(summary.completionRate * 100).round()}% completion rate',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.calendar_today, size: 16),
+                  label: Text(dueDate == null
+                      ? 'Set due date (optional)'
+                      : 'Due: ${dueDate!.year}-${dueDate!.month.toString().padLeft(2, '0')}-${dueDate!.day.toString().padLeft(2, '0')}'),
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: ctx,
+                      initialDate:
+                          DateTime.now().add(const Duration(days: 7)),
+                      firstDate: DateTime.now(),
+                      lastDate:
+                          DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null) setModal(() => dueDate = picked);
+                  },
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF8FB9A8),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () async {
+                      if (!formKey.currentState!.validate()) return;
+                      Navigator.pop(ctx);
+                      try {
+                        await ApiClient.instance.post(
+                          '/patients/${widget.patient.id}/homework',
+                          body: jsonEncode({
+                            'title': titleCtrl.text.trim(),
+                            'instructions': instructionsCtrl.text.trim(),
+                            if (dueDate != null)
+                              'due_date':
+                                  '${dueDate!.year}-${dueDate!.month.toString().padLeft(2, '0')}-${dueDate!.day.toString().padLeft(2, '0')}',
+                          }),
+                        );
+                        await _load();
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Failed to assign: $e')));
+                        }
+                      }
+                    },
+                    child: const Text('Assign Task',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
-        ],
-        if (_tasks.isEmpty)
-          const _Card(
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('No homework assigned yet.',
-                    style: TextStyle(color: Colors.grey)),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = _summary;
+    return Stack(
+      children: [
+        ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            if (summary != null && summary.totalAssigned > 0) ...[
+              _Card(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _SectionHeader('Adherence overview',
+                        Icons.bar_chart_outlined, Colors.teal),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        _AdherenceStat('Assigned',
+                            summary.totalAssigned.toString(), Colors.grey),
+                        _AdherenceStat('Completed',
+                            summary.completed.toString(), Colors.green),
+                        _AdherenceStat('Partial',
+                            summary.partiallyDone.toString(), Colors.blue),
+                        _AdherenceStat('Skipped',
+                            summary.skipped.toString(), Colors.orange),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: summary.completionRate,
+                        minHeight: 8,
+                        backgroundColor: Colors.grey.shade100,
+                        valueColor:
+                            const AlwaysStoppedAnimation<Color>(Colors.teal),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${(summary.completionRate * 100).round()}% completion rate',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          )
-        else
-          ..._tasks.map((task) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _HomeworkCard(task: task, onUpdated: _load),
-              )),
-        const SizedBox(height: 80),
+              const SizedBox(height: 12),
+            ],
+            if (_tasks.isEmpty)
+              const _Card(
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text('No homework assigned yet.',
+                        style: TextStyle(color: Colors.grey)),
+                  ),
+                ),
+              )
+            else
+              ..._tasks.map((task) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _HomeworkCard(task: task, onUpdated: _load),
+                  )),
+            const SizedBox(height: 80),
+          ],
+        ),
+        Positioned(
+          bottom: 16,
+          right: 16,
+          child: FloatingActionButton.extended(
+            heroTag: 'assign_hw',
+            onPressed: _showAssignDialog,
+            backgroundColor: const Color(0xFF8FB9A8),
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: const Text('Assign Task',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ),
       ],
     );
   }

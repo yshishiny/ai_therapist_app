@@ -73,7 +73,7 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Add New Patient', style: GoogleFonts.outfit()),
+        title: Text('Add New Patient', style: GoogleFonts.inter()),
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -85,7 +85,7 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
             children: [
               Text(
                 'Patient Information',
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.inter(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: theme.primaryColor,
@@ -160,7 +160,7 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
                         )
                       : Text(
                           'Save Patient Record',
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.inter(
                               fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                 ),

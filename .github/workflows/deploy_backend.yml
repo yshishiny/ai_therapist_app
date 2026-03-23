@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - roadmap
     paths:
       - 'backend/**'
   pull_request:
@@ -47,15 +48,13 @@ jobs:
       # Railway auto-deploys via its GitHub integration when connected.
       # This explicit CLI step is a fallback — requires RAILWAY_TOKEN and
       # RAILWAY_PROJECT_ID secrets set in GitHub → Settings → Secrets.
-      - name: Deploy to Railway (main branch only)
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      - name: Deploy to Railway (main + roadmap branches)
+        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/roadmap') && github.event_name == 'push'
         continue-on-error: true   # Railway GitHub integration is primary deploy mechanism
         working-directory: ${{ github.workspace }}
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
         run: |
-          # Install Railway CLI
           npm install -g @railway/cli
-          # Link project and deploy backend service
           railway up --service backend --detach

@@ -7,6 +7,8 @@
 
 library;
 
+import 'package:flutter/foundation.dart';
+
 import '../../core/secure_phi_storage.dart';
 
 // ─── Storage key ─────────────────────────────────────────────────────────────
@@ -299,18 +301,17 @@ class Phq9Service {
 
       if (legacyList.isNotEmpty) {
         for (final raw in legacyList) {
-          // Re-encode each entry through the secure path
           await _store.appendToList(_kHistoryKey, raw);
         }
-        // Remove plaintext data
         await sp?.remove('assessment_history');
       }
-    } catch (_) {
-      // Migration is best-effort: if it fails (e.g. SharedPreferences not
-      // available), don't crash — secure storage will start fresh.
-    }
 
-    await _store.write(migrationFlag, 'true');
+      // Only mark complete on success — failed migration can retry next launch
+      await _store.write(migrationFlag, 'true');
+    } catch (e) {
+      // Log but don't set the flag — allows retry on next app launch
+      debugPrint('PHQ-9 migration failed (will retry next launch): $e');
+    }
   }
 
   // Dynamic import shim — remove this method once migration is complete

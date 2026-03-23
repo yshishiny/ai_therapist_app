@@ -6,9 +6,11 @@ import '../../core/secure_phi_storage.dart';
 class AuthService with ChangeNotifier {
   bool _isAuthenticated = false;
   bool _isInitializing = true;
+  String? _userRole; // 'patient', 'clinician', 'admin', etc.
 
   bool get isAuthenticated => _isAuthenticated;
   bool get isInitializing => _isInitializing;
+  String? get userRole => _userRole;
 
   AuthService() {
     _checkStoredToken();
@@ -19,6 +21,9 @@ class AuthService with ChangeNotifier {
   Future<void> _checkStoredToken() async {
     final token = await SecurePhiStorage.instance.read('auth.access_token');
     _isAuthenticated = token != null && token.isNotEmpty;
+    if (_isAuthenticated) {
+      _userRole = await ApiClient.instance.getStoredRole();
+    }
     _isInitializing = false;
     notifyListeners();
   }
@@ -27,6 +32,7 @@ class AuthService with ChangeNotifier {
   /// Throws [ApiException] on invalid credentials or network error.
   Future<void> login(String email, String password) async {
     await ApiClient.instance.login(email, password);
+    _userRole = await ApiClient.instance.getStoredRole();
     _isAuthenticated = true;
     notifyListeners();
   }
@@ -36,6 +42,7 @@ class AuthService with ChangeNotifier {
   Future<void> logout() async {
     await ApiClient.instance.logout();
     _isAuthenticated = false;
+    _userRole = null;
     notifyListeners();
   }
 
@@ -45,7 +52,16 @@ class AuthService with ChangeNotifier {
   void forceLogout() {
     ApiClient.instance.logout().then((_) {
       _isAuthenticated = false;
+      _userRole = null;
       notifyListeners();
     });
+  }
+
+  /// Called after registration auto-saves tokens.
+  /// Reads the role from the new JWT and triggers AuthWrapper rebuild.
+  Future<void> notifyExternalLogin() async {
+    _userRole = await ApiClient.instance.getStoredRole();
+    _isAuthenticated = true;
+    notifyListeners();
   }
 }

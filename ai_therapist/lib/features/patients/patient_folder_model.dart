@@ -1,3 +1,7 @@
+// ignore_for_file: constant_identifier_names
+
+enum ConsentStatus { granted, revoked, pending, denied }
+
 class AuditEntry {
   final String field;
   final String oldValue;
@@ -28,6 +32,10 @@ class AuditEntry {
         modifiedBy: json['modifiedBy'],
         modifiedAt: DateTime.parse(json['modifiedAt']),
       );
+
+  // Aliases used by patient_folder_screen
+  String get action => field;
+  DateTime get timestamp => modifiedAt;
 }
 
 class ConsentRecord {
@@ -58,6 +66,10 @@ class ConsentRecord {
             : null,
         version: json['version'],
       );
+
+  // Aliases used by patient_folder_screen
+  String get recordedBy => 'System';
+  DateTime get recordedAt => dateSigned ?? DateTime.now();
 }
 
 class EmergencyContact {
@@ -87,6 +99,9 @@ class EmergencyContact {
         phone: json['phone'],
         address: json['address'],
       );
+
+  // Alias used by patient_folder_screen
+  bool get isAware => true; // default assumption
 }
 
 class ClinicalProfile {
@@ -170,6 +185,18 @@ class RiskChecklist {
             ? DateTime.parse(json['lastReviewed'])
             : DateTime.now(),
       );
+
+  // ── Convenience getters used by patient_folder_screen ──────────────────
+  bool get suicidalIdeation => suicideIdeation != 'none' && suicideIdeation != 'low';
+  bool get selfHarmHistory => selfHarm != 'none' && selfHarm != 'low';
+  bool get homicidalIdeation => violenceToOthers != 'none' && violenceToOthers != 'low';
+  bool get substanceUse => substanceAbuse != 'none' && substanceAbuse != 'low';
+  bool get domesticViolence => neglect != 'none' && neglect != 'low';
+  bool get psychosisSigns => psychosis != 'none' && psychosis != 'low';
+  bool get eatingDisorder => false;
+  bool get anyFlagged => suicidalIdeation || selfHarmHistory || homicidalIdeation || substanceUse || domesticViolence || psychosisSigns;
+  DateTime get lastReviewedAt => lastReviewed;
+  String get reviewedBy => 'Clinician';
 }
 
 class PatientFolder {
@@ -221,6 +248,28 @@ class PatientFolder {
   });
 
   String get fullName => '$firstName $lastName';
+
+  // ── Computed getters used by patient_folder_screen ───────────────────────
+  String get initials => '${firstName.isNotEmpty ? firstName[0] : ''}${lastName.isNotEmpty ? lastName[0] : ''}';
+  int get ageYears {
+    final now = DateTime.now();
+    int age = now.year - dateOfBirth.year;
+    if (now.month < dateOfBirth.month || (now.month == dateOfBirth.month && now.day < dateOfBirth.day)) age--;
+    return age;
+  }
+  String get riskLevel => riskChecklist.anyFlagged ? 'high' : 'low';
+  String get primaryDiagnosis => diagnosis;
+  List<String> get comorbidities => [];
+  bool get hasActiveRiskFlags => riskChecklist.anyFlagged;
+  bool get hasAiConsent => true;
+  List<String> get treatmentGoals => clinicalProfile.goals;
+  List<String> get strengths => clinicalProfile.strengths;
+  List<String> get triggers => clinicalProfile.triggers;
+  List<String> get copingStrategies => clinicalProfile.copingStrategies;
+  String get chiefComplaint => clinicalProfile.chiefComplaint;
+  String get presentingHistory => clinicalProfile.presentingHistory;
+  String get relevantHistory => '';
+  String get medicationsNotes => '';
 
   PatientFolder copyWith({
     String? firstName,

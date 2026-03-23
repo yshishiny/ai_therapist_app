@@ -33,7 +33,7 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Assessments Library', style: GoogleFonts.outfit()),
+        title: Text('Assessments Library', style: GoogleFonts.inter()),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(
@@ -154,7 +154,7 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
                 alignment: Alignment.center,
                 child: Text(
                   assessment.code,
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     color: assessment.color,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -168,7 +168,7 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
                   children: [
                     Text(
                       assessment.title,
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.inter(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),

@@ -8,12 +8,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'app/theme.dart';
+import 'core/api_client.dart';
+import 'core/fcm_service.dart';
+import 'core/notification_service.dart';
+import 'features/assessments/phq9_service.dart';
 import 'features/auth/auth_service.dart';
 import 'features/auth/login_screen.dart';
 import 'features/dashboard/dashboard_provider.dart';
 import 'features/dashboard/dashboard_screen_r2.dart';
-import 'features/assessments/phq9_service.dart';
-import 'core/notification_service.dart';
+import 'features/patient_portal/patient_app.dart';
 
 const bool _kFirebaseEnabled =
     bool.fromEnvironment('FIREBASE', defaultValue: false);
@@ -24,17 +27,19 @@ void main() async {
   // 1. Firebase (guarded — needs google-services.json + flag)
   if (_kFirebaseEnabled) {
     // await Firebase.initializeApp();
+    await FcmService.instance.initialize();
   }
 
   await NotificationService.initialize();
 
   // 3. One-time PHI migration (SharedPreferences → SecurePhiStorage)
-  //    Runs silently in background; app does not wait for it.
-  Phq9Service.migrateFromSharedPreferences().catchError((_) {});
+  //    Awaited so no race condition between migration reads and new writes.
+  await Phq9Service.migrateFromSharedPreferences();
 
   runApp(
     MultiProvider(
       providers: [
+        Provider<ApiClient>.value(value: ApiClient.instance),
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => DashboardProvider()),
       ],
@@ -76,9 +81,10 @@ class AuthWrapper extends StatelessWidget {
             ),
           );
         }
-        return auth.isAuthenticated
-            ? const DashboardScreen()
-            : const LoginScreen();
+        if (!auth.isAuthenticated) return const LoginScreen();
+        // Route based on JWT role
+        if (auth.userRole == 'patient') return const PatientApp();
+        return const DashboardScreen(); // clinician / admin / supervisor
       },
     );
   }

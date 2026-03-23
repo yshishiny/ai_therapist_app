@@ -65,6 +65,42 @@ class ApiClient {
     await _store.delete(_kRefreshToken);
   }
 
+  /// Decode the stored JWT payload and return the `role` claim string,
+  /// or null if no token is stored or the payload is malformed.
+  Future<String?> getStoredRole() async {
+    final token = await _store.read(_kAccessToken);
+    if (token == null) return null;
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      // JWT payload is base64url-encoded (no padding)
+      final payload = parts[1];
+      final normalized = base64Url.normalize(payload);
+      final decoded = jsonDecode(utf8.decode(base64Url.decode(normalized))) as Map<String, dynamic>;
+      return decoded['role'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Decode the stored JWT payload and return the `sub` claim string,
+  /// or null if no token is stored or the payload is malformed.
+  Future<String?> getStoredUserId() async {
+    final token = await _store.read(_kAccessToken);
+    if (token == null) return null;
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      final payload = parts[1];
+      final normalized = base64Url.normalize(payload);
+      final decoded =
+          jsonDecode(utf8.decode(base64Url.decode(normalized))) as Map<String, dynamic>;
+      return decoded['sub'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<String?> get _accessToken => _store.read(_kAccessToken);
   Future<String?> get _refreshToken => _store.read(_kRefreshToken);
 
@@ -91,7 +127,22 @@ class ApiClient {
   }
 
   Future<void> logout() async {
+    // Revoke access token server-side before clearing local storage.
+    // Best-effort — clear tokens even if the network call fails.
+    try {
+      await _request('POST', '/auth/logout');
+    } catch (_) {}
     await clearTokens();
+  }
+
+  /// Public (unauthenticated) POST — used for registration etc.
+  Future<http.Response> postPublic(String path, {Object? body}) async {
+    final uri = Uri.parse('$_baseUrl$path');
+    return _http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: body,
+    );
   }
 
   // ─── Authenticated request with auto-refresh ────────────────────────────────
@@ -100,6 +151,9 @@ class ApiClient {
 
   Future<http.Response> post(String path, {Object? body}) =>
       _request('POST', path, body: body);
+
+  Future<http.Response> patch(String path, {Object? body}) =>
+      _request('PATCH', path, body: body);
 
   Future<http.Response> delete(String path) => _request('DELETE', path);
 
@@ -146,6 +200,8 @@ class ApiClient {
         return _http.get(uri, headers: headers);
       case 'POST':
         return _http.post(uri, headers: headers, body: encodedBody);
+      case 'PATCH':
+        return _http.patch(uri, headers: headers, body: encodedBody);
       case 'DELETE':
         return _http.delete(uri, headers: headers);
       default:

@@ -181,7 +181,7 @@ class _Phq9ScreenState extends State<Phq9Screen>
         children: [
           Text(
             'PHQ-9',
-            style: GoogleFonts.outfit(
+            style: GoogleFonts.inter(
                 fontWeight: FontWeight.bold,
                 fontSize: 17,
                 color: Colors.black87),
@@ -323,7 +323,7 @@ class _Phq9ScreenState extends State<Phq9Screen>
                 const SizedBox(height: 12),
                 Text(
                   questionText,
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
                     height: 1.45,
@@ -432,7 +432,7 @@ class _Phq9ScreenState extends State<Phq9Screen>
                 const SizedBox(height: 14),
                 Text(
                   phq9FunctionalQuestion,
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     fontSize: 19,
                     fontWeight: FontWeight.w600,
                     height: 1.5,
@@ -561,7 +561,7 @@ class _Phq9ScreenState extends State<Phq9Screen>
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20)),
         title: Text('Abandon assessment?',
-            style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+            style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
         content: const Text(
           'Your progress will not be saved. '
           'Are you sure you want to exit?',
