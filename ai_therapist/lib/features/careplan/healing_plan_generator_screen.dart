@@ -106,10 +106,10 @@ class _HealingPlanGeneratorScreenState extends State<HealingPlanGeneratorScreen>
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              Text(
+              const Text(
                 'This will analyze the patient\'s chief complaint, identified triggers, and goals to build a structured 3-phase treatment trajectory.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16, color: Colors.black54),
+                style: TextStyle(fontSize: 16, color: Colors.black54),
               ),
               const SizedBox(height: 32),
               ElevatedButton.icon(

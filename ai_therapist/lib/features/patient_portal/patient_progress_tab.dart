@@ -48,7 +48,9 @@ class _PatientProgressTabState extends State<PatientProgressTab> {
     for (int i = 1; i < sorted.length; i++) {
       final curr = DateTime.parse(sorted[i]['logged_at']);
       if (prev.difference(curr).inDays == 1) { s++; prev = curr; }
-      else break;
+      else {
+        break;
+      }
     }
     return s;
   }
