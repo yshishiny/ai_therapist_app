@@ -1,0 +1,3 @@
+class HomeworkFeaturePlaceholder {
+  const HomeworkFeaturePlaceholder();
+}
