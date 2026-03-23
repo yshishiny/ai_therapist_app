@@ -1,0 +1,3 @@
+class DashboardFeaturePlaceholder {
+  const DashboardFeaturePlaceholder();
+}
