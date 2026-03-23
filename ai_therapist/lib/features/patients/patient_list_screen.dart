@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
-import '../patients/patient_folder_model.dart';
 import 'add_patient_screen.dart';
-import 'patient_folder_screen.dart';
+import 'patient_detail_screen.dart';
 
 // ─── Patient model (matches backend PatientOut) ───────────────────────────────
 
@@ -165,14 +164,9 @@ class _PatientListScreenState extends State<PatientListScreen> {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => PatientFolderScreen(
-                  patient: PatientFolder.fromMock({
-                    'id': p.id,
-                    'name': p.name,
-                    'status': p.status,
-                    'risk': p.risk,
-                    'diagnosis': p.diagnosis,
-                  }),
+                builder: (_) => PatientDetailScreen(
+                  patientId: p.id,
+                  patientName: p.name,
                 ),
               ),
             ),

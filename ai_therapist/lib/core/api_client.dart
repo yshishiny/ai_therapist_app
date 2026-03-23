@@ -83,6 +83,24 @@ class ApiClient {
     }
   }
 
+  /// Decode the stored JWT payload and return the `sub` claim string,
+  /// or null if no token is stored or the payload is malformed.
+  Future<String?> getStoredUserId() async {
+    final token = await _store.read(_kAccessToken);
+    if (token == null) return null;
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      final payload = parts[1];
+      final normalized = base64Url.normalize(payload);
+      final decoded =
+          jsonDecode(utf8.decode(base64Url.decode(normalized))) as Map<String, dynamic>;
+      return decoded['sub'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<String?> get _accessToken => _store.read(_kAccessToken);
   Future<String?> get _refreshToken => _store.read(_kRefreshToken);
 
@@ -134,6 +152,9 @@ class ApiClient {
   Future<http.Response> post(String path, {Object? body}) =>
       _request('POST', path, body: body);
 
+  Future<http.Response> patch(String path, {Object? body}) =>
+      _request('PATCH', path, body: body);
+
   Future<http.Response> delete(String path) => _request('DELETE', path);
 
   Future<http.Response> _request(
@@ -179,6 +200,8 @@ class ApiClient {
         return _http.get(uri, headers: headers);
       case 'POST':
         return _http.post(uri, headers: headers, body: encodedBody);
+      case 'PATCH':
+        return _http.patch(uri, headers: headers, body: encodedBody);
       case 'DELETE':
         return _http.delete(uri, headers: headers);
       default:

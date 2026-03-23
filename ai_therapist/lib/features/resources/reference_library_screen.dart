@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/api_client.dart';
 
 class Resource {
@@ -90,11 +91,11 @@ class _ReferenceLibraryScreenState extends State<ReferenceLibraryScreen> {
               onPressed: _fetchResources,
             )
           ],
-          bottom: TabBar(
-            indicatorColor: const Color(0xFF8FB9A8),
-            labelColor: const Color(0xFF8FB9A8),
+          bottom: const TabBar(
+            indicatorColor: Color(0xFF8FB9A8),
+            labelColor: Color(0xFF8FB9A8),
             unselectedLabelColor: Colors.grey,
-            tabs: const [
+            tabs: [
               Tab(text: 'Guidelines'),
               Tab(text: 'Books'),
               Tab(text: 'Tools'),
@@ -177,18 +178,14 @@ class _ReferenceLibraryScreenState extends State<ReferenceLibraryScreen> {
         side: BorderSide(color: Colors.grey.shade200),
       ),
       child: InkWell(
-        onTap: () {
-          if (fileUrl != null && fileUrl.isNotEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Opening: \$fileUrl')),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('No file attached to this resource.')),
-            );
-          }
-        },
+        onTap: fileUrl != null && fileUrl.isNotEmpty
+            ? () => _openResource(fileUrl)
+            : () => _openResourceSheet(
+                  title: title,
+                  subtitle: subtitle,
+                  description: description,
+                  fileUrl: fileUrl,
+                ),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -232,6 +229,91 @@ class _ReferenceLibraryScreenState extends State<ReferenceLibraryScreen> {
                 size: 20,
                 color: Colors.grey.shade400,
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openResource(String fileUrl) async {
+    final uri = Uri.tryParse(fileUrl);
+    if (uri == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid resource link.')),
+      );
+      return;
+    }
+
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to open resource link.')),
+      );
+    }
+  }
+
+  Future<void> _openResourceSheet({
+    required String title,
+    required String subtitle,
+    required String description,
+    required String? fileUrl,
+  }) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                style: GoogleFonts.inter(color: Colors.blueGrey),
+              ),
+              if (description.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  description,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Colors.grey.shade700,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              if (fileUrl != null && fileUrl.isNotEmpty) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      Navigator.pop(sheetContext);
+                      await _openResource(fileUrl);
+                    },
+                    icon: const Icon(Icons.open_in_new),
+                    label: const Text('Open resource'),
+                  ),
+                ),
+              ] else
+                Text(
+                  'This resource does not have an attached file yet.',
+                  style: GoogleFonts.inter(color: Colors.grey.shade600),
+                ),
             ],
           ),
         ),

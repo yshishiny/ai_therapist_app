@@ -1120,56 +1120,6 @@ async def list_assessment_templates(user: CurrentUser, db: DB):
         results.append(d)
     return results
 
-class AssessmentSubmissionIn(BaseModel):
-    template_id: str
-    raw_answers: dict
-    score_total: int | None = None
-    subscale_scores: dict | None = None
-    severity_band: str | None = None
-    interpretation_text: str | None = None
-    context: str = "IN_SESSION"
-    flagged: bool = False
-
-@app.get("/patients/{patient_id}/assessments", tags=["assessments"])
-async def list_patient_assessments(patient_id: str, user: CurrentUser, db: DB, limit: int = 100, offset: int = 0):
-    """List all past assessment results for longitudinal graphing. Scoped to caller's org. Paginated."""
-    rows = await db.fetch(
-        """SELECT ai.* FROM assessment_instances ai
-           JOIN patients p ON p.id = ai.patient_id
-           WHERE ai.patient_id = $1 AND p.org_id = $2
-           ORDER BY ai.taken_at DESC
-           LIMIT $3 OFFSET $4""",
-        uuid.UUID(patient_id), uuid.UUID(user.org_id), limit, offset,
-    )
-    import json
-    results = []
-    for r in rows:
-        d = dict(r)
-        d["id"] = str(d["id"])
-        d["patient_id"] = str(d["patient_id"])
-        d["taken_at"] = d["taken_at"].isoformat() if d["taken_at"] else None
-        d["raw_answers"] = json.loads(d["raw_answers"]) if isinstance(d["raw_answers"], str) else d["raw_answers"]
-        d["subscale_scores"] = json.loads(d["subscale_scores"]) if d["subscale_scores"] and isinstance(d["subscale_scores"], str) else d["subscale_scores"]
-        results.append(d)
-    return results
-
-@app.post("/patients/{patient_id}/assessments", tags=["assessments"])
-async def submit_assessment(patient_id: str, body: AssessmentSubmissionIn, user: CurrentUser, db: DB):
-    """Saves a completed assessment (including multidimensional answers)."""
-    new_id = uuid.uuid4()
-    import json
-    await db.execute(
-        """INSERT INTO assessment_instances 
-           (id, patient_id, template_id, context, raw_answers, score_total, 
-            subscale_scores, severity_band, interpretation_text, flagged)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)""",
-        new_id, uuid.UUID(patient_id), body.template_id, body.context,
-        json.dumps(body.raw_answers), body.score_total, 
-        json.dumps(body.subscale_scores) if body.subscale_scores else None,
-        body.severity_band, body.interpretation_text, body.flagged
-    )
-    return {"id": str(new_id), "status": "saved"}
-
 class ReportGenerationRequest(BaseModel):
     include_homework: bool = True
     include_assessments: bool = True

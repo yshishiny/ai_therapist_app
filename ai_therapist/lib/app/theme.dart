@@ -44,7 +44,7 @@ class ClinicalTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       textTheme: textTheme,
-      scaffoldBackgroundColor: colorScheme.surface,
+      scaffoldBackgroundColor: isDark ? bgDark : bgLight,
       appBarTheme: AppBarTheme(
         backgroundColor: colorScheme.surface,
         elevation: 0,

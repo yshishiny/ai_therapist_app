@@ -5,11 +5,13 @@ import 'dart:async';
 
 class SessionNoteScreen extends StatefulWidget {
   final String patientName;
+  final String? patientId;
   final bool isRecording;
 
   const SessionNoteScreen({
     super.key, 
     required this.patientName,
+    this.patientId,
     this.isRecording = false,
   });
 

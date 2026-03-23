@@ -1,11 +1,14 @@
 import 'dart:convert';
+
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:fl_chart/fl_chart.dart';
+
 import '../../core/api_client.dart';
 
 class PatientTrendsTab extends StatefulWidget {
   final String patientId;
+
   const PatientTrendsTab({super.key, required this.patientId});
 
   @override
@@ -15,8 +18,8 @@ class PatientTrendsTab extends StatefulWidget {
 class _PatientTrendsTabState extends State<PatientTrendsTab> {
   bool _loading = true;
   String? _error;
-  List<dynamic> _assessments = [];
-  String _selectedTemplate = 'gad7'; // Default graph
+  List<_AssessmentTrendPoint> _assessments = [];
+  String? _selectedAssessmentId;
 
   @override
   void initState() {
@@ -29,27 +32,33 @@ class _PatientTrendsTabState extends State<PatientTrendsTab> {
       _loading = true;
       _error = null;
     });
+
     try {
-      final resp = await ApiClient.instance.get('/patients/\${widget.patientId}/assessments');
-      if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body) as List<dynamic>;
-        setState(() {
-          _assessments = data;
-          
-          // Auto-select the most common test if available
-          if (data.isNotEmpty) {
-             final grouped = <String, int>{};
-             for (var a in data) {
-                final tid = a['template_id'] as String;
-                grouped[tid] = (grouped[tid] ?? 0) + 1;
-             }
-             _selectedTemplate = grouped.entries.reduce((a, b) => a.value > b.value ? a : b).key;
-          }
-        });
-      } else {
+      final resp =
+          await ApiClient.instance.get('/patients/${widget.patientId}/assessments');
+      if (resp.statusCode != 200) {
         setState(() => _error = 'Failed to load trends.');
+        return;
       }
-    } catch (e) {
+
+      final data = (jsonDecode(resp.body) as List<dynamic>)
+          .map((item) => _AssessmentTrendPoint.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+      final counts = <String, int>{};
+      for (final assessment in data) {
+        counts[assessment.assessmentId] =
+            (counts[assessment.assessmentId] ?? 0) + 1;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _assessments = data;
+        _selectedAssessmentId = counts.isEmpty
+            ? null
+            : counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+      });
+    } catch (_) {
       setState(() => _error = 'Network error fetching trends.');
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -58,14 +67,26 @@ class _PatientTrendsTabState extends State<PatientTrendsTab> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator(color: Color(0xFF8FB9A8)));
-    if (_error != null) return Center(child: Text(_error!, style: const TextStyle(color: Colors.red)));
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF8FB9A8)),
+      );
+    }
+    if (_error != null) {
+      return Center(
+        child: Text(_error!, style: const TextStyle(color: Colors.red)),
+      );
+    }
 
-    final filteredData = _assessments.where((a) => a['template_id'] == _selectedTemplate).toList()
-      ..sort((a, b) => DateTime.parse(a['taken_at']).compareTo(DateTime.parse(b['taken_at'])));
-
-    // Extract unique templates for the dropdown
-    final templateIds = _assessments.map((a) => a['template_id'] as String).toSet().toList();
+    final assessmentIds = _assessments
+        .map((assessment) => assessment.assessmentId)
+        .toSet()
+        .toList()
+      ..sort();
+    final filteredData = _assessments
+        .where((assessment) => assessment.assessmentId == _selectedAssessmentId)
+        .toList()
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -75,16 +96,37 @@ class _PatientTrendsTabState extends State<PatientTrendsTab> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Longitudinal Severity', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
-              if (templateIds.isNotEmpty)
+              Text(
+                'Longitudinal Severity',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (assessmentIds.isNotEmpty && _selectedAssessmentId != null)
                 DropdownButton<String>(
-                  value: _selectedTemplate,
+                  value: _selectedAssessmentId,
                   underline: const SizedBox(),
-                  icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF8FB9A8)),
-                  style: GoogleFonts.inter(color: const Color(0xFF8FB9A8), fontWeight: FontWeight.bold),
-                  items: templateIds.map((tid) => DropdownMenuItem(value: tid, child: Text(tid.toUpperCase()))).toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _selectedTemplate = val);
+                  icon: const Icon(
+                    Icons.keyboard_arrow_down,
+                    color: Color(0xFF8FB9A8),
+                  ),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF8FB9A8),
+                    fontWeight: FontWeight.bold,
+                  ),
+                  items: assessmentIds
+                      .map(
+                        (assessmentId) => DropdownMenuItem(
+                          value: assessmentId,
+                          child: Text(assessmentId.toUpperCase()),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _selectedAssessmentId = value);
+                    }
                   },
                 ),
             ],
@@ -92,69 +134,94 @@ class _PatientTrendsTabState extends State<PatientTrendsTab> {
           const SizedBox(height: 24),
           if (filteredData.isEmpty)
             Container(
-               height: 200,
-               decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(16)),
-               child: const Center(child: Text('No assessments logged for this metric yet.')),
+              height: 200,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Center(
+                child: Text('No assessments logged for this metric yet.'),
+              ),
             )
-          else 
+          else
             _buildChart(filteredData),
-            
           const SizedBox(height: 32),
-          Text('Assessment History', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(
+            'Assessment History',
+            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 12),
-          ...filteredData.reversed.map((a) {
-             final date = DateTime.parse(a['taken_at']);
-             final dateStr = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-             return Card(
-                elevation: 0,
-                margin: const EdgeInsets.only(bottom: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
-                child: ListTile(
-                   leading: CircleAvatar(
-                      backgroundColor: const Color(0xFF8FB9A8).withValues(alpha: 0.1),
-                      child: Text(a['score_total']?.toString() ?? '-', style: const TextStyle(color: Color(0xFF8FB9A8), fontWeight: FontWeight.bold)),
-                   ),
-                   title: Text(a['severity_band'] ?? 'Scored', style: const TextStyle(fontWeight: FontWeight.bold)),
-                   subtitle: Text("Context: ${a['context']} • $dateStr"),
-                   trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-                ),
-             );
-          }),
+          ...filteredData.reversed.map(_buildHistoryCard),
         ],
       ),
     );
   }
 
-  Widget _buildChart(List<dynamic> data) {
+  Widget _buildHistoryCard(_AssessmentTrendPoint assessment) {
+    final date = assessment.createdAt.toLocal();
+    final dateStr =
+        "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: const Color(0xFF8FB9A8).withValues(alpha: 0.1),
+          child: Text(
+            assessment.rawScore.toString(),
+            style: const TextStyle(
+              color: Color(0xFF8FB9A8),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        title: Text(
+          assessment.severity,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text('${assessment.interpretation} • $dateStr'),
+      ),
+    );
+  }
+
+  Widget _buildChart(List<_AssessmentTrendPoint> data) {
     if (data.length < 2) {
       return Container(
-         height: 200,
-         alignment: Alignment.center,
-         child: const Text('Not enough data points to plot a trend line. Check back after your next assessment.'),
+        height: 200,
+        alignment: Alignment.center,
+        child: const Text(
+          'Not enough data points to plot a trend line. Check back after the next assessment.',
+        ),
       );
     }
 
     final spots = <FlSpot>[];
-    double idx = 0;
     double maxScore = 0;
-    
-    for (var a in data) {
-       final score = (a['score_total'] as num?)?.toDouble() ?? 0.0;
-       if (score > maxScore) maxScore = score;
-       spots.add(FlSpot(idx, score));
-       idx++;
+    for (var index = 0; index < data.length; index++) {
+      final score = data[index].rawScore.toDouble();
+      if (score > maxScore) maxScore = score;
+      spots.add(FlSpot(index.toDouble(), score));
     }
 
     return Container(
       height: 250,
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
       decoration: BoxDecoration(
-         color: Colors.white,
-         borderRadius: BorderRadius.circular(20),
-         border: Border.all(color: Colors.grey.shade200),
-         boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4))
-         ]
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: LineChart(
         LineChartData(
@@ -163,23 +230,31 @@ class _PatientTrendsTabState extends State<PatientTrendsTab> {
             topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             bottomTitles: AxisTitles(
-               sideTitles: SideTitles(showTitles: true, getTitlesWidget: (val, meta) {
-                  if (val.toInt() >= 0 && val.toInt() < data.length) {
-                     final date = DateTime.parse(data[val.toInt()]['taken_at']);
-                     return Padding(
-                       padding: const EdgeInsets.only(top: 8.0),
-                       child: Text("${date.month}/${date.day}", style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                     );
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 30,
+                getTitlesWidget: (value, meta) {
+                  final index = value.toInt();
+                  if (index >= 0 && index < data.length) {
+                    final date = data[index].createdAt.toLocal();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        '${date.month}/${date.day}',
+                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                      ),
+                    );
                   }
-                  return const Text('');
-               }, reservedSize: 30)
+                  return const SizedBox.shrink();
+                },
+              ),
             ),
           ),
           borderData: FlBorderData(show: false),
           minX: 0,
           maxX: (data.length - 1).toDouble(),
           minY: 0,
-          maxY: maxScore + (maxScore * 0.2), // 20% headroom
+          maxY: maxScore == 0 ? 5 : maxScore + (maxScore * 0.2),
           lineBarsData: [
             LineChartBarData(
               spots: spots,
@@ -196,6 +271,33 @@ class _PatientTrendsTabState extends State<PatientTrendsTab> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _AssessmentTrendPoint {
+  final String assessmentId;
+  final int rawScore;
+  final String severity;
+  final String interpretation;
+  final DateTime createdAt;
+
+  const _AssessmentTrendPoint({
+    required this.assessmentId,
+    required this.rawScore,
+    required this.severity,
+    required this.interpretation,
+    required this.createdAt,
+  });
+
+  factory _AssessmentTrendPoint.fromJson(Map<String, dynamic> json) {
+    return _AssessmentTrendPoint(
+      assessmentId: json['assessment_id'] as String? ?? 'unknown',
+      rawScore: json['raw_score'] as int? ?? 0,
+      severity: json['severity'] as String? ?? 'Scored',
+      interpretation:
+          json['interpretation'] as String? ?? 'Assessment completed.',
+      createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
 }

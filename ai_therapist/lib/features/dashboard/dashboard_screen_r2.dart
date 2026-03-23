@@ -7,10 +7,13 @@ library;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../../core/api_client.dart';
 import 'dashboard_provider.dart';
 import '../sessions/session_note_screen.dart';
 import '../calendar/scheduler_screen.dart';
 import '../assessments/assessment_list_screen.dart';
+import '../patients/patient_detail_screen.dart';
+import '../patients/patient_list_screen.dart';
 import '../resources/reference_library_screen.dart';
 
 // ─── Root scaffold with bottom nav ────────────────────────────────────────────
@@ -26,7 +29,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [
-    const _DashboardHome(),
+    const _DashboardHome(onOpenPatientsTab: null),
+    const PatientListScreen(),
     const SchedulerScreen(),
     const AssessmentListScreen(),
     const ReferenceLibraryScreen(),
@@ -37,12 +41,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     // Load dashboard data on first render
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<DashboardProvider>().refresh('current_clinician_id');
+      _refreshDashboard();
     });
+  }
+
+  Future<void> _refreshDashboard() async {
+    final clinicianId = await ApiClient.instance.getStoredUserId();
+    if (!mounted) return;
+    await context
+        .read<DashboardProvider>()
+        .refresh(clinicianId ?? 'authenticated_clinician');
   }
 
   @override
   Widget build(BuildContext context) {
+    _screens[0] = _DashboardHome(
+      onOpenPatientsTab: () => setState(() => _selectedIndex = 1),
+    );
+
     return Scaffold(
       body: _screens[_selectedIndex],
       bottomNavigationBar: NavigationBar(
@@ -53,6 +69,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: Icon(Icons.dashboard_outlined),
             selectedIcon: Icon(Icons.dashboard),
             label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.people_outline),
+            selectedIcon: Icon(Icons.people),
+            label: 'Patients',
           ),
           NavigationDestination(
             icon: Icon(Icons.calendar_today_outlined),
@@ -78,7 +99,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 // ─── Home tab content ─────────────────────────────────────────────────────────
 
 class _DashboardHome extends StatelessWidget {
-  const _DashboardHome();
+  final VoidCallback? onOpenPatientsTab;
+
+  const _DashboardHome({required this.onOpenPatientsTab});
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +113,12 @@ class _DashboardHome extends StatelessWidget {
           body: provider.isLoading
               ? _buildSkeleton()
               : RefreshIndicator(
-                  onRefresh: () => provider.refresh('current_clinician_id'),
+                  onRefresh: () async {
+                    final clinicianId = await ApiClient.instance.getStoredUserId();
+                    if (!context.mounted) return;
+                    await provider.refresh(
+                        clinicianId ?? 'authenticated_clinician');
+                  },
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
@@ -113,13 +141,9 @@ class _DashboardHome extends StatelessWidget {
                 ),
           floatingActionButton: FloatingActionButton.extended(
             backgroundColor: const Color(0xFF8FB9A8),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                    const SessionNoteScreen(patientName: 'Select Patient'),
-              ),
-            ),
+            onPressed: provider.patients.isEmpty
+                ? null
+                : () => _showPatientPicker(context, provider.patients),
             icon: const Icon(Icons.add),
             label: const Text('New session'),
           ),
@@ -142,7 +166,7 @@ class _DashboardHome extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.notifications_outlined,
                     color: Colors.black87),
-                onPressed: () {},
+                onPressed: onOpenPatientsTab,
               ),
               Positioned(
                 top: 8,
@@ -161,7 +185,7 @@ class _DashboardHome extends StatelessWidget {
         else
           IconButton(
             icon: const Icon(Icons.notifications_none, color: Colors.black87),
-            onPressed: () {},
+            onPressed: onOpenPatientsTab,
           ),
         const CircleAvatar(
           backgroundColor: Color(0xFFF1D3B3),
@@ -219,7 +243,7 @@ class _DashboardHome extends StatelessWidget {
             ),
           ),
           TextButton(
-            onPressed: () {},
+            onPressed: onOpenPatientsTab,
             child: const Text('View', style: TextStyle(color: Colors.red)),
           ),
         ],
@@ -304,7 +328,7 @@ class _DashboardHome extends StatelessWidget {
                   style: GoogleFonts.inter(
                       fontSize: 16, fontWeight: FontWeight.bold)),
               TextButton(
-                onPressed: () {},
+                onPressed: onOpenPatientsTab,
                 child: const Text('View all'),
               ),
             ],
@@ -444,7 +468,15 @@ class _PatientRow extends StatelessWidget {
     if (patient.risk == 'Crisis') riskColor = Colors.purple;
 
     return InkWell(
-      onTap: () {},
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PatientDetailScreen(
+            patientId: patient.id,
+            patientName: patient.name,
+          ),
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
@@ -494,6 +526,43 @@ class _PatientRow extends StatelessWidget {
                       color: riskColor)),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+extension on _DashboardHome {
+  void _showPatientPicker(
+      BuildContext context, List<PatientSummaryRow> patients) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView.separated(
+          shrinkWrap: true,
+          itemCount: patients.length,
+          separatorBuilder: (_, __) => const Divider(height: 1),
+          itemBuilder: (context, index) {
+            final patient = patients[index];
+            return ListTile(
+              leading: CircleAvatar(child: Text(patient.name[0])),
+              title: Text(patient.name),
+              subtitle: Text(patient.risk),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SessionNoteScreen(
+                      patientName: patient.name,
+                      patientId: patient.id,
+                    ),
+                  ),
+                );
+              },
+            );
+          },
         ),
       ),
     );

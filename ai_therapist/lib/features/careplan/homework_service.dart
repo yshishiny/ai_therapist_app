@@ -35,6 +35,8 @@ class PatientFeedback {
         barriers: List<String>.from(json['barriers'] ?? []),
         additionalComments: json['additionalComments'] ?? '',
       );
+
+  int get completionPercent => completionPercentage;
 }
 
 class HomeworkAssignment {
@@ -91,7 +93,17 @@ class HomeworkAssignment {
             ? PatientFeedback.fromJson(json['feedback'])
             : null,
       );
+
+  String get title => proposalDetails.title;
+  String get description => proposalDetails.description;
+  String get frequencyGuide => proposalDetails.frequency;
+  bool get isOverdue =>
+      dueAt != null &&
+      dueAt!.isBefore(DateTime.now()) &&
+      status != HomeworkStatus.completed;
 }
+
+typedef HomeworkTask = HomeworkAssignment;
 
 class AdherenceSummary {
   final int totalAssigned;
