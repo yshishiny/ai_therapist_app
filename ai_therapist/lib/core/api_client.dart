@@ -242,6 +242,18 @@ class ApiClient {
     return fromJson(jsonDecode(response.body));
   }
 
+  Future<Map<String, dynamic>> getJsonMap(String path) async {
+    final response = await get(path);
+    _assertOk(response);
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> getJsonList(String path) async {
+    final response = await get(path);
+    _assertOk(response);
+    return jsonDecode(response.body) as List<dynamic>;
+  }
+
   Future<T> postJson<T>(
     String path, {
     Object? body,
@@ -250,6 +262,24 @@ class ApiClient {
     final response = await post(path, body: body);
     _assertOk(response);
     return fromJson(jsonDecode(response.body));
+  }
+
+  Future<Map<String, dynamic>> postJsonMap(
+    String path, {
+    Object? body,
+  }) async {
+    final response = await post(path, body: body);
+    _assertOk(response);
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> patchJsonMap(
+    String path, {
+    Object? body,
+  }) async {
+    final response = await patch(path, body: body);
+    _assertOk(response);
+    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   void _assertOk(http.Response r) {
@@ -261,6 +291,8 @@ class ApiClient {
       throw ApiException(r.statusCode, detail);
     }
   }
+
+  void assertOk(http.Response r) => _assertOk(r);
 }
 
 // ─── Exception ────────────────────────────────────────────────────────────────

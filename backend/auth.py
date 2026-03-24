@@ -59,6 +59,15 @@ class Role(str, Enum):
     SUPERVISOR = "supervisor"
     ADMIN = "admin"
 
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            normalized = value.lower()
+            for member in cls:
+                if member.value == normalized:
+                    return member
+        return None
+
 
 # ─── Token payload ────────────────────────────────────────────────────────────
 

@@ -17,6 +17,7 @@ import 'features/auth/login_screen.dart';
 import 'features/dashboard/dashboard_provider.dart';
 import 'features/dashboard/dashboard_screen_r2.dart';
 import 'features/patient_portal/patient_app.dart';
+import 'features/practice_admin/practice_admin_home.dart';
 
 const bool _kFirebaseEnabled =
     bool.fromEnvironment('FIREBASE', defaultValue: false);
@@ -83,7 +84,9 @@ class AuthWrapper extends StatelessWidget {
         }
         if (!auth.isAuthenticated) return const LoginScreen();
         // Route based on JWT role
-        if (auth.userRole == 'patient') return const PatientApp();
+        final role = auth.userRole?.toLowerCase();
+        if (role == 'patient') return const PatientApp();
+        if (role == 'admin') return const PracticeAdminHome();
         return const DashboardScreen(); // clinician / admin / supervisor
       },
     );

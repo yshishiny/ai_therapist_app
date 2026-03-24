@@ -68,7 +68,12 @@ class ContactItem {
 // ─── Screen ─────────────────────────────────────────────────────────────────
 
 class AdminDashboardScreen extends StatefulWidget {
-  const AdminDashboardScreen({super.key});
+  final String title;
+
+  const AdminDashboardScreen({
+    super.key,
+    this.title = 'Legacy Admin Tools',
+  });
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
@@ -95,7 +100,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7F8),
       appBar: AppBar(
-        title: Text('Admin Dashboard', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+        title: Text(widget.title, style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF2D3250),
         foregroundColor: Colors.white,
         elevation: 0,

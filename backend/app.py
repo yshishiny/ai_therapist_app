@@ -42,6 +42,8 @@ from auth import (
     verify_password,
     _decode,        # used only in /auth/refresh
 )
+from access_control.routes import router as access_control_router
+from patients.assignment_routes import router as patient_assignment_router
 
 # ─── Structured JSON Logging ──────────────────────────────────────────────────
 
@@ -87,6 +89,8 @@ limiter = Limiter(key_func=_rate_limit_key, default_limits=["200/minute"])
 # ─── App setup ────────────────────────────────────────────────────────────────
 
 app = FastAPI(title="AI Therapist API", version="2.0.0")
+app.include_router(access_control_router)
+app.include_router(patient_assignment_router)
 
 # Rate-limit error handler + middleware (Pydantic v2-safe pattern)
 app.state.limiter = limiter
