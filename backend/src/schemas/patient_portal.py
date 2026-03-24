@@ -15,3 +15,8 @@ class MoodLogIn(BaseModel):
 class HomeworkSubmitIn(BaseModel):
     completion_notes: str | None = None
     helpfulness_rating: int | None = None
+
+
+class SessionRequestIn(BaseModel):
+    preferred_date: str | None = None
+    notes: str | None = None

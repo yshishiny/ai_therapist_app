@@ -1,23 +1,33 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, status
 
-from backend.src.repositories.session_repository_db_real import SessionRepositoryDbReal
-from backend.src.schemas.sessions import SessionNoteIn
+from backend.src.core.dependencies import (
+    RequestContext,
+    get_clinician_context,
+    get_session_service,
+)
+from backend.src.schemas.sessions import SessionNoteIn, SessionNoteOut
 from backend.src.services.session_service_db import SessionServiceDb
 
 router = APIRouter(prefix='/patients/{patient_id}/sessions', tags=['sessions'])
 
 
-def _service(db=None) -> SessionServiceDb:
-    return SessionServiceDb(repository=SessionRepositoryDbReal(db=db))
+@router.get('', response_model=list[SessionNoteOut])
+async def list_sessions(
+    patient_id: str,
+    context: RequestContext = Depends(get_clinician_context),
+    service: SessionServiceDb = Depends(get_session_service),
+):
+    return await service.list_sessions(patient_id=patient_id, org_id=context.org_id)
 
 
-@router.get('')
-async def list_sessions(patient_id: str, org_id: str = '00000000-0000-0000-0000-000000000000'):
-    service = _service()
-    return await service.list_sessions(patient_id=patient_id, org_id=org_id)
-
-
-@router.post('')
-async def create_session(patient_id: str, body: SessionNoteIn, org_id: str = '00000000-0000-0000-0000-000000000000'):
-    service = _service()
-    return await service.create_session(patient_id=patient_id, body=body, org_id=org_id)
+@router.post('', response_model=SessionNoteOut, status_code=status.HTTP_201_CREATED)
+async def create_session(
+    patient_id: str,
+    body: SessionNoteIn,
+    context: RequestContext = Depends(get_clinician_context),
+    service: SessionServiceDb = Depends(get_session_service),
+):
+    result = await service.create_session(patient_id=patient_id, body=body, org_id=context.org_id)
+    if not result:
+        raise HTTPException(status_code=404, detail='Patient not found.')
+    return result

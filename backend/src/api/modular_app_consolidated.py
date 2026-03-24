@@ -11,8 +11,13 @@ from backend.src.api.routes.dashboard_db_wired import router as dashboard_router
 from backend.src.api.routes.admin_db_wired import router as admin_router
 from backend.src.api.routes.patient_portal_db_wired import router as portal_router
 from backend.src.api.routes.ai_reporting_db_wired import router as ai_router
+from backend.src.core.db import db_lifespan
 
-app = FastAPI(title='AI Therapist API Modular Consolidated', version='0.7.0')
+app = FastAPI(
+    title="AI Therapist API Modular Consolidated",
+    version="0.8.0",
+    lifespan=db_lifespan,
+)
 app.include_router(auth_router)
 app.include_router(patients_router)
 app.include_router(assessments_router)
