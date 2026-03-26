@@ -1,13 +1,59 @@
+from datetime import date
+
 from fastapi import HTTPException, status
 
-from backend.auth import Role, TokenPair, _decode, create_token_pair, verify_password
+from backend.auth import Role, TokenPair, _decode, create_token_pair, hash_password, verify_password
 from backend.src.repositories.auth_repository_db_real import AuthRepositoryDbReal
-from backend.src.schemas.auth import LoginRequest, RefreshRequest
+from backend.src.schemas.auth import LoginRequest, PatientRegisterRequest, RefreshRequest
 
 
 class AuthServiceDb:
     def __init__(self, repository: AuthRepositoryDbReal):
         self.repository = repository
+
+    async def register_patient(self, body: PatientRegisterRequest) -> TokenPair:
+        """Register a new patient and return tokens."""
+        email = str(body.email)
+
+        # Check if email already exists
+        if await self.repository.patient_email_exists(email):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="An account with this email already exists.",
+            )
+
+        # Get default organisation
+        org_id = await self.repository.get_default_org_id()
+        if not org_id:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="No organisation configured.",
+            )
+
+        # Parse date of birth if provided
+        dob: date | None = None
+        if body.dob:
+            try:
+                dob = date.fromisoformat(body.dob)
+            except ValueError:
+                dob = None
+
+        # Register patient
+        patient_id = await self.repository.register_patient(
+            email=email,
+            password_hash=hash_password(body.password),
+            full_name=body.full_name,
+            gender=body.gender,
+            dob=dob,
+            org_id=org_id,
+        )
+
+        # Return token pair
+        return create_token_pair(
+            user_id=patient_id,
+            role=Role.PATIENT,
+            org_id=org_id,
+        )
 
     async def login_lookup(self, body: LoginRequest) -> TokenPair:
         clinician = await self.repository.find_clinician_by_email(str(body.email))
