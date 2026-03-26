@@ -14,6 +14,7 @@ from backend.src.repositories.auth_repository_db_real import AuthRepositoryDbRea
 from backend.src.repositories.careplan_repository_db_real import CarePlanRepositoryDbReal
 from backend.src.repositories.dashboard_repository_db_real import DashboardRepositoryDbReal
 from backend.src.repositories.homework_repository_db_real import HomeworkRepositoryDbReal
+from backend.src.repositories.patient_portal_repository_db_real import PatientPortalRepositoryDbReal
 from backend.src.repositories.patient_repository_db_real import PatientRepositoryDbReal
 from backend.src.repositories.session_repository_db_real import SessionRepositoryDbReal
 from backend.src.services.admin_service_db import AdminServiceDb
@@ -23,6 +24,7 @@ from backend.src.services.auth_service_db import AuthServiceDb
 from backend.src.services.careplan_service_db import CarePlanServiceDb
 from backend.src.services.dashboard_service_db import DashboardServiceDb
 from backend.src.services.homework_service_db import HomeworkServiceDb
+from backend.src.services.patient_portal_service_db import PatientPortalServiceDb
 from backend.src.services.patient_service_db import PatientServiceDb
 from backend.src.services.session_service_db import SessionServiceDb
 
@@ -108,3 +110,7 @@ def get_dashboard_service(db: DB) -> DashboardServiceDb:
 
 def get_admin_service(db: DB) -> AdminServiceDb:
     return AdminServiceDb(repository=AdminRepositoryDbReal(db=db))
+
+
+def get_patient_portal_service(db: DB) -> PatientPortalServiceDb:
+    return PatientPortalServiceDb(repository=PatientPortalRepositoryDbReal(db=db))
