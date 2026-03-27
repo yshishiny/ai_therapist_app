@@ -1,3 +1,4 @@
+import json as _json
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -62,3 +63,24 @@ class AssessmentRepositoryDbReal:
             'interpretation': payload['interpretation'],
             'created_at': now,
         }
+
+    async def list_templates(self) -> list[dict]:
+        """List all assessment templates."""
+        if self.db is None:
+            return []
+        rows = await self.db.fetch("SELECT * FROM assessment_templates ORDER BY id")
+        results = []
+        for row in rows:
+            item = dict(row)
+            scoring_rules = item.get("scoring_rules")
+            interpretation_rules = item.get("interpretation_rules")
+            item["scoring_rules"] = (
+                _json.loads(scoring_rules) if isinstance(scoring_rules, str) else scoring_rules
+            )
+            item["interpretation_rules"] = (
+                _json.loads(interpretation_rules)
+                if interpretation_rules and isinstance(interpretation_rules, str)
+                else interpretation_rules
+            )
+            results.append(item)
+        return results

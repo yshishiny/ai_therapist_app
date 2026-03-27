@@ -8,6 +8,7 @@ from fastapi import Depends, HTTPException, status
 from backend.auth import CurrentUser, Role
 from backend.src.core.db import DB
 from backend.src.repositories.admin_repository_db_real import AdminRepositoryDbReal
+from backend.src.repositories.ai_reporting_repository_db_real import AiReportingRepositoryDbReal
 from backend.src.repositories.appointment_repository_db_real import AppointmentRepositoryDbReal
 from backend.src.repositories.assessment_repository_db_real import AssessmentRepositoryDbReal
 from backend.src.repositories.auth_repository_db_real import AuthRepositoryDbReal
@@ -18,6 +19,7 @@ from backend.src.repositories.patient_portal_repository_db_real import PatientPo
 from backend.src.repositories.patient_repository_db_real import PatientRepositoryDbReal
 from backend.src.repositories.session_repository_db_real import SessionRepositoryDbReal
 from backend.src.services.admin_service_db import AdminServiceDb
+from backend.src.services.ai_reporting_service_db import AiReportingServiceDb
 from backend.src.services.appointment_service_db import AppointmentServiceDb
 from backend.src.services.assessment_service_db import AssessmentServiceDb
 from backend.src.services.auth_service_db import AuthServiceDb
@@ -114,3 +116,7 @@ def get_admin_service(db: DB) -> AdminServiceDb:
 
 def get_patient_portal_service(db: DB) -> PatientPortalServiceDb:
     return PatientPortalServiceDb(repository=PatientPortalRepositoryDbReal(db=db))
+
+
+def get_ai_reporting_service(db: DB) -> AiReportingServiceDb:
+    return AiReportingServiceDb(repository=AiReportingRepositoryDbReal(db=db))

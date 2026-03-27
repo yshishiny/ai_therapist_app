@@ -1,8 +1,5 @@
-import json
-
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from backend.src.core.db import DB
 from backend.src.core.dependencies import (
     RequestContext,
     get_assessment_service,
@@ -43,21 +40,7 @@ async def submit_assessment(
 
 @router.get('/assessments/templates')
 async def list_assessment_templates(
-    db: DB,
     context: RequestContext = Depends(get_clinician_context),
+    service: AssessmentServiceDb = Depends(get_assessment_service),
 ):
-    del context
-    rows = await db.fetch('SELECT * FROM assessment_templates ORDER BY id')
-    results = []
-    for row in rows:
-        item = dict(row)
-        scoring_rules = item.get('scoring_rules')
-        interpretation_rules = item.get('interpretation_rules')
-        item['scoring_rules'] = json.loads(scoring_rules) if isinstance(scoring_rules, str) else scoring_rules
-        item['interpretation_rules'] = (
-            json.loads(interpretation_rules)
-            if interpretation_rules and isinstance(interpretation_rules, str)
-            else interpretation_rules
-        )
-        results.append(item)
-    return results
+    return await service.list_templates()
