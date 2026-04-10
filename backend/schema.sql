@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS patients (
     emergency_contact_phone TEXT,
     consent_ai_analysis BOOLEAN DEFAULT false,
     status VARCHAR(20) DEFAULT 'ACTIVE', -- ACTIVE, PAUSED, DISCHARGED
+    wellbeing_status VARCHAR(20) DEFAULT 'GREEN', -- GREEN, YELLOW, RED
     created_at TIMESTAMP
     WITH
         TIME ZONE DEFAULT NOW (),

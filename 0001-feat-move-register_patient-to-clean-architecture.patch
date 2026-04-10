@@ -1,0 +1,232 @@
+From 92bed92d70498af08e14036acbb8d00167b48672 Mon Sep 17 00:00:00 2001
+From: AI Therapist Dev <dev@ai-therapist.app>
+Date: Thu, 26 Mar 2026 11:16:13 +0000
+Subject: [PATCH 1/3] feat: move register_patient to clean architecture
+
+- Add patient_email_exists(), get_default_org_id(), register_patient()
+  methods to AuthRepositoryDbReal
+- Add register_patient() method to AuthServiceDb that orchestrates
+  validation and calls the repository
+- Refactor auth_db_wired.py to use service layer instead of raw SQL
+
+This completes Step 1 of the PR follow-up: replacing placeholder DB
+injection with proper service/repository pattern.
+---
+ backend/src/api/routes/auth_db_wired.py       | 53 +++--------------
+ .../repositories/auth_repository_db_real.py   | 58 +++++++++++++++++++
+ backend/src/services/auth_service_db.py       | 50 +++++++++++++++-
+ 3 files changed, 113 insertions(+), 48 deletions(-)
+
+diff --git a/backend/src/api/routes/auth_db_wired.py b/backend/src/api/routes/auth_db_wired.py
+index 2137c41..94e53b2 100644
+--- a/backend/src/api/routes/auth_db_wired.py
++++ b/backend/src/api/routes/auth_db_wired.py
+@@ -1,9 +1,6 @@
+-import uuid
++from fastapi import APIRouter, Depends, Response, status
+ 
+-from fastapi import APIRouter, Depends, HTTPException, Response, status
+-
+-from backend.auth import CurrentUser, Role, TokenPair, create_token_pair, hash_password, revoke_token
+-from backend.src.core.db import DB
++from backend.auth import CurrentUser, TokenPair, revoke_token
+ from backend.src.core.dependencies import get_auth_service
+ from backend.src.schemas.auth import LoginRequest, PatientRegisterRequest, RefreshRequest
+ from backend.src.services.auth_service_db import AuthServiceDb
+@@ -12,47 +9,11 @@ router = APIRouter(prefix='/auth', tags=['auth'])
+ 
+ 
+ @router.post('/register-patient', response_model=TokenPair, status_code=status.HTTP_201_CREATED)
+-async def register_patient(body: PatientRegisterRequest, db: DB):
+-    existing = await db.fetchval(
+-        'SELECT 1 FROM patient_users WHERE email=$1',
+-        str(body.email),
+-    )
+-    if existing:
+-        raise HTTPException(status_code=409, detail='An account with this email already exists.')
+-
+-    org_id = await db.fetchval('SELECT id FROM organisations LIMIT 1')
+-    if not org_id:
+-        raise HTTPException(status_code=500, detail='No organisation configured.')
+-
+-    patient_id = uuid.uuid4()
+-    await db.execute(
+-        """INSERT INTO patients (id, org_id, therapist_id, full_name, name, gender, dob, email, status, risk)
+-           VALUES ($1, $2, 'unassigned', $3, $4, $5, $6, $7, 'Active', 'Low')""",
+-        patient_id,
+-        org_id,
+-        body.full_name,
+-        body.full_name.split()[0],
+-        body.gender,
+-        body.dob,
+-        str(body.email),
+-    )
+-
+-    patient_user_id = uuid.uuid4()
+-    await db.execute(
+-        """INSERT INTO patient_users (id, org_id, patient_id, email, password_hash)
+-           VALUES ($1, $2, $3, $4, $5)""",
+-        patient_user_id,
+-        org_id,
+-        patient_id,
+-        str(body.email),
+-        hash_password(body.password),
+-    )
+-
+-    return create_token_pair(
+-        user_id=str(patient_id),
+-        role=Role.PATIENT,
+-        org_id=str(org_id),
+-    )
++async def register_patient(
++    body: PatientRegisterRequest,
++    service: AuthServiceDb = Depends(get_auth_service),
++):
++    return await service.register_patient(body)
+ 
+ 
+ @router.post('/login', response_model=TokenPair)
+diff --git a/backend/src/repositories/auth_repository_db_real.py b/backend/src/repositories/auth_repository_db_real.py
+index 89b5167..6604cbc 100644
+--- a/backend/src/repositories/auth_repository_db_real.py
++++ b/backend/src/repositories/auth_repository_db_real.py
+@@ -1,4 +1,5 @@
+ import uuid
++from datetime import date
+ from typing import Any
+ 
+ 
+@@ -6,6 +7,63 @@ class AuthRepositoryDbReal:
+     def __init__(self, db: Any):
+         self.db = db
+ 
++    async def patient_email_exists(self, email: str) -> bool:
++        """Check if a patient user with this email already exists."""
++        if self.db is None:
++            return False
++        result = await self.db.fetchval(
++            "SELECT 1 FROM patient_users WHERE email = $1",
++            email,
++        )
++        return result is not None
++
++    async def get_default_org_id(self) -> str | None:
++        """Get the default organisation ID."""
++        if self.db is None:
++            return None
++        org_id = await self.db.fetchval("SELECT id FROM organisations LIMIT 1")
++        return str(org_id) if org_id else None
++
++    async def register_patient(
++        self,
++        email: str,
++        password_hash: str,
++        full_name: str,
++        gender: str | None,
++        dob: date | None,
++        org_id: str,
++    ) -> str:
++        """Register a new patient and patient_user, returns the patient_id."""
++        patient_id = uuid.uuid4()
++        patient_user_id = uuid.uuid4()
++        org_uuid = uuid.UUID(org_id)
++
++        # Insert into patients table
++        await self.db.execute(
++            """INSERT INTO patients (id, org_id, therapist_id, full_name, name, gender, dob, email, status, risk)
++               VALUES ($1, $2, 'unassigned', $3, $4, $5, $6, $7, 'Active', 'Low')""",
++            patient_id,
++            org_uuid,
++            full_name,
++            full_name.split()[0],
++            gender,
++            dob,
++            email,
++        )
++
++        # Insert into patient_users table
++        await self.db.execute(
++            """INSERT INTO patient_users (id, org_id, patient_id, email, password_hash)
++               VALUES ($1, $2, $3, $4, $5)""",
++            patient_user_id,
++            org_uuid,
++            patient_id,
++            email,
++            password_hash,
++        )
++
++        return str(patient_id)
++
+     async def find_clinician_by_email(self, email: str) -> dict | None:
+         if self.db is None:
+             return None
+diff --git a/backend/src/services/auth_service_db.py b/backend/src/services/auth_service_db.py
+index ef7a964..6bd7c0e 100644
+--- a/backend/src/services/auth_service_db.py
++++ b/backend/src/services/auth_service_db.py
+@@ -1,14 +1,60 @@
++from datetime import date
++
+ from fastapi import HTTPException, status
+ 
+-from backend.auth import Role, TokenPair, _decode, create_token_pair, verify_password
++from backend.auth import Role, TokenPair, _decode, create_token_pair, hash_password, verify_password
+ from backend.src.repositories.auth_repository_db_real import AuthRepositoryDbReal
+-from backend.src.schemas.auth import LoginRequest, RefreshRequest
++from backend.src.schemas.auth import LoginRequest, PatientRegisterRequest, RefreshRequest
+ 
+ 
+ class AuthServiceDb:
+     def __init__(self, repository: AuthRepositoryDbReal):
+         self.repository = repository
+ 
++    async def register_patient(self, body: PatientRegisterRequest) -> TokenPair:
++        """Register a new patient and return tokens."""
++        email = str(body.email)
++
++        # Check if email already exists
++        if await self.repository.patient_email_exists(email):
++            raise HTTPException(
++                status_code=status.HTTP_409_CONFLICT,
++                detail="An account with this email already exists.",
++            )
++
++        # Get default organisation
++        org_id = await self.repository.get_default_org_id()
++        if not org_id:
++            raise HTTPException(
++                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
++                detail="No organisation configured.",
++            )
++
++        # Parse date of birth if provided
++        dob: date | None = None
++        if body.dob:
++            try:
++                dob = date.fromisoformat(body.dob)
++            except ValueError:
++                dob = None
++
++        # Register patient
++        patient_id = await self.repository.register_patient(
++            email=email,
++            password_hash=hash_password(body.password),
++            full_name=body.full_name,
++            gender=body.gender,
++            dob=dob,
++            org_id=org_id,
++        )
++
++        # Return token pair
++        return create_token_pair(
++            user_id=patient_id,
++            role=Role.PATIENT,
++            org_id=org_id,
++        )
++
+     async def login_lookup(self, body: LoginRequest) -> TokenPair:
+         clinician = await self.repository.find_clinician_by_email(str(body.email))
+         if clinician and verify_password(body.password, clinician["password_hash"]):
+-- 
+2.43.0
+

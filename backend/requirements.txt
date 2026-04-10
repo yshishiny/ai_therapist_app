@@ -13,3 +13,7 @@ python-jose[cryptography]==3.3.0
 bcrypt==4.0.1
 passlib[bcrypt]==1.7.4
 httpx==0.27.0
+
+# Added from sprint1-access/main-verify variants
+slowapi==0.1.9
+python-json-logger==2.0.7

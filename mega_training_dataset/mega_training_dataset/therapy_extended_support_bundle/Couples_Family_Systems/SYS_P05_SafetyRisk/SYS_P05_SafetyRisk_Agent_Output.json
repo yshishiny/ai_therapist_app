@@ -1,0 +1,106 @@
+{
+  "patient_id": "SYS_P05_SafetyRisk",
+  "context": "Fear/intimidation endorsed; safety priority.",
+  "responses": [
+    {
+      "item": 1,
+      "score_0_to_4": 4
+    },
+    {
+      "item": 2,
+      "score_0_to_4": 0
+    },
+    {
+      "item": 3,
+      "score_0_to_4": 0
+    },
+    {
+      "item": 4,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 5,
+      "score_0_to_4": 0
+    },
+    {
+      "item": 6,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 7,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 8,
+      "score_0_to_4": 0
+    },
+    {
+      "item": 9,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 10,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 11,
+      "score_0_to_4": 4
+    },
+    {
+      "item": 12,
+      "score_0_to_4": 3
+    }
+  ],
+  "subscale_scores": {
+    "Negative cycle intensity": {
+      "total": 10,
+      "max": 20,
+      "band": "Moderate"
+    },
+    "Relationship safety/violence risk": {
+      "total": 4,
+      "max": 4,
+      "band": "High"
+    },
+    "Strengths/repair": {
+      "total": 2,
+      "max": 12,
+      "band": "Minimal"
+    },
+    "Roles/structure": {
+      "total": 5,
+      "max": 8,
+      "band": "Moderate"
+    },
+    "Substance impact": {
+      "total": 3,
+      "max": 4,
+      "band": "High"
+    }
+  },
+  "risk_flags": {
+    "any": true,
+    "items": [
+      {
+        "item": 11,
+        "score": 4,
+        "note": "Safety risk (fear/intimidation) endorsed"
+      }
+    ]
+  },
+  "recommendations": [
+    {
+      "priority": 1,
+      "school": "Systems",
+      "text": "Safety first: assess for IPV risk, create safety plan, consider specialized referral; avoid conjoint sessions if unsafe."
+    },
+    {
+      "priority": 2,
+      "school": "Systems",
+      "text": "Map the negative cycle (trigger→pursue/withdraw→escalation→shutdown). Teach time-outs + repair script; increase positives."
+    }
+  ],
+  "notes": {
+    "screening_only": true
+  }
+}

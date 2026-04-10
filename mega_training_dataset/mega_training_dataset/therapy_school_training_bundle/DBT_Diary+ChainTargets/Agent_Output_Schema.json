@@ -1,0 +1,37 @@
+{
+  "patient_id": "string",
+  "context": "string",
+  "responses": [
+    {
+      "item": "int",
+      "score_0_to_4": "int"
+    }
+  ],
+  "subscale_scores": {
+    "<name>": {
+      "total": "int",
+      "max": "int",
+      "band": "string"
+    }
+  },
+  "risk_flags": {
+    "any": "bool",
+    "items": [
+      {
+        "item": "int",
+        "score": "int",
+        "note": "string"
+      }
+    ]
+  },
+  "recommendations": [
+    {
+      "priority": "int",
+      "school": "string",
+      "text": "string"
+    }
+  ],
+  "notes": {
+    "screening_only": true
+  }
+}

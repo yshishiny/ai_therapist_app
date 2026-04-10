@@ -1,0 +1,653 @@
+From 3b5d434e2dc474f67f1dc6288accefb50e1fb8b3 Mon Sep 17 00:00:00 2001
+From: AI Therapist Dev <dev@ai-therapist.app>
+Date: Thu, 26 Mar 2026 11:35:12 +0000
+Subject: [PATCH 2/3] feat: migrate patient_portal to clean architecture
+
+- Create PatientPortalRepositoryDbReal with 9 database methods
+- Create PatientPortalServiceDb with business logic
+- Add get_patient_portal_service factory to dependencies
+- Refactor patient_portal_db_wired.py to use service layer
+
+All 8 raw SQL queries have been moved to the repository layer.
+---
+ .../src/api/routes/patient_portal_db_wired.py | 176 +++--------------
+ backend/src/core/dependencies.py              |   6 +
+ .../patient_portal_repository_db_real.py      | 178 ++++++++++++++++++
+ .../src/services/patient_portal_service_db.py | 152 +++++++++++++++
+ 4 files changed, 360 insertions(+), 152 deletions(-)
+ create mode 100644 backend/src/repositories/patient_portal_repository_db_real.py
+ create mode 100644 backend/src/services/patient_portal_service_db.py
+
+diff --git a/backend/src/api/routes/patient_portal_db_wired.py b/backend/src/api/routes/patient_portal_db_wired.py
+index c4c8890..4a32dd6 100644
+--- a/backend/src/api/routes/patient_portal_db_wired.py
++++ b/backend/src/api/routes/patient_portal_db_wired.py
+@@ -1,13 +1,12 @@
+-import json
+-import uuid
+-from datetime import datetime
+-
+ from fastapi import APIRouter, Depends, HTTPException, Response, status
+-from fastapi.encoders import jsonable_encoder
+ 
+-from backend.src.core.db import DB
+-from backend.src.core.dependencies import RequestContext, get_patient_context
++from backend.src.core.dependencies import (
++    RequestContext,
++    get_patient_context,
++    get_patient_portal_service,
++)
+ from backend.src.schemas.patient_portal import FcmTokenIn, HomeworkSubmitIn, MoodLogIn, SessionRequestIn
++from backend.src.services.patient_portal_service_db import PatientPortalServiceDb
+ 
+ router = APIRouter(prefix='/me', tags=['patient'])
+ 
+@@ -18,217 +17,90 @@ def _patient_id_from_context(context: RequestContext) -> str:
+     return context.patient_id
+ 
+ 
+-def _row_to_json(row) -> dict | None:
+-    if row is None:
+-        return None
+-    return jsonable_encoder(dict(row))
+-
+-
+-def _rows_to_json(rows) -> list[dict]:
+-    return [_row_to_json(row) for row in rows]
+-
+-
+ @router.post('/fcm-token', status_code=status.HTTP_204_NO_CONTENT)
+ async def register_fcm_token(
+     body: FcmTokenIn,
+-    db: DB,
+     context: RequestContext = Depends(get_patient_context),
++    service: PatientPortalServiceDb = Depends(get_patient_portal_service),
+ ):
+     patient_id = _patient_id_from_context(context)
+-    await db.execute(
+-        'UPDATE patient_users SET fcm_token = $1 WHERE patient_id = $2',
+-        body.fcm_token,
+-        uuid.UUID(patient_id),
+-    )
++    await service.register_fcm_token(patient_id, body.fcm_token)
+     return Response(status_code=status.HTTP_204_NO_CONTENT)
+ 
+ 
+ @router.get('/profile')
+ async def get_my_profile(
+-    db: DB,
+     context: RequestContext = Depends(get_patient_context),
++    service: PatientPortalServiceDb = Depends(get_patient_portal_service),
+ ):
+     patient_id = _patient_id_from_context(context)
+-    row = await db.fetchrow(
+-        """SELECT id, full_name, gender, dob,
+-                  diagnosis AS primary_diagnosis,
+-                  diagnosis,
+-                  status,
+-                  risk AS risk_level,
+-                  risk,
+-                  therapist_id
+-           FROM patients
+-           WHERE id=$1 AND org_id=$2""",
+-        uuid.UUID(patient_id),
+-        uuid.UUID(context.org_id),
+-    )
+-    if row is None:
+-        raise HTTPException(status_code=404, detail='Patient profile not found.')
+-    return _row_to_json(row)
++    return await service.get_profile(patient_id, context.org_id)
+ 
+ 
+ @router.post('/mood', status_code=status.HTTP_201_CREATED)
+ async def log_mood(
+     body: MoodLogIn,
+-    db: DB,
+     context: RequestContext = Depends(get_patient_context),
++    service: PatientPortalServiceDb = Depends(get_patient_portal_service),
+ ):
+     patient_id = _patient_id_from_context(context)
+-    entry_id = uuid.uuid4()
+-    await db.execute(
+-        """INSERT INTO mood_logs (id, patient_id, org_id, mood_score,
+-                                  energy_score, note, emotions, logged_at)
+-           VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, NOW())""",
+-        entry_id,
+-        uuid.UUID(patient_id),
+-        uuid.UUID(context.org_id),
+-        body.mood_score,
+-        body.energy_score,
+-        body.note,
+-        json.dumps(body.emotions),
+-    )
+-    return {'id': str(entry_id), 'status': 'logged'}
++    return await service.log_mood(patient_id, context.org_id, body)
+ 
+ 
+ @router.get('/mood')
+ async def get_mood_history(
+-    db: DB,
+     days: int = 30,
+     context: RequestContext = Depends(get_patient_context),
++    service: PatientPortalServiceDb = Depends(get_patient_portal_service),
+ ):
+     patient_id = _patient_id_from_context(context)
+-    rows = await db.fetch(
+-        """SELECT id, mood_score, energy_score, note, emotions, logged_at
+-           FROM mood_logs
+-           WHERE patient_id=$1 AND org_id=$2
+-             AND logged_at > NOW() - ($3 || ' days')::interval
+-           ORDER BY logged_at ASC""",
+-        uuid.UUID(patient_id),
+-        uuid.UUID(context.org_id),
+-        str(days),
+-    )
+-    return _rows_to_json(rows)
++    return await service.get_mood_history(patient_id, context.org_id, days)
+ 
+ 
+ @router.get('/assessments')
+ async def get_my_assessments(
+-    db: DB,
+     context: RequestContext = Depends(get_patient_context),
++    service: PatientPortalServiceDb = Depends(get_patient_portal_service),
+ ):
+     patient_id = _patient_id_from_context(context)
+-    rows = await db.fetch(
+-        """SELECT id,
+-                  assessment_id AS template_id,
+-                  raw_score AS score_total,
+-                  severity AS severity_band,
+-                  interpretation AS interpretation_text,
+-                  created_at AS taken_at
+-           FROM assessment_results
+-           WHERE patient_id=$1
+-           ORDER BY created_at DESC""",
+-        uuid.UUID(patient_id),
+-    )
+-    return _rows_to_json(rows)
++    return await service.get_assessments(patient_id)
+ 
+ 
+ @router.get('/homework')
+ async def get_my_homework(
+-    db: DB,
+     context: RequestContext = Depends(get_patient_context),
++    service: PatientPortalServiceDb = Depends(get_patient_portal_service),
+ ):
+     patient_id = _patient_id_from_context(context)
+-    rows = await db.fetch(
+-        """SELECT id, title, description, task_type, status,
+-                  due_date, assigned_at, patient_feedback
+-           FROM homework_tasks
+-           WHERE patient_id=$1 AND org_id=$2
+-           ORDER BY due_date ASC NULLS LAST""",
+-        uuid.UUID(patient_id),
+-        uuid.UUID(context.org_id),
+-    )
+-    items = _rows_to_json(rows)
+-    for item in items:
+-        item['status'] = str(item.get('status', '')).lower()
+-        feedback = item.get('patient_feedback')
+-        if isinstance(feedback, str) and feedback:
+-            try:
+-                item['patient_feedback'] = json.loads(feedback)
+-            except json.JSONDecodeError:
+-                pass
+-    return items
++    return await service.get_homework(patient_id, context.org_id)
+ 
+ 
+ @router.get('/sessions')
+ async def get_my_sessions(
+-    db: DB,
+     upcoming_only: bool = False,
+     context: RequestContext = Depends(get_patient_context),
++    service: PatientPortalServiceDb = Depends(get_patient_portal_service),
+ ):
+     patient_id = _patient_id_from_context(context)
+-    filter_clause = "AND scheduled_at > NOW()" if upcoming_only else ""
+-    rows = await db.fetch(
+-        f"""SELECT id, session_type, scheduled_at, duration_minutes,
+-                   status, summary_snippet
+-            FROM sessions
+-            WHERE patient_id=$1 AND org_id=$2 {filter_clause}
+-            ORDER BY scheduled_at DESC
+-            LIMIT 20""",
+-        uuid.UUID(patient_id),
+-        uuid.UUID(context.org_id),
+-    )
+-    return _rows_to_json(rows)
++    return await service.get_sessions(patient_id, context.org_id, upcoming_only)
+ 
+ 
+ @router.post('/sessions/request', status_code=status.HTTP_201_CREATED)
+ async def request_session(
+     body: SessionRequestIn,
+-    db: DB,
+     context: RequestContext = Depends(get_patient_context),
++    service: PatientPortalServiceDb = Depends(get_patient_portal_service),
+ ):
+     patient_id = _patient_id_from_context(context)
+-    scheduled_at = None
+-    if body.preferred_date:
+-        try:
+-            scheduled_at = datetime.strptime(body.preferred_date, '%Y-%m-%d')
+-        except ValueError as exc:
+-            raise HTTPException(status_code=400, detail='preferred_date must be YYYY-MM-DD') from exc
+-
+-    row = await db.fetchrow(
+-        """INSERT INTO sessions
+-               (patient_id, org_id, session_type, scheduled_at, status, summary_snippet)
+-           VALUES ($1, $2, 'Individual', $3, 'requested', $4)
+-           RETURNING id, status, scheduled_at""",
+-        uuid.UUID(patient_id),
+-        uuid.UUID(context.org_id),
+-        scheduled_at,
+-        body.notes or None,
+-    )
+-    return {'id': str(row['id']), 'status': row['status'], 'scheduled_at': row['scheduled_at']}
++    return await service.request_session(patient_id, context.org_id, body)
+ 
+ 
+ @router.post('/homework/{task_id}/submit')
+ async def submit_my_homework(
+     task_id: str,
+     body: HomeworkSubmitIn,
+-    db: DB,
+     context: RequestContext = Depends(get_patient_context),
++    service: PatientPortalServiceDb = Depends(get_patient_portal_service),
+ ):
+     patient_id = _patient_id_from_context(context)
+-    feedback = json.dumps(
+-        {
+-            'notes': body.completion_notes,
+-            'helpfulness_rating': body.helpfulness_rating,
+-        }
+-    )
+-    result = await db.execute(
+-        """UPDATE homework_tasks
+-           SET patient_feedback=$1, status='COMPLETED', completed_at=NOW()
+-           WHERE id=$2 AND patient_id=$3 AND org_id=$4""",
+-        feedback,
+-        uuid.UUID(task_id),
+-        uuid.UUID(patient_id),
+-        uuid.UUID(context.org_id),
+-    )
+-    if result == 'UPDATE 0':
+-        raise HTTPException(status_code=404, detail='Task not found.')
+-    return {'status': 'submitted'}
++    return await service.submit_homework(task_id, patient_id, context.org_id, body)
+diff --git a/backend/src/core/dependencies.py b/backend/src/core/dependencies.py
+index 1eba86d..a75fe30 100644
+--- a/backend/src/core/dependencies.py
++++ b/backend/src/core/dependencies.py
+@@ -14,6 +14,7 @@ from backend.src.repositories.auth_repository_db_real import AuthRepositoryDbRea
+ from backend.src.repositories.careplan_repository_db_real import CarePlanRepositoryDbReal
+ from backend.src.repositories.dashboard_repository_db_real import DashboardRepositoryDbReal
+ from backend.src.repositories.homework_repository_db_real import HomeworkRepositoryDbReal
++from backend.src.repositories.patient_portal_repository_db_real import PatientPortalRepositoryDbReal
+ from backend.src.repositories.patient_repository_db_real import PatientRepositoryDbReal
+ from backend.src.repositories.session_repository_db_real import SessionRepositoryDbReal
+ from backend.src.services.admin_service_db import AdminServiceDb
+@@ -23,6 +24,7 @@ from backend.src.services.auth_service_db import AuthServiceDb
+ from backend.src.services.careplan_service_db import CarePlanServiceDb
+ from backend.src.services.dashboard_service_db import DashboardServiceDb
+ from backend.src.services.homework_service_db import HomeworkServiceDb
++from backend.src.services.patient_portal_service_db import PatientPortalServiceDb
+ from backend.src.services.patient_service_db import PatientServiceDb
+ from backend.src.services.session_service_db import SessionServiceDb
+ 
+@@ -108,3 +110,7 @@ def get_dashboard_service(db: DB) -> DashboardServiceDb:
+ 
+ def get_admin_service(db: DB) -> AdminServiceDb:
+     return AdminServiceDb(repository=AdminRepositoryDbReal(db=db))
++
++
++def get_patient_portal_service(db: DB) -> PatientPortalServiceDb:
++    return PatientPortalServiceDb(repository=PatientPortalRepositoryDbReal(db=db))
+diff --git a/backend/src/repositories/patient_portal_repository_db_real.py b/backend/src/repositories/patient_portal_repository_db_real.py
+new file mode 100644
+index 0000000..34b581e
+--- /dev/null
++++ b/backend/src/repositories/patient_portal_repository_db_real.py
+@@ -0,0 +1,178 @@
++import json
++import uuid
++from datetime import datetime
++from typing import Any
++
++
++class PatientPortalRepositoryDbReal:
++    def __init__(self, db: Any):
++        self.db = db
++
++    async def update_fcm_token(self, patient_id: str, fcm_token: str) -> None:
++        """Update FCM token for push notifications."""
++        if self.db is None:
++            return
++        await self.db.execute(
++            "UPDATE patient_users SET fcm_token = $1 WHERE patient_id = $2",
++            fcm_token,
++            uuid.UUID(patient_id),
++        )
++
++    async def get_patient_profile(self, patient_id: str, org_id: str) -> dict | None:
++        """Get patient profile by ID."""
++        if self.db is None:
++            return None
++        row = await self.db.fetchrow(
++            """SELECT id, full_name, gender, dob,
++                      diagnosis AS primary_diagnosis,
++                      diagnosis,
++                      status,
++                      risk AS risk_level,
++                      risk,
++                      therapist_id
++               FROM patients
++               WHERE id=$1 AND org_id=$2""",
++            uuid.UUID(patient_id),
++            uuid.UUID(org_id),
++        )
++        return dict(row) if row else None
++
++    async def create_mood_log(
++        self,
++        patient_id: str,
++        org_id: str,
++        mood_score: int,
++        energy_score: int,
++        note: str | None,
++        emotions: list[str],
++    ) -> str:
++        """Create a new mood log entry, returns the entry ID."""
++        entry_id = uuid.uuid4()
++        await self.db.execute(
++            """INSERT INTO mood_logs (id, patient_id, org_id, mood_score,
++                                      energy_score, note, emotions, logged_at)
++               VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, NOW())""",
++            entry_id,
++            uuid.UUID(patient_id),
++            uuid.UUID(org_id),
++            mood_score,
++            energy_score,
++            note,
++            json.dumps(emotions),
++        )
++        return str(entry_id)
++
++    async def get_mood_history(
++        self,
++        patient_id: str,
++        org_id: str,
++        days: int = 30,
++    ) -> list[dict]:
++        """Get mood log history for the past N days."""
++        if self.db is None:
++            return []
++        rows = await self.db.fetch(
++            """SELECT id, mood_score, energy_score, note, emotions, logged_at
++               FROM mood_logs
++               WHERE patient_id=$1 AND org_id=$2
++                 AND logged_at > NOW() - ($3 || ' days')::interval
++               ORDER BY logged_at ASC""",
++            uuid.UUID(patient_id),
++            uuid.UUID(org_id),
++            str(days),
++        )
++        return [dict(row) for row in rows]
++
++    async def get_patient_assessments(self, patient_id: str) -> list[dict]:
++        """Get all assessment results for a patient."""
++        if self.db is None:
++            return []
++        rows = await self.db.fetch(
++            """SELECT id,
++                      assessment_id AS template_id,
++                      raw_score AS score_total,
++                      severity AS severity_band,
++                      interpretation AS interpretation_text,
++                      created_at AS taken_at
++               FROM assessment_results
++               WHERE patient_id=$1
++               ORDER BY created_at DESC""",
++            uuid.UUID(patient_id),
++        )
++        return [dict(row) for row in rows]
++
++    async def get_patient_homework(self, patient_id: str, org_id: str) -> list[dict]:
++        """Get all homework tasks for a patient."""
++        if self.db is None:
++            return []
++        rows = await self.db.fetch(
++            """SELECT id, title, description, task_type, status,
++                      due_date, assigned_at, patient_feedback
++               FROM homework_tasks
++               WHERE patient_id=$1 AND org_id=$2
++               ORDER BY due_date ASC NULLS LAST""",
++            uuid.UUID(patient_id),
++            uuid.UUID(org_id),
++        )
++        return [dict(row) for row in rows]
++
++    async def get_patient_sessions(
++        self,
++        patient_id: str,
++        org_id: str,
++        upcoming_only: bool = False,
++    ) -> list[dict]:
++        """Get session history for a patient."""
++        if self.db is None:
++            return []
++        filter_clause = "AND scheduled_at > NOW()" if upcoming_only else ""
++        rows = await self.db.fetch(
++            f"""SELECT id, session_type, scheduled_at, duration_minutes,
++                       status, summary_snippet
++                FROM sessions
++                WHERE patient_id=$1 AND org_id=$2 {filter_clause}
++                ORDER BY scheduled_at DESC
++                LIMIT 20""",
++            uuid.UUID(patient_id),
++            uuid.UUID(org_id),
++        )
++        return [dict(row) for row in rows]
++
++    async def create_session_request(
++        self,
++        patient_id: str,
++        org_id: str,
++        scheduled_at: datetime | None,
++        notes: str | None,
++    ) -> dict:
++        """Create a session request, returns the created session info."""
++        row = await self.db.fetchrow(
++            """INSERT INTO sessions
++                   (patient_id, org_id, session_type, scheduled_at, status, summary_snippet)
++               VALUES ($1, $2, 'Individual', $3, 'requested', $4)
++               RETURNING id, status, scheduled_at""",
++            uuid.UUID(patient_id),
++            uuid.UUID(org_id),
++            scheduled_at,
++            notes,
++        )
++        return dict(row)
++
++    async def submit_homework(
++        self,
++        task_id: str,
++        patient_id: str,
++        org_id: str,
++        feedback: dict,
++    ) -> bool:
++        """Submit homework completion, returns True if task was found and updated."""
++        result = await self.db.execute(
++            """UPDATE homework_tasks
++               SET patient_feedback=$1, status='COMPLETED', completed_at=NOW()
++               WHERE id=$2 AND patient_id=$3 AND org_id=$4""",
++            json.dumps(feedback),
++            uuid.UUID(task_id),
++            uuid.UUID(patient_id),
++            uuid.UUID(org_id),
++        )
++        return result != "UPDATE 0"
+diff --git a/backend/src/services/patient_portal_service_db.py b/backend/src/services/patient_portal_service_db.py
+new file mode 100644
+index 0000000..ad059f7
+--- /dev/null
++++ b/backend/src/services/patient_portal_service_db.py
+@@ -0,0 +1,152 @@
++import json
++from datetime import datetime
++
++from fastapi import HTTPException, status
++from fastapi.encoders import jsonable_encoder
++
++from backend.src.repositories.patient_portal_repository_db_real import PatientPortalRepositoryDbReal
++from backend.src.schemas.patient_portal import HomeworkSubmitIn, MoodLogIn, SessionRequestIn
++
++
++def _to_json(data) -> dict | list | None:
++    """Convert database rows to JSON-serializable format."""
++    if data is None:
++        return None
++    return jsonable_encoder(data)
++
++
++class PatientPortalServiceDb:
++    def __init__(self, repository: PatientPortalRepositoryDbReal):
++        self.repository = repository
++
++    async def register_fcm_token(self, patient_id: str, fcm_token: str) -> None:
++        """Register FCM token for push notifications."""
++        await self.repository.update_fcm_token(patient_id, fcm_token)
++
++    async def get_profile(self, patient_id: str, org_id: str) -> dict:
++        """Get patient profile."""
++        profile = await self.repository.get_patient_profile(patient_id, org_id)
++        if profile is None:
++            raise HTTPException(
++                status_code=status.HTTP_404_NOT_FOUND,
++                detail="Patient profile not found.",
++            )
++        return _to_json(profile)
++
++    async def log_mood(
++        self,
++        patient_id: str,
++        org_id: str,
++        body: MoodLogIn,
++    ) -> dict:
++        """Log a mood entry."""
++        entry_id = await self.repository.create_mood_log(
++            patient_id=patient_id,
++            org_id=org_id,
++            mood_score=body.mood_score,
++            energy_score=body.energy_score,
++            note=body.note,
++            emotions=body.emotions,
++        )
++        return {"id": entry_id, "status": "logged"}
++
++    async def get_mood_history(
++        self,
++        patient_id: str,
++        org_id: str,
++        days: int = 30,
++    ) -> list[dict]:
++        """Get mood history for the past N days."""
++        rows = await self.repository.get_mood_history(patient_id, org_id, days)
++        return _to_json(rows)
++
++    async def get_assessments(self, patient_id: str) -> list[dict]:
++        """Get all assessments for a patient."""
++        rows = await self.repository.get_patient_assessments(patient_id)
++        return _to_json(rows)
++
++    async def get_homework(self, patient_id: str, org_id: str) -> list[dict]:
++        """Get all homework tasks for a patient."""
++        rows = await self.repository.get_patient_homework(patient_id, org_id)
++        items = _to_json(rows)
++
++        # Normalize status and parse feedback JSON
++        for item in items:
++            item["status"] = str(item.get("status", "")).lower()
++            feedback = item.get("patient_feedback")
++            if isinstance(feedback, str) and feedback:
++                try:
++                    item["patient_feedback"] = json.loads(feedback)
++                except json.JSONDecodeError:
++                    pass
++
++        return items
++
++    async def get_sessions(
++        self,
++        patient_id: str,
++        org_id: str,
++        upcoming_only: bool = False,
++    ) -> list[dict]:
++        """Get session history for a patient."""
++        rows = await self.repository.get_patient_sessions(
++            patient_id, org_id, upcoming_only
++        )
++        return _to_json(rows)
++
++    async def request_session(
++        self,
++        patient_id: str,
++        org_id: str,
++        body: SessionRequestIn,
++    ) -> dict:
++        """Request a new therapy session."""
++        scheduled_at = None
++        if body.preferred_date:
++            try:
++                scheduled_at = datetime.strptime(body.preferred_date, "%Y-%m-%d")
++            except ValueError as exc:
++                raise HTTPException(
++                    status_code=status.HTTP_400_BAD_REQUEST,
++                    detail="preferred_date must be YYYY-MM-DD",
++                ) from exc
++
++        result = await self.repository.create_session_request(
++            patient_id=patient_id,
++            org_id=org_id,
++            scheduled_at=scheduled_at,
++            notes=body.notes,
++        )
++        return {
++            "id": str(result["id"]),
++            "status": result["status"],
++            "scheduled_at": result["scheduled_at"],
++        }
++
++    async def submit_homework(
++        self,
++        task_id: str,
++        patient_id: str,
++        org_id: str,
++        body: HomeworkSubmitIn,
++    ) -> dict:
++        """Submit homework completion."""
++        feedback = {
++            "notes": body.completion_notes,
++            "helpfulness_rating": body.helpfulness_rating,
++        }
++
++        updated = await self.repository.submit_homework(
++            task_id=task_id,
++            patient_id=patient_id,
++            org_id=org_id,
++            feedback=feedback,
++        )
++
++        if not updated:
++            raise HTTPException(
++                status_code=status.HTTP_404_NOT_FOUND,
++                detail="Task not found.",
++            )
++
++        return {"status": "submitted"}
+-- 
+2.43.0
+

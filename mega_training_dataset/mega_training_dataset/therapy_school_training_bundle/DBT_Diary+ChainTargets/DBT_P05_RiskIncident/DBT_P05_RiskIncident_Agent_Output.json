@@ -1,0 +1,127 @@
+{
+  "patient_id": "DBT_P05_RiskIncident",
+  "context": "Incident occurred today; immediate safety and chain analysis needed.",
+  "responses": [
+    {
+      "item": 1,
+      "score_0_to_4": 4
+    },
+    {
+      "item": 2,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 3,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 4,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 5,
+      "score_0_to_4": 0
+    },
+    {
+      "item": 6,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 7,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 8,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 9,
+      "score_0_to_4": 0
+    },
+    {
+      "item": 10,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 11,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 12,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 13,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 14,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 15,
+      "score_0_to_4": 4
+    },
+    {
+      "item": 16,
+      "score_0_to_4": 0
+    }
+  ],
+  "subscale_scores": {
+    "Primary urges": {
+      "total": 8,
+      "max": 12,
+      "band": "High"
+    },
+    "Emotion intensity": {
+      "total": 7,
+      "max": 16,
+      "band": "Mild"
+    },
+    "Interpersonal": {
+      "total": 2,
+      "max": 4,
+      "band": "Moderate"
+    },
+    "Skills use": {
+      "total": 8,
+      "max": 24,
+      "band": "Mild"
+    },
+    "Incidents": {
+      "total": 4,
+      "max": 8,
+      "band": "Moderate"
+    }
+  },
+  "risk_flags": {
+    "any": true,
+    "items": [
+      {
+        "item": 15,
+        "score": 4,
+        "note": "Incident marker"
+      },
+      {
+        "item": 1,
+        "score": 4,
+        "note": "High self-harm urge"
+      }
+    ]
+  },
+  "recommendations": [
+    {
+      "priority": 1,
+      "school": "DBT",
+      "text": "Follow DBT target hierarchy; if high urges/incidents, do a chain analysis + safety plan."
+    },
+    {
+      "priority": 2,
+      "school": "DBT",
+      "text": "Teach 1–2 skills (STOP, TIPP) and assign daily practice; reinforce skills use tracking."
+    }
+  ],
+  "notes": {
+    "screening_only": true
+  }
+}

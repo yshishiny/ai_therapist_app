@@ -1,0 +1,114 @@
+{
+  "patient_id": "TR_P04_StableReadyMaybe",
+  "context": "Moderate symptoms, good resources; consider gentle processing readiness check.",
+  "responses": [
+    {
+      "item": 1,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 2,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 3,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 4,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 5,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 6,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 7,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 8,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 9,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 10,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 11,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 12,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 13,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 14,
+      "score_0_to_4": 3
+    }
+  ],
+  "subscale_scores": {
+    "Activation": {
+      "total": 11,
+      "max": 24,
+      "band": "Moderate"
+    },
+    "Resources": {
+      "total": 15,
+      "max": 20,
+      "band": "High"
+    },
+    "Risk markers": {
+      "total": 6,
+      "max": 8,
+      "band": "High"
+    },
+    "Readiness preference": {
+      "total": 3,
+      "max": 4,
+      "band": "High"
+    }
+  },
+  "risk_flags": {
+    "any": true,
+    "items": [
+      {
+        "item": 12,
+        "score": 3,
+        "note": "Current risk marker"
+      },
+      {
+        "item": 13,
+        "score": 3,
+        "note": "Current risk marker"
+      }
+    ]
+  },
+  "recommendations": [
+    {
+      "priority": 1,
+      "school": "Trauma-informed",
+      "text": "Stabilization first: external grounding, orienting, titration/pacing; build resource list and routines."
+    },
+    {
+      "priority": 2,
+      "school": "Trauma-informed",
+      "text": "Risk endorsed → immediate clinical risk assessment, safety planning, and crisis pathway per policy."
+    }
+  ],
+  "notes": {
+    "screening_only": true
+  }
+}

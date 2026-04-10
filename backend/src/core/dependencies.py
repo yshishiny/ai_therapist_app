@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 
 from backend.auth import CurrentUser, Role
 from backend.src.core.db import DB
@@ -36,15 +36,18 @@ class RequestContext:
     org_id: str
     user_id: str
     role: str
+    correlation_id: str
     patient_id: str | None = None
 
 
-def get_request_context(user: CurrentUser) -> RequestContext:
+def get_request_context(request: Request, user: CurrentUser) -> RequestContext:
     patient_id = user.sub if user.role == Role.PATIENT else None
+    correlation_id = getattr(request.state, "correlation_id", "unknown")
     return RequestContext(
         org_id=user.org_id,
         user_id=user.sub,
         role=user.role.value,
+        correlation_id=correlation_id,
         patient_id=patient_id,
     )
 

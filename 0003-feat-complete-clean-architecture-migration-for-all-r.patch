@@ -1,0 +1,1469 @@
+From 6634a414f0691c5c279a95b05d20a8bbe1a621d5 Mon Sep 17 00:00:00 2001
+From: AI Therapist Dev <dev@ai-therapist.app>
+Date: Fri, 27 Mar 2026 11:17:55 +0000
+Subject: [PATCH 3/3] feat: complete clean architecture migration for all
+ remaining routes
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Migrated all remaining raw SQL queries from routes to Repository → Service pattern:
+
+Admin routes (admin_db_wired.py):
+- create_resource, create_contact, list_assessment_questions, create_assessment_question
+
+AI Reporting routes (ai_reporting_db_wired.py):
+- generate_clinical_synthesis, patient_ai_chat
+- New: AiReportingRepositoryDbReal, AiReportingServiceDb
+
+Appointments routes (appointments_db_wired.py):
+- create_appointment, update_appointment_status
+
+Homework routes (homework_db_wired.py):
+- create_homework, submit_homework_feedback
+
+Care Plans routes (careplans_db_wired.py):
+- get_active_careplan (with phases)
+
+Assessments routes (assessments_db_wired.py):
+- list_assessment_templates
+
+All routes now follow: Route → Service → Repository → DB pool
+Zero raw queries remain in any route file.
+---
+ backend/src/api/routes/admin_db_wired.py      |  95 +++-----------
+ .../src/api/routes/ai_reporting_db_wired.py   | 110 ++--------------
+ .../src/api/routes/appointments_db_wired.py   |  50 ++------
+ .../src/api/routes/assessments_db_wired.py    |  21 +--
+ backend/src/api/routes/careplans_db_wired.py  |  46 +------
+ backend/src/api/routes/homework_db_wired.py   |  67 ++--------
+ backend/src/core/dependencies.py              |   6 +
+ .../repositories/admin_repository_db_real.py  | 121 ++++++++++++++++++
+ .../ai_reporting_repository_db_real.py        |  65 ++++++++++
+ .../appointment_repository_db_real.py         |  56 ++++++++
+ .../assessment_repository_db_real.py          |  22 ++++
+ .../careplan_repository_db_real.py            |  56 +++++++-
+ .../homework_repository_db_real.py            |  60 +++++++++
+ backend/src/services/admin_service_db.py      |  59 +++++++++
+ .../src/services/ai_reporting_service_db.py   |  99 ++++++++++++++
+ .../src/services/appointment_service_db.py    |  45 +++++++
+ backend/src/services/assessment_service_db.py |   4 +
+ backend/src/services/careplan_service_db.py   |  20 +++
+ backend/src/services/homework_service_db.py   |  68 ++++++++++
+ 19 files changed, 736 insertions(+), 334 deletions(-)
+ create mode 100644 backend/src/repositories/ai_reporting_repository_db_real.py
+ create mode 100644 backend/src/services/ai_reporting_service_db.py
+
+diff --git a/backend/src/api/routes/admin_db_wired.py b/backend/src/api/routes/admin_db_wired.py
+index 0dad953..7088f9c 100644
+--- a/backend/src/api/routes/admin_db_wired.py
++++ b/backend/src/api/routes/admin_db_wired.py
+@@ -1,7 +1,3 @@
+-import json
+-import uuid
+-from datetime import datetime, timezone
+-
+ from fastapi import APIRouter, Depends, HTTPException, status
+ 
+ from backend.auth import Role
+@@ -10,7 +6,6 @@ from backend.src.core.dependencies import (
+     get_admin_service,
+     get_clinician_context,
+ )
+-from backend.src.core.db import DB
+ from backend.src.schemas.admin import (
+     AssessmentQuestionIn,
+     AssessmentQuestionOut,
+@@ -48,107 +43,49 @@ async def list_contacts(
+ @router.post('/resources', response_model=ResourceOut, status_code=status.HTTP_201_CREATED)
+ async def create_resource(
+     body: ResourceIn,
+-    db: DB,
+     context: RequestContext = Depends(get_clinician_context),
++    service: AdminServiceDb = Depends(get_admin_service),
+ ):
+     _require_admin(context)
+-    now = datetime.now(timezone.utc)
+-    row = await db.fetchrow(
+-        """INSERT INTO resources
+-               (id, org_id, uploaded_by, title, author, category,
+-                description, file_url, tags, created_at)
+-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)
+-           RETURNING id, title, author, category, description, file_url, created_at""",
+-        uuid.uuid4(),
+-        uuid.UUID(context.org_id),
+-        uuid.UUID(context.user_id),
+-        body.title,
+-        body.author,
+-        body.category,
+-        body.description,
+-        body.file_url,
+-        json.dumps(body.tags),
+-        now,
++    return await service.create_resource(
++        org_id=context.org_id,
++        user_id=context.user_id,
++        body=body,
+     )
+-    return dict(row)
+ 
+ 
+ @router.post('/contacts', response_model=ContactOut, status_code=status.HTTP_201_CREATED)
+ async def create_contact(
+     body: ContactIn,
+-    db: DB,
+     context: RequestContext = Depends(get_clinician_context),
++    service: AdminServiceDb = Depends(get_admin_service),
+ ):
+     _require_admin(context)
+-    row = await db.fetchrow(
+-        """INSERT INTO contacts
+-               (id, org_id, full_name, email, phone, role, organisation, notes)
+-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+-           RETURNING id, full_name, email, phone, role, organisation""",
+-        uuid.uuid4(),
+-        uuid.UUID(context.org_id),
+-        body.full_name,
+-        body.email,
+-        body.phone,
+-        body.role,
+-        body.organisation,
+-        body.notes,
+-    )
+-    return dict(row)
++    return await service.create_contact(org_id=context.org_id, body=body)
+ 
+ 
+ @router.get('/assessments/{assessment_id}/questions', response_model=list[AssessmentQuestionOut])
+ async def list_assessment_questions(
+     assessment_id: str,
+-    db: DB,
+     context: RequestContext = Depends(get_clinician_context),
++    service: AdminServiceDb = Depends(get_admin_service),
+ ):
+-    rows = await db.fetch(
+-        """SELECT id, assessment_id, question_index, question_text,
+-                  response_type, options
+-           FROM assessment_questions
+-           WHERE org_id=$1 AND assessment_id=$2
+-           ORDER BY question_index ASC""",
+-        uuid.UUID(context.org_id),
+-        assessment_id,
++    return await service.list_assessment_questions(
++        org_id=context.org_id,
++        assessment_id=assessment_id,
+     )
+-    items = []
+-    for row in rows:
+-        item = dict(row)
+-        options = item.get('options')
+-        item['options'] = json.loads(options) if isinstance(options, str) else options
+-        items.append(item)
+-    return items
+ 
+ 
+ @router.post('/assessments/{assessment_id}/questions', response_model=AssessmentQuestionOut, status_code=status.HTTP_201_CREATED)
+ async def create_assessment_question(
+     assessment_id: str,
+     body: AssessmentQuestionIn,
+-    db: DB,
+     context: RequestContext = Depends(get_clinician_context),
++    service: AdminServiceDb = Depends(get_admin_service),
+ ):
+     _require_admin(context)
+-    row = await db.fetchrow(
+-        """INSERT INTO assessment_questions
+-               (id, org_id, assessment_id, question_index, question_text,
+-                response_type, options, reverse_scored)
+-           VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8)
+-           ON CONFLICT (org_id, assessment_id, question_index)
+-           DO UPDATE SET question_text=EXCLUDED.question_text,
+-                         response_type=EXCLUDED.response_type,
+-                         options=EXCLUDED.options
+-           RETURNING id, assessment_id, question_index, question_text, response_type, options""",
+-        uuid.uuid4(),
+-        uuid.UUID(context.org_id),
+-        assessment_id,
+-        body.question_index,
+-        body.question_text,
+-        body.response_type,
+-        json.dumps(body.options) if body.options else None,
+-        body.reverse_scored,
++    return await service.create_assessment_question(
++        org_id=context.org_id,
++        assessment_id=assessment_id,
++        body=body,
+     )
+-    item = dict(row)
+-    options = item.get('options')
+-    item['options'] = json.loads(options) if isinstance(options, str) else options
+-    return item
+diff --git a/backend/src/api/routes/ai_reporting_db_wired.py b/backend/src/api/routes/ai_reporting_db_wired.py
+index aa6fb33..3380735 100644
+--- a/backend/src/api/routes/ai_reporting_db_wired.py
++++ b/backend/src/api/routes/ai_reporting_db_wired.py
+@@ -1,14 +1,13 @@
+-import uuid
++from fastapi import APIRouter, Depends
+ 
+-from fastapi import APIRouter, Depends, HTTPException
+-
+-from backend.src.core.db import DB
+ from backend.src.core.dependencies import (
+     RequestContext,
++    get_ai_reporting_service,
+     get_clinician_context,
+     get_patient_context,
+ )
+ from backend.src.schemas.ai_reporting import AiChatMessageIn, ReportGenerationRequest
++from backend.src.services.ai_reporting_service_db import AiReportingServiceDb
+ 
+ router = APIRouter(tags=['ai', 'reporting'])
+ 
+@@ -17,106 +16,25 @@ router = APIRouter(tags=['ai', 'reporting'])
+ async def generate_clinical_synthesis(
+     patient_id: str,
+     body: ReportGenerationRequest,
+-    db: DB,
+     context: RequestContext = Depends(get_clinician_context),
++    service: AiReportingServiceDb = Depends(get_ai_reporting_service),
+ ):
+-    patient = await db.fetchrow(
+-        """SELECT full_name, diagnosis, risk, status
+-           FROM patients
+-           WHERE id=$1 AND org_id=$2""",
+-        uuid.UUID(patient_id),
+-        uuid.UUID(context.org_id),
++    return await service.generate_clinical_synthesis(
++        patient_id=patient_id,
++        org_id=context.org_id,
++        user_id=context.user_id,
++        body=body,
+     )
+-    if patient is None:
+-        raise HTTPException(status_code=404, detail='Patient not found.')
+-
+-    sections = [
+-        '# Clinical Synthesis',
+-        '',
+-        f"## Patient",
+-        f"- Name: {patient['full_name']}",
+-        f"- Diagnosis: {patient['diagnosis'] or 'Not documented'}",
+-        f"- Risk: {patient['risk'] or 'Unknown'}",
+-        f"- Status: {patient['status'] or 'Unknown'}",
+-    ]
+-
+-    if body.include_sessions:
+-        sessions = await db.fetch(
+-            """SELECT template, assessment, plan, created_at
+-               FROM session_notes
+-               WHERE patient_id=$1
+-               ORDER BY created_at DESC
+-               LIMIT 5""",
+-            uuid.UUID(patient_id),
+-        )
+-        sections.extend(['', '## Recent Sessions'])
+-        if sessions:
+-            for session in sessions:
+-                sections.append(
+-                    f"- {session['created_at']}: {session['template']} | assessment: {session['assessment'] or 'n/a'} | plan: {session['plan'] or 'n/a'}"
+-                )
+-        else:
+-            sections.append('- No recent session notes were found.')
+-
+-    if body.include_assessments:
+-        assessments = await db.fetch(
+-            """SELECT assessment_id, raw_score, severity, created_at
+-               FROM assessment_results
+-               WHERE patient_id=$1
+-               ORDER BY created_at DESC
+-               LIMIT 10""",
+-            uuid.UUID(patient_id),
+-        )
+-        sections.extend(['', '## Assessments'])
+-        if assessments:
+-            for assessment in assessments:
+-                sections.append(
+-                    f"- {assessment['created_at']}: {assessment['assessment_id']} scored {assessment['raw_score']} ({assessment['severity']})"
+-                )
+-        else:
+-            sections.append('- No assessment results were found.')
+-
+-    if body.include_homework:
+-        homework = await db.fetch(
+-            """SELECT title, status, due_date
+-               FROM homework_tasks
+-               WHERE patient_id=$1
+-               ORDER BY due_date DESC NULLS LAST
+-               LIMIT 10""",
+-            uuid.UUID(patient_id),
+-        )
+-        sections.extend(['', '## Homework'])
+-        if homework:
+-            for item in homework:
+-                sections.append(
+-                    f"- {item['title']}: {item['status']} (due {item['due_date'] or 'unspecified'})"
+-                )
+-        else:
+-            sections.append('- No homework records were found.')
+-
+-    return {
+-        'status': 'completed',
+-        'patient_id': patient_id,
+-        'requested_by': context.user_id,
+-        'report_id': str(uuid.uuid4()),
+-        'report_markdown': '\n'.join(sections),
+-    }
+ 
+ 
+ @router.post('/me/ai-chat')
+ async def patient_ai_chat(
+     body: AiChatMessageIn,
+-    db: DB,
+     context: RequestContext = Depends(get_patient_context),
++    service: AiReportingServiceDb = Depends(get_ai_reporting_service),
+ ):
+-    del db
+-    reply = (
+-        "I hear you. Let's slow this down together. "
+-        "Notice what feels strongest right now, take one steady breath, "
+-        "and name one small supportive step you can take before your next session."
++    return await service.patient_ai_chat(
++        patient_id=context.patient_id,
++        conversation_id=body.conversation_id,
++        message=body.message,
+     )
+-    return {
+-        'patient_id': context.patient_id,
+-        'conversation_id': body.conversation_id or str(uuid.uuid4()),
+-        'reply': reply,
+-    }
+diff --git a/backend/src/api/routes/appointments_db_wired.py b/backend/src/api/routes/appointments_db_wired.py
+index 6a7ea1c..beff783 100644
+--- a/backend/src/api/routes/appointments_db_wired.py
++++ b/backend/src/api/routes/appointments_db_wired.py
+@@ -1,8 +1,5 @@
+-import uuid
++from fastapi import APIRouter, Depends, status
+ 
+-from fastapi import APIRouter, Depends, HTTPException, status
+-
+-from backend.src.core.db import DB
+ from backend.src.core.dependencies import (
+     RequestContext,
+     get_appointment_service,
+@@ -25,50 +22,25 @@ async def list_appointments(
+ @router.post('', response_model=AppointmentOut, status_code=status.HTTP_201_CREATED)
+ async def create_appointment(
+     body: AppointmentIn,
+-    db: DB,
+     context: RequestContext = Depends(get_clinician_context),
++    service: AppointmentServiceDb = Depends(get_appointment_service),
+ ):
+-    exists = await db.fetchval(
+-        'SELECT 1 FROM patients WHERE id=$1 AND org_id=$2',
+-        uuid.UUID(body.patient_id),
+-        uuid.UUID(context.org_id),
++    return await service.create_appointment(
++        body=body,
++        org_id=context.org_id,
++        therapist_id=context.user_id,
+     )
+-    if not exists:
+-        raise HTTPException(status_code=404, detail='Patient not found.')
+-
+-    row = await db.fetchrow(
+-        """INSERT INTO appointments
+-               (id, patient_id, therapist_id, start_time, end_time,
+-                location, meeting_link, status)
+-           VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, 'SCHEDULED')
+-           RETURNING id, patient_id, start_time, end_time, location, status, meeting_link""",
+-        uuid.UUID(body.patient_id),
+-        context.user_id,
+-        body.start_time,
+-        body.end_time,
+-        body.location,
+-        body.meeting_link,
+-    )
+-    return dict(row)
+ 
+ 
+ @router.patch('/{appointment_id}', response_model=AppointmentOut)
+ async def update_appointment_status(
+     appointment_id: str,
+     new_status: str,
+-    db: DB,
+     context: RequestContext = Depends(get_clinician_context),
++    service: AppointmentServiceDb = Depends(get_appointment_service),
+ ):
+-    row = await db.fetchrow(
+-        """UPDATE appointments a SET status=$1
+-           FROM patients p
+-           WHERE a.id=$2 AND a.patient_id=p.id AND p.org_id=$3
+-           RETURNING a.id, a.patient_id, a.start_time, a.end_time,
+-                     a.location, a.status, a.meeting_link""",
+-        new_status,
+-        uuid.UUID(appointment_id),
+-        uuid.UUID(context.org_id),
++    return await service.update_appointment_status(
++        appointment_id=appointment_id,
++        org_id=context.org_id,
++        new_status=new_status,
+     )
+-    if row is None:
+-        raise HTTPException(status_code=404, detail='Appointment not found.')
+-    return dict(row)
+diff --git a/backend/src/api/routes/assessments_db_wired.py b/backend/src/api/routes/assessments_db_wired.py
+index c26457c..dca8c4e 100644
+--- a/backend/src/api/routes/assessments_db_wired.py
++++ b/backend/src/api/routes/assessments_db_wired.py
+@@ -1,8 +1,5 @@
+-import json
+-
+ from fastapi import APIRouter, Depends, HTTPException, status
+ 
+-from backend.src.core.db import DB
+ from backend.src.core.dependencies import (
+     RequestContext,
+     get_assessment_service,
+@@ -43,21 +40,7 @@ async def submit_assessment(
+ 
+ @router.get('/assessments/templates')
+ async def list_assessment_templates(
+-    db: DB,
+     context: RequestContext = Depends(get_clinician_context),
++    service: AssessmentServiceDb = Depends(get_assessment_service),
+ ):
+-    del context
+-    rows = await db.fetch('SELECT * FROM assessment_templates ORDER BY id')
+-    results = []
+-    for row in rows:
+-        item = dict(row)
+-        scoring_rules = item.get('scoring_rules')
+-        interpretation_rules = item.get('interpretation_rules')
+-        item['scoring_rules'] = json.loads(scoring_rules) if isinstance(scoring_rules, str) else scoring_rules
+-        item['interpretation_rules'] = (
+-            json.loads(interpretation_rules)
+-            if interpretation_rules and isinstance(interpretation_rules, str)
+-            else interpretation_rules
+-        )
+-        results.append(item)
+-    return results
++    return await service.list_templates()
+diff --git a/backend/src/api/routes/careplans_db_wired.py b/backend/src/api/routes/careplans_db_wired.py
+index 2f799aa..91ba19b 100644
+--- a/backend/src/api/routes/careplans_db_wired.py
++++ b/backend/src/api/routes/careplans_db_wired.py
+@@ -1,9 +1,5 @@
+-import uuid
+-import json
+-
+ from fastapi import APIRouter, Depends, HTTPException, status
+ 
+-from backend.src.core.db import DB
+ from backend.src.core.dependencies import (
+     RequestContext,
+     get_careplan_service,
+@@ -45,45 +41,7 @@ async def create_careplan(
+ @router.get('/active')
+ async def get_active_careplan(
+     patient_id: str,
+-    db: DB,
+     context: RequestContext = Depends(get_clinician_context),
++    service: CarePlanServiceDb = Depends(get_careplan_service),
+ ):
+-    exists = await db.fetchval(
+-        'SELECT 1 FROM patients WHERE id=$1 AND org_id=$2',
+-        uuid.UUID(patient_id),
+-        uuid.UUID(context.org_id),
+-    )
+-    if not exists:
+-        raise HTTPException(status_code=404, detail='Patient not found.')
+-
+-    plan = await db.fetchrow(
+-        "SELECT * FROM care_plans WHERE patient_id=$1 AND status='ACTIVE' ORDER BY created_at DESC LIMIT 1",
+-        uuid.UUID(patient_id),
+-    )
+-    if plan is None:
+-        plan = await db.fetchrow(
+-            'SELECT * FROM care_plans WHERE patient_id=$1 ORDER BY created_at DESC LIMIT 1',
+-            uuid.UUID(patient_id),
+-        )
+-    if plan is None:
+-        raise HTTPException(status_code=404, detail='No care plan found.')
+-
+-    phases = await db.fetch(
+-        'SELECT * FROM care_plan_phases WHERE careplan_id=$1 ORDER BY phase_index ASC',
+-        plan['id'],
+-    )
+-
+-    plan_data = dict(plan)
+-    goals = plan_data.get('goals')
+-    plan_data['goals'] = json.loads(goals) if isinstance(goals, str) else goals
+-
+-    phase_items = []
+-    for phase in phases:
+-        item = dict(phase)
+-        for key in ('methods', 'homework_templates', 'measures_to_track'):
+-            value = item.get(key)
+-            item[key] = json.loads(value) if isinstance(value, str) else value
+-        phase_items.append(item)
+-
+-    plan_data['phases'] = phase_items
+-    return plan_data
++    return await service.get_active_careplan(patient_id=patient_id, org_id=context.org_id)
+diff --git a/backend/src/api/routes/homework_db_wired.py b/backend/src/api/routes/homework_db_wired.py
+index 94b00ac..5c0c521 100644
+--- a/backend/src/api/routes/homework_db_wired.py
++++ b/backend/src/api/routes/homework_db_wired.py
+@@ -1,10 +1,5 @@
+-import json
+-import uuid
+-from datetime import datetime, timezone
++from fastapi import APIRouter, Depends, status
+ 
+-from fastapi import APIRouter, Depends, HTTPException, status
+-
+-from backend.src.core.db import DB
+ from backend.src.core.dependencies import (
+     RequestContext,
+     get_clinician_context,
+@@ -29,65 +24,25 @@ async def list_homework(
+ async def create_homework(
+     patient_id: str,
+     body: HomeworkIn,
+-    db: DB,
+     context: RequestContext = Depends(get_clinician_context),
++    service: HomeworkServiceDb = Depends(get_homework_service),
+ ):
+-    exists = await db.fetchval(
+-        'SELECT 1 FROM patients WHERE id=$1 AND org_id=$2',
+-        uuid.UUID(patient_id),
+-        uuid.UUID(context.org_id),
++    return await service.create_homework(
++        patient_id=patient_id,
++        org_id=context.org_id,
++        body=body,
+     )
+-    if not exists:
+-        raise HTTPException(status_code=404, detail='Patient not found.')
+-
+-    due_date = None
+-    if body.due_date:
+-        try:
+-            due_date = datetime.strptime(body.due_date, '%Y-%m-%d').date()
+-        except ValueError as exc:
+-            raise HTTPException(status_code=400, detail='due_date must be YYYY-MM-DD.') from exc
+-
+-    now = datetime.now(timezone.utc)
+-    row = await db.fetchrow(
+-        """INSERT INTO homework_tasks
+-               (id, patient_id, org_id, title, description, instructions, due_date, status, assigned_at)
+-           VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, 'ASSIGNED', $7)
+-           RETURNING id, patient_id, careplan_phase_id, title, description, instructions,
+-                     task_type, due_date::text AS due_date, status, patient_feedback,
+-                     therapist_notes, assigned_at, completed_at""",
+-        uuid.UUID(patient_id),
+-        uuid.UUID(context.org_id),
+-        body.title,
+-        body.instructions,
+-        body.instructions,
+-        due_date,
+-        now,
+-    )
+-    return dict(row)
+ 
+ 
+ @router.post('/homework/{task_id}/feedback')
+ async def submit_homework_feedback(
+     task_id: str,
+     body: HomeworkFeedbackIn,
+-    db: DB,
+     context: RequestContext = Depends(get_clinician_context),
++    service: HomeworkServiceDb = Depends(get_homework_service),
+ ):
+-    status_value = (
+-        'COMPLETED'
+-        if body.completionPercentage == 100
+-        else ('SKIPPED' if body.completionPercentage == 0 else 'PARTIALLY_DONE')
+-    )
+-    result = await db.execute(
+-        """UPDATE homework_tasks ht
+-           SET patient_feedback=$1, status=$2
+-           FROM patients p
+-           WHERE ht.id = $3 AND ht.patient_id = p.id AND p.org_id = $4""",
+-        json.dumps(body.model_dump()),
+-        status_value,
+-        uuid.UUID(task_id),
+-        uuid.UUID(context.org_id),
++    return await service.submit_feedback(
++        task_id=task_id,
++        org_id=context.org_id,
++        body=body,
+     )
+-    if result == 'UPDATE 0':
+-        raise HTTPException(status_code=404, detail='Homework task not found.')
+-    return {'status': 'success', 'new_status': status_value}
+diff --git a/backend/src/core/dependencies.py b/backend/src/core/dependencies.py
+index a75fe30..bf4ec32 100644
+--- a/backend/src/core/dependencies.py
++++ b/backend/src/core/dependencies.py
+@@ -8,6 +8,7 @@ from fastapi import Depends, HTTPException, status
+ from backend.auth import CurrentUser, Role
+ from backend.src.core.db import DB
+ from backend.src.repositories.admin_repository_db_real import AdminRepositoryDbReal
++from backend.src.repositories.ai_reporting_repository_db_real import AiReportingRepositoryDbReal
+ from backend.src.repositories.appointment_repository_db_real import AppointmentRepositoryDbReal
+ from backend.src.repositories.assessment_repository_db_real import AssessmentRepositoryDbReal
+ from backend.src.repositories.auth_repository_db_real import AuthRepositoryDbReal
+@@ -18,6 +19,7 @@ from backend.src.repositories.patient_portal_repository_db_real import PatientPo
+ from backend.src.repositories.patient_repository_db_real import PatientRepositoryDbReal
+ from backend.src.repositories.session_repository_db_real import SessionRepositoryDbReal
+ from backend.src.services.admin_service_db import AdminServiceDb
++from backend.src.services.ai_reporting_service_db import AiReportingServiceDb
+ from backend.src.services.appointment_service_db import AppointmentServiceDb
+ from backend.src.services.assessment_service_db import AssessmentServiceDb
+ from backend.src.services.auth_service_db import AuthServiceDb
+@@ -114,3 +116,7 @@ def get_admin_service(db: DB) -> AdminServiceDb:
+ 
+ def get_patient_portal_service(db: DB) -> PatientPortalServiceDb:
+     return PatientPortalServiceDb(repository=PatientPortalRepositoryDbReal(db=db))
++
++
++def get_ai_reporting_service(db: DB) -> AiReportingServiceDb:
++    return AiReportingServiceDb(repository=AiReportingRepositoryDbReal(db=db))
+diff --git a/backend/src/repositories/admin_repository_db_real.py b/backend/src/repositories/admin_repository_db_real.py
+index 8b21a82..02bb40a 100644
+--- a/backend/src/repositories/admin_repository_db_real.py
++++ b/backend/src/repositories/admin_repository_db_real.py
+@@ -1,4 +1,6 @@
++import json
+ import uuid
++from datetime import datetime, timezone
+ from typing import Any
+ 
+ 
+@@ -15,6 +17,38 @@ class AdminRepositoryDbReal:
+         )
+         return [dict(r) for r in rows]
+ 
++    async def create_resource(
++        self,
++        org_id: str,
++        user_id: str,
++        title: str,
++        author: str | None,
++        category: str | None,
++        description: str | None,
++        file_url: str | None,
++        tags: list[str],
++    ) -> dict:
++        """Create a new resource."""
++        now = datetime.now(timezone.utc)
++        row = await self.db.fetchrow(
++            """INSERT INTO resources
++                   (id, org_id, uploaded_by, title, author, category,
++                    description, file_url, tags, created_at)
++               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)
++               RETURNING id, title, author, category, description, file_url, created_at""",
++            uuid.uuid4(),
++            uuid.UUID(org_id),
++            uuid.UUID(user_id),
++            title,
++            author,
++            category,
++            description,
++            file_url,
++            json.dumps(tags),
++            now,
++        )
++        return dict(row)
++
+     async def list_contacts(self, org_id: str) -> list[dict]:
+         if self.db is None:
+             return []
+@@ -23,3 +57,90 @@ class AdminRepositoryDbReal:
+             uuid.UUID(org_id),
+         )
+         return [dict(r) for r in rows]
++
++    async def create_contact(
++        self,
++        org_id: str,
++        full_name: str,
++        email: str | None,
++        phone: str | None,
++        role: str | None,
++        organisation: str | None,
++        notes: str | None,
++    ) -> dict:
++        """Create a new contact."""
++        row = await self.db.fetchrow(
++            """INSERT INTO contacts
++                   (id, org_id, full_name, email, phone, role, organisation, notes)
++               VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
++               RETURNING id, full_name, email, phone, role, organisation""",
++            uuid.uuid4(),
++            uuid.UUID(org_id),
++            full_name,
++            email,
++            phone,
++            role,
++            organisation,
++            notes,
++        )
++        return dict(row)
++
++    async def list_assessment_questions(
++        self,
++        org_id: str,
++        assessment_id: str,
++    ) -> list[dict]:
++        """List all questions for an assessment."""
++        if self.db is None:
++            return []
++        rows = await self.db.fetch(
++            """SELECT id, assessment_id, question_index, question_text,
++                      response_type, options
++               FROM assessment_questions
++               WHERE org_id=$1 AND assessment_id=$2
++               ORDER BY question_index ASC""",
++            uuid.UUID(org_id),
++            assessment_id,
++        )
++        items = []
++        for row in rows:
++            item = dict(row)
++            options = item.get("options")
++            item["options"] = json.loads(options) if isinstance(options, str) else options
++            items.append(item)
++        return items
++
++    async def create_assessment_question(
++        self,
++        org_id: str,
++        assessment_id: str,
++        question_index: int,
++        question_text: str,
++        response_type: str,
++        options: list | None,
++        reverse_scored: bool,
++    ) -> dict:
++        """Create or update an assessment question."""
++        row = await self.db.fetchrow(
++            """INSERT INTO assessment_questions
++                   (id, org_id, assessment_id, question_index, question_text,
++                    response_type, options, reverse_scored)
++               VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8)
++               ON CONFLICT (org_id, assessment_id, question_index)
++               DO UPDATE SET question_text=EXCLUDED.question_text,
++                             response_type=EXCLUDED.response_type,
++                             options=EXCLUDED.options
++               RETURNING id, assessment_id, question_index, question_text, response_type, options""",
++            uuid.uuid4(),
++            uuid.UUID(org_id),
++            assessment_id,
++            question_index,
++            question_text,
++            response_type,
++            json.dumps(options) if options else None,
++            reverse_scored,
++        )
++        item = dict(row)
++        options_val = item.get("options")
++        item["options"] = json.loads(options_val) if isinstance(options_val, str) else options_val
++        return item
+diff --git a/backend/src/repositories/ai_reporting_repository_db_real.py b/backend/src/repositories/ai_reporting_repository_db_real.py
+new file mode 100644
+index 0000000..3f07d4f
+--- /dev/null
++++ b/backend/src/repositories/ai_reporting_repository_db_real.py
+@@ -0,0 +1,65 @@
++import uuid
++from typing import Any
++
++
++class AiReportingRepositoryDbReal:
++    def __init__(self, db: Any):
++        self.db = db
++
++    async def get_patient_summary(self, patient_id: str, org_id: str) -> dict | None:
++        """Get patient summary info for report generation."""
++        if self.db is None:
++            return None
++        row = await self.db.fetchrow(
++            """SELECT full_name, diagnosis, risk, status
++               FROM patients
++               WHERE id=$1 AND org_id=$2""",
++            uuid.UUID(patient_id),
++            uuid.UUID(org_id),
++        )
++        return dict(row) if row else None
++
++    async def get_recent_sessions(self, patient_id: str, limit: int = 5) -> list[dict]:
++        """Get recent session notes for a patient."""
++        if self.db is None:
++            return []
++        rows = await self.db.fetch(
++            """SELECT template, assessment, plan, created_at
++               FROM session_notes
++               WHERE patient_id=$1
++               ORDER BY created_at DESC
++               LIMIT $2""",
++            uuid.UUID(patient_id),
++            limit,
++        )
++        return [dict(row) for row in rows]
++
++    async def get_recent_assessments(self, patient_id: str, limit: int = 10) -> list[dict]:
++        """Get recent assessment results for a patient."""
++        if self.db is None:
++            return []
++        rows = await self.db.fetch(
++            """SELECT assessment_id, raw_score, severity, created_at
++               FROM assessment_results
++               WHERE patient_id=$1
++               ORDER BY created_at DESC
++               LIMIT $2""",
++            uuid.UUID(patient_id),
++            limit,
++        )
++        return [dict(row) for row in rows]
++
++    async def get_recent_homework(self, patient_id: str, limit: int = 10) -> list[dict]:
++        """Get recent homework tasks for a patient."""
++        if self.db is None:
++            return []
++        rows = await self.db.fetch(
++            """SELECT title, status, due_date
++               FROM homework_tasks
++               WHERE patient_id=$1
++               ORDER BY due_date DESC NULLS LAST
++               LIMIT $2""",
++            uuid.UUID(patient_id),
++            limit,
++        )
++        return [dict(row) for row in rows]
+diff --git a/backend/src/repositories/appointment_repository_db_real.py b/backend/src/repositories/appointment_repository_db_real.py
+index 4d80fd3..0978c3f 100644
+--- a/backend/src/repositories/appointment_repository_db_real.py
++++ b/backend/src/repositories/appointment_repository_db_real.py
+@@ -1,4 +1,5 @@
+ import uuid
++from datetime import datetime
+ from typing import Any
+ 
+ 
+@@ -19,3 +20,58 @@ class AppointmentRepositoryDbReal:
+             uuid.UUID(org_id),
+         )
+         return [dict(r) for r in rows]
++
++    async def patient_exists(self, patient_id: str, org_id: str) -> bool:
++        """Check if a patient exists in the organisation."""
++        if self.db is None:
++            return False
++        result = await self.db.fetchval(
++            "SELECT 1 FROM patients WHERE id=$1 AND org_id=$2",
++            uuid.UUID(patient_id),
++            uuid.UUID(org_id),
++        )
++        return result is not None
++
++    async def create_appointment(
++        self,
++        patient_id: str,
++        therapist_id: str,
++        start_time: datetime,
++        end_time: datetime,
++        location: str | None,
++        meeting_link: str | None,
++    ) -> dict:
++        """Create a new appointment."""
++        row = await self.db.fetchrow(
++            """INSERT INTO appointments
++                   (id, patient_id, therapist_id, start_time, end_time,
++                    location, meeting_link, status)
++               VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, 'SCHEDULED')
++               RETURNING id, patient_id, start_time, end_time, location, status, meeting_link""",
++            uuid.UUID(patient_id),
++            therapist_id,
++            start_time,
++            end_time,
++            location,
++            meeting_link,
++        )
++        return dict(row)
++
++    async def update_appointment_status(
++        self,
++        appointment_id: str,
++        org_id: str,
++        new_status: str,
++    ) -> dict | None:
++        """Update appointment status, returns None if not found."""
++        row = await self.db.fetchrow(
++            """UPDATE appointments a SET status=$1
++               FROM patients p
++               WHERE a.id=$2 AND a.patient_id=p.id AND p.org_id=$3
++               RETURNING a.id, a.patient_id, a.start_time, a.end_time,
++                         a.location, a.status, a.meeting_link""",
++            new_status,
++            uuid.UUID(appointment_id),
++            uuid.UUID(org_id),
++        )
++        return dict(row) if row else None
+diff --git a/backend/src/repositories/assessment_repository_db_real.py b/backend/src/repositories/assessment_repository_db_real.py
+index fc80ac2..d4b75b6 100644
+--- a/backend/src/repositories/assessment_repository_db_real.py
++++ b/backend/src/repositories/assessment_repository_db_real.py
+@@ -1,3 +1,4 @@
++import json as _json
+ import uuid
+ from datetime import datetime, timezone
+ from typing import Any
+@@ -62,3 +63,24 @@ class AssessmentRepositoryDbReal:
+             'interpretation': payload['interpretation'],
+             'created_at': now,
+         }
++
++    async def list_templates(self) -> list[dict]:
++        """List all assessment templates."""
++        if self.db is None:
++            return []
++        rows = await self.db.fetch("SELECT * FROM assessment_templates ORDER BY id")
++        results = []
++        for row in rows:
++            item = dict(row)
++            scoring_rules = item.get("scoring_rules")
++            interpretation_rules = item.get("interpretation_rules")
++            item["scoring_rules"] = (
++                _json.loads(scoring_rules) if isinstance(scoring_rules, str) else scoring_rules
++            )
++            item["interpretation_rules"] = (
++                _json.loads(interpretation_rules)
++                if interpretation_rules and isinstance(interpretation_rules, str)
++                else interpretation_rules
++            )
++            results.append(item)
++        return results
+diff --git a/backend/src/repositories/careplan_repository_db_real.py b/backend/src/repositories/careplan_repository_db_real.py
+index c05e883..a49feae 100644
+--- a/backend/src/repositories/careplan_repository_db_real.py
++++ b/backend/src/repositories/careplan_repository_db_real.py
+@@ -1,3 +1,4 @@
++import json as _json
+ import uuid
+ from datetime import datetime, timezone
+ from typing import Any
+@@ -7,6 +8,17 @@ class CarePlanRepositoryDbReal:
+     def __init__(self, db: Any):
+         self.db = db
+ 
++    async def patient_exists(self, patient_id: str, org_id: str) -> bool:
++        """Check if a patient exists in the organisation."""
++        if self.db is None:
++            return False
++        result = await self.db.fetchval(
++            "SELECT 1 FROM patients WHERE id=$1 AND org_id=$2",
++            uuid.UUID(patient_id),
++            uuid.UUID(org_id),
++        )
++        return result is not None
++
+     async def list_careplans(self, patient_id: str, org_id: str) -> list[dict]:
+         if self.db is None:
+             return []
+@@ -33,7 +45,6 @@ class CarePlanRepositoryDbReal:
+         )
+         if not exists:
+             return {}
+-        import json as _json
+         new_id = uuid.uuid4()
+         now = datetime.now(timezone.utc)
+         goals_json = _json.dumps(payload.get('goals')) if payload.get('goals') else None
+@@ -43,3 +54,46 @@ class CarePlanRepositoryDbReal:
+             new_id, uuid.UUID(patient_id), created_by, payload.get('status', 'DRAFT'), payload.get('main_track'), goals_json, now,
+         )
+         return {'id': str(new_id), 'patient_id': patient_id, 'status': payload.get('status', 'DRAFT'), 'main_track': payload.get('main_track'), 'goals': payload.get('goals'), 'created_at': now}
++
++    async def get_active_careplan(self, patient_id: str) -> dict | None:
++        """Get the active care plan for a patient, or the most recent one if none is active."""
++        if self.db is None:
++            return None
++
++        # Try to get active plan first
++        plan = await self.db.fetchrow(
++            "SELECT * FROM care_plans WHERE patient_id=$1 AND status='ACTIVE' ORDER BY created_at DESC LIMIT 1",
++            uuid.UUID(patient_id),
++        )
++
++        # Fall back to most recent plan
++        if plan is None:
++            plan = await self.db.fetchrow(
++                "SELECT * FROM care_plans WHERE patient_id=$1 ORDER BY created_at DESC LIMIT 1",
++                uuid.UUID(patient_id),
++            )
++
++        if plan is None:
++            return None
++
++        # Get phases for this plan
++        phases = await self.db.fetch(
++            "SELECT * FROM care_plan_phases WHERE careplan_id=$1 ORDER BY phase_index ASC",
++            plan["id"],
++        )
++
++        # Build response
++        plan_data = dict(plan)
++        goals = plan_data.get("goals")
++        plan_data["goals"] = _json.loads(goals) if isinstance(goals, str) else goals
++
++        phase_items = []
++        for phase in phases:
++            item = dict(phase)
++            for key in ("methods", "homework_templates", "measures_to_track"):
++                value = item.get(key)
++                item[key] = _json.loads(value) if isinstance(value, str) else value
++            phase_items.append(item)
++
++        plan_data["phases"] = phase_items
++        return plan_data
+diff --git a/backend/src/repositories/homework_repository_db_real.py b/backend/src/repositories/homework_repository_db_real.py
+index 82a7ba0..5dd9e23 100644
+--- a/backend/src/repositories/homework_repository_db_real.py
++++ b/backend/src/repositories/homework_repository_db_real.py
+@@ -1,4 +1,6 @@
++import json
+ import uuid
++from datetime import date, datetime, timezone
+ from typing import Any
+ 
+ 
+@@ -20,3 +22,61 @@ class HomeworkRepositoryDbReal:
+             uuid.UUID(org_id),
+         )
+         return [dict(r) for r in rows]
++
++    async def patient_exists(self, patient_id: str, org_id: str) -> bool:
++        """Check if a patient exists in the organisation."""
++        if self.db is None:
++            return False
++        result = await self.db.fetchval(
++            "SELECT 1 FROM patients WHERE id=$1 AND org_id=$2",
++            uuid.UUID(patient_id),
++            uuid.UUID(org_id),
++        )
++        return result is not None
++
++    async def create_homework(
++        self,
++        patient_id: str,
++        org_id: str,
++        title: str,
++        instructions: str | None,
++        due_date: date | None,
++    ) -> dict:
++        """Create a new homework task."""
++        now = datetime.now(timezone.utc)
++        row = await self.db.fetchrow(
++            """INSERT INTO homework_tasks
++                   (id, patient_id, org_id, title, description, instructions, due_date, status, assigned_at)
++               VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, 'ASSIGNED', $7)
++               RETURNING id, patient_id, careplan_phase_id, title, description, instructions,
++                         task_type, due_date::text AS due_date, status, patient_feedback,
++                         therapist_notes, assigned_at, completed_at""",
++            uuid.UUID(patient_id),
++            uuid.UUID(org_id),
++            title,
++            instructions,
++            instructions,
++            due_date,
++            now,
++        )
++        return dict(row)
++
++    async def submit_feedback(
++        self,
++        task_id: str,
++        org_id: str,
++        feedback: dict,
++        new_status: str,
++    ) -> bool:
++        """Submit feedback for a homework task, returns True if found and updated."""
++        result = await self.db.execute(
++            """UPDATE homework_tasks ht
++               SET patient_feedback=$1, status=$2
++               FROM patients p
++               WHERE ht.id = $3 AND ht.patient_id = p.id AND p.org_id = $4""",
++            json.dumps(feedback),
++            new_status,
++            uuid.UUID(task_id),
++            uuid.UUID(org_id),
++        )
++        return result != "UPDATE 0"
+diff --git a/backend/src/services/admin_service_db.py b/backend/src/services/admin_service_db.py
+index e16cd10..5b65a40 100644
+--- a/backend/src/services/admin_service_db.py
++++ b/backend/src/services/admin_service_db.py
+@@ -1,4 +1,9 @@
+ from backend.src.repositories.admin_repository_db_real import AdminRepositoryDbReal
++from backend.src.schemas.admin import (
++    AssessmentQuestionIn,
++    ContactIn,
++    ResourceIn,
++)
+ 
+ 
+ class AdminServiceDb:
+@@ -8,5 +13,59 @@ class AdminServiceDb:
+     async def list_resources(self, org_id: str) -> list[dict]:
+         return await self.repository.list_resources(org_id=org_id)
+ 
++    async def create_resource(
++        self,
++        org_id: str,
++        user_id: str,
++        body: ResourceIn,
++    ) -> dict:
++        return await self.repository.create_resource(
++            org_id=org_id,
++            user_id=user_id,
++            title=body.title,
++            author=body.author,
++            category=body.category,
++            description=body.description,
++            file_url=body.file_url,
++            tags=body.tags,
++        )
++
+     async def list_contacts(self, org_id: str) -> list[dict]:
+         return await self.repository.list_contacts(org_id=org_id)
++
++    async def create_contact(self, org_id: str, body: ContactIn) -> dict:
++        return await self.repository.create_contact(
++            org_id=org_id,
++            full_name=body.full_name,
++            email=body.email,
++            phone=body.phone,
++            role=body.role,
++            organisation=body.organisation,
++            notes=body.notes,
++        )
++
++    async def list_assessment_questions(
++        self,
++        org_id: str,
++        assessment_id: str,
++    ) -> list[dict]:
++        return await self.repository.list_assessment_questions(
++            org_id=org_id,
++            assessment_id=assessment_id,
++        )
++
++    async def create_assessment_question(
++        self,
++        org_id: str,
++        assessment_id: str,
++        body: AssessmentQuestionIn,
++    ) -> dict:
++        return await self.repository.create_assessment_question(
++            org_id=org_id,
++            assessment_id=assessment_id,
++            question_index=body.question_index,
++            question_text=body.question_text,
++            response_type=body.response_type,
++            options=body.options,
++            reverse_scored=body.reverse_scored,
++        )
+diff --git a/backend/src/services/ai_reporting_service_db.py b/backend/src/services/ai_reporting_service_db.py
+new file mode 100644
+index 0000000..3fa9e38
+--- /dev/null
++++ b/backend/src/services/ai_reporting_service_db.py
+@@ -0,0 +1,99 @@
++import uuid
++
++from fastapi import HTTPException, status
++
++from backend.src.repositories.ai_reporting_repository_db_real import AiReportingRepositoryDbReal
++from backend.src.schemas.ai_reporting import ReportGenerationRequest
++
++
++class AiReportingServiceDb:
++    def __init__(self, repository: AiReportingRepositoryDbReal):
++        self.repository = repository
++
++    async def generate_clinical_synthesis(
++        self,
++        patient_id: str,
++        org_id: str,
++        user_id: str,
++        body: ReportGenerationRequest,
++    ) -> dict:
++        """Generate a clinical synthesis report for a patient."""
++        patient = await self.repository.get_patient_summary(patient_id, org_id)
++        if patient is None:
++            raise HTTPException(
++                status_code=status.HTTP_404_NOT_FOUND,
++                detail="Patient not found.",
++            )
++
++        sections = [
++            "# Clinical Synthesis",
++            "",
++            "## Patient",
++            f"- Name: {patient['full_name']}",
++            f"- Diagnosis: {patient['diagnosis'] or 'Not documented'}",
++            f"- Risk: {patient['risk'] or 'Unknown'}",
++            f"- Status: {patient['status'] or 'Unknown'}",
++        ]
++
++        if body.include_sessions:
++            sessions = await self.repository.get_recent_sessions(patient_id, limit=5)
++            sections.extend(["", "## Recent Sessions"])
++            if sessions:
++                for session in sessions:
++                    sections.append(
++                        f"- {session['created_at']}: {session['template']} | "
++                        f"assessment: {session['assessment'] or 'n/a'} | "
++                        f"plan: {session['plan'] or 'n/a'}"
++                    )
++            else:
++                sections.append("- No recent session notes were found.")
++
++        if body.include_assessments:
++            assessments = await self.repository.get_recent_assessments(patient_id, limit=10)
++            sections.extend(["", "## Assessments"])
++            if assessments:
++                for assessment in assessments:
++                    sections.append(
++                        f"- {assessment['created_at']}: {assessment['assessment_id']} "
++                        f"scored {assessment['raw_score']} ({assessment['severity']})"
++                    )
++            else:
++                sections.append("- No assessment results were found.")
++
++        if body.include_homework:
++            homework = await self.repository.get_recent_homework(patient_id, limit=10)
++            sections.extend(["", "## Homework"])
++            if homework:
++                for item in homework:
++                    sections.append(
++                        f"- {item['title']}: {item['status']} "
++                        f"(due {item['due_date'] or 'unspecified'})"
++                    )
++            else:
++                sections.append("- No homework records were found.")
++
++        return {
++            "status": "completed",
++            "patient_id": patient_id,
++            "requested_by": user_id,
++            "report_id": str(uuid.uuid4()),
++            "report_markdown": "\n".join(sections),
++        }
++
++    async def patient_ai_chat(
++        self,
++        patient_id: str,
++        conversation_id: str | None,
++        message: str,
++    ) -> dict:
++        """Handle AI chat for patients (stub implementation)."""
++        reply = (
++            "I hear you. Let's slow this down together. "
++            "Notice what feels strongest right now, take one steady breath, "
++            "and name one small supportive step you can take before your next session."
++        )
++        return {
++            "patient_id": patient_id,
++            "conversation_id": conversation_id or str(uuid.uuid4()),
++            "reply": reply,
++        }
+diff --git a/backend/src/services/appointment_service_db.py b/backend/src/services/appointment_service_db.py
+index a9aca57..1770feb 100644
+--- a/backend/src/services/appointment_service_db.py
++++ b/backend/src/services/appointment_service_db.py
+@@ -1,4 +1,7 @@
++from fastapi import HTTPException, status
++
+ from backend.src.repositories.appointment_repository_db_real import AppointmentRepositoryDbReal
++from backend.src.schemas.appointments import AppointmentIn
+ 
+ 
+ class AppointmentServiceDb:
+@@ -7,3 +10,45 @@ class AppointmentServiceDb:
+ 
+     async def list_appointments(self, org_id: str) -> list[dict]:
+         return await self.repository.list_appointments(org_id=org_id)
++
++    async def create_appointment(
++        self,
++        body: AppointmentIn,
++        org_id: str,
++        therapist_id: str,
++    ) -> dict:
++        """Create a new appointment."""
++        # Verify patient exists
++        if not await self.repository.patient_exists(body.patient_id, org_id):
++            raise HTTPException(
++                status_code=status.HTTP_404_NOT_FOUND,
++                detail="Patient not found.",
++            )
++
++        return await self.repository.create_appointment(
++            patient_id=body.patient_id,
++            therapist_id=therapist_id,
++            start_time=body.start_time,
++            end_time=body.end_time,
++            location=body.location,
++            meeting_link=body.meeting_link,
++        )
++
++    async def update_appointment_status(
++        self,
++        appointment_id: str,
++        org_id: str,
++        new_status: str,
++    ) -> dict:
++        """Update appointment status."""
++        result = await self.repository.update_appointment_status(
++            appointment_id=appointment_id,
++            org_id=org_id,
++            new_status=new_status,
++        )
++        if result is None:
++            raise HTTPException(
++                status_code=status.HTTP_404_NOT_FOUND,
++                detail="Appointment not found.",
++            )
++        return result
+diff --git a/backend/src/services/assessment_service_db.py b/backend/src/services/assessment_service_db.py
+index 1c9cfa7..c814f3a 100644
+--- a/backend/src/services/assessment_service_db.py
++++ b/backend/src/services/assessment_service_db.py
+@@ -16,3 +16,7 @@ class AssessmentServiceDb:
+             submitted_by=submitted_by,
+             org_id=org_id,
+         )
++
++    async def list_templates(self) -> list[dict]:
++        """List all assessment templates."""
++        return await self.repository.list_templates()
+diff --git a/backend/src/services/careplan_service_db.py b/backend/src/services/careplan_service_db.py
+index 7b72293..79f3d0d 100644
+--- a/backend/src/services/careplan_service_db.py
++++ b/backend/src/services/careplan_service_db.py
+@@ -1,3 +1,5 @@
++from fastapi import HTTPException, status
++
+ from backend.src.repositories.careplan_repository_db_real import CarePlanRepositoryDbReal
+ from backend.src.schemas.careplans import CarePlanIn
+ 
+@@ -16,3 +18,21 @@ class CarePlanServiceDb:
+             created_by=created_by,
+             org_id=org_id,
+         )
++
++    async def get_active_careplan(self, patient_id: str, org_id: str) -> dict:
++        """Get the active care plan for a patient."""
++        # Verify patient exists
++        if not await self.repository.patient_exists(patient_id, org_id):
++            raise HTTPException(
++                status_code=status.HTTP_404_NOT_FOUND,
++                detail="Patient not found.",
++            )
++
++        plan = await self.repository.get_active_careplan(patient_id)
++        if plan is None:
++            raise HTTPException(
++                status_code=status.HTTP_404_NOT_FOUND,
++                detail="No care plan found.",
++            )
++
++        return plan
+diff --git a/backend/src/services/homework_service_db.py b/backend/src/services/homework_service_db.py
+index 4cf3b4f..f31c32e 100644
+--- a/backend/src/services/homework_service_db.py
++++ b/backend/src/services/homework_service_db.py
+@@ -1,4 +1,9 @@
++from datetime import datetime
++
++from fastapi import HTTPException, status
++
+ from backend.src.repositories.homework_repository_db_real import HomeworkRepositoryDbReal
++from backend.src.schemas.homework import HomeworkFeedbackIn, HomeworkIn
+ 
+ 
+ class HomeworkServiceDb:
+@@ -7,3 +12,66 @@ class HomeworkServiceDb:
+ 
+     async def list_homework(self, patient_id: str, org_id: str) -> list[dict]:
+         return await self.repository.list_homework(patient_id=patient_id, org_id=org_id)
++
++    async def create_homework(
++        self,
++        patient_id: str,
++        org_id: str,
++        body: HomeworkIn,
++    ) -> dict:
++        """Create a new homework task."""
++        # Verify patient exists
++        if not await self.repository.patient_exists(patient_id, org_id):
++            raise HTTPException(
++                status_code=status.HTTP_404_NOT_FOUND,
++                detail="Patient not found.",
++            )
++
++        # Parse due date if provided
++        due_date = None
++        if body.due_date:
++            try:
++                due_date = datetime.strptime(body.due_date, "%Y-%m-%d").date()
++            except ValueError as exc:
++                raise HTTPException(
++                    status_code=status.HTTP_400_BAD_REQUEST,
++                    detail="due_date must be YYYY-MM-DD.",
++                ) from exc
++
++        return await self.repository.create_homework(
++            patient_id=patient_id,
++            org_id=org_id,
++            title=body.title,
++            instructions=body.instructions,
++            due_date=due_date,
++        )
++
++    async def submit_feedback(
++        self,
++        task_id: str,
++        org_id: str,
++        body: HomeworkFeedbackIn,
++    ) -> dict:
++        """Submit feedback for a homework task."""
++        # Determine status based on completion percentage
++        if body.completionPercentage == 100:
++            new_status = "COMPLETED"
++        elif body.completionPercentage == 0:
++            new_status = "SKIPPED"
++        else:
++            new_status = "PARTIALLY_DONE"
++
++        updated = await self.repository.submit_feedback(
++            task_id=task_id,
++            org_id=org_id,
++            feedback=body.model_dump(),
++            new_status=new_status,
++        )
++
++        if not updated:
++            raise HTTPException(
++                status_code=status.HTTP_404_NOT_FOUND,
++                detail="Homework task not found.",
++            )
++
++        return {"status": "success", "new_status": new_status}
+-- 
+2.43.0
+

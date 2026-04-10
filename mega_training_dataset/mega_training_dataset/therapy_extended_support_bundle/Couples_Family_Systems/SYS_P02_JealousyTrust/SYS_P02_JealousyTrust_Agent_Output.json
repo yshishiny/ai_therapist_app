@@ -1,0 +1,95 @@
+{
+  "patient_id": "SYS_P02_JealousyTrust",
+  "context": "Frequent jealousy and checking; escalation.",
+  "responses": [
+    {
+      "item": 1,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 2,
+      "score_0_to_4": 1
+    },
+    {
+      "item": 3,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 4,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 5,
+      "score_0_to_4": 0
+    },
+    {
+      "item": 6,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 7,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 8,
+      "score_0_to_4": 4
+    },
+    {
+      "item": 9,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 10,
+      "score_0_to_4": 3
+    },
+    {
+      "item": 11,
+      "score_0_to_4": 2
+    },
+    {
+      "item": 12,
+      "score_0_to_4": 2
+    }
+  ],
+  "subscale_scores": {
+    "Negative cycle intensity": {
+      "total": 15,
+      "max": 20,
+      "band": "High"
+    },
+    "Relationship safety/violence risk": {
+      "total": 2,
+      "max": 4,
+      "band": "Moderate"
+    },
+    "Strengths/repair": {
+      "total": 4,
+      "max": 12,
+      "band": "Mild"
+    },
+    "Roles/structure": {
+      "total": 6,
+      "max": 8,
+      "band": "High"
+    },
+    "Substance impact": {
+      "total": 2,
+      "max": 4,
+      "band": "Moderate"
+    }
+  },
+  "risk_flags": {
+    "any": false,
+    "items": []
+  },
+  "recommendations": [
+    {
+      "priority": 2,
+      "school": "Systems",
+      "text": "Map the negative cycle (trigger→pursue/withdraw→escalation→shutdown). Teach time-outs + repair script; increase positives."
+    }
+  ],
+  "notes": {
+    "screening_only": true
+  }
+}

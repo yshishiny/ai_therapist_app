@@ -42,3 +42,22 @@ Thumbs.db
 *.db
 *.sqlite
 data/
+
+# Flutter/Dart build artifacts
+.dart_tool/
+.flutter-plugins-dependencies
+*.iml
+.gradle/
+local.properties
+key.properties
+
+# Node modules
+node_modules/
+
+# Sensitive/local
+android/key.properties
+android/local.properties
+
+# Session logs (Claude Code)
+c75c7e34-cecc-4523-9774-f8f53d009b2b/
+c75c7e34-cecc-4523-9774-f8f53d009b2b.jsonl
