@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.ai_therapist_mobile"
+    namespace = "com.aitherapist.app"
     compileSdk = 36
     ndkVersion = "27.0.12077973"
 
@@ -24,7 +24,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.ai_therapist_mobile"
+        applicationId = "com.aitherapist.app"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutter.versionCode

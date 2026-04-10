@@ -6,14 +6,14 @@ on:
       - develop
       - main
     paths:
-      - 'ai_therapist/**'
+      - 'mobile/**'
 
 jobs:
   build-and-deploy-android:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./ai_therapist/android
+        working-directory: ./mobile/android
 
     steps:
       - name: Checkout Repository
@@ -36,10 +36,10 @@ jobs:
         with:
           ruby-version: '3.2'
           bundler-cache: true
-          working-directory: ./ai_therapist/android
+          working-directory: ./mobile/android
 
       - name: Install Flutter Dependencies
-        working-directory: ./ai_therapist
+        working-directory: ./mobile
         run: flutter pub get
 
       - name: Generate Android Keystore from Secret
