@@ -4,6 +4,7 @@
 
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -30,11 +31,20 @@ void main() async {
     await FcmService.instance.initialize();
   }
 
-  await NotificationService.initialize();
+  // 2. Local notifications (safe to fail — app still works without reminders)
+  try {
+    await NotificationService.initialize();
+  } catch (e) {
+    debugPrint('NotificationService init failed: $e');
+  }
 
   // 3. One-time PHI migration (SharedPreferences → SecurePhiStorage)
   //    Awaited so no race condition between migration reads and new writes.
-  await Phq9Service.migrateFromSharedPreferences();
+  try {
+    await Phq9Service.migrateFromSharedPreferences();
+  } catch (e) {
+    debugPrint('PHQ-9 migration failed: $e');
+  }
 
   runApp(
     MultiProvider(

@@ -1,4 +1,4 @@
-package com.example.ai_therapist_mobile
+package com.aitherapist.app
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
@@ -18,11 +19,21 @@ class AuthService with ChangeNotifier {
 
   /// On startup, check whether a valid access token already exists in
   /// secure storage. This keeps the user logged in across app restarts.
+  /// Wrapped in try/catch so a corrupted or locked Android Keystore
+  /// doesn't crash the app — the user simply sees the login screen.
   Future<void> _checkStoredToken() async {
-    final token = await SecurePhiStorage.instance.read('auth.access_token');
-    _isAuthenticated = token != null && token.isNotEmpty;
-    if (_isAuthenticated) {
-      _userRole = await ApiClient.instance.getStoredRole();
+    try {
+      final token = await SecurePhiStorage.instance.read('auth.access_token');
+      _isAuthenticated = token != null && token.isNotEmpty;
+      if (_isAuthenticated) {
+        _userRole = await ApiClient.instance.getStoredRole();
+      }
+    } catch (e) {
+      // Keystore locked, corrupted, or unavailable after factory reset.
+      // Fail open → show login screen instead of crashing.
+      debugPrint('SecureStorage check failed: $e');
+      _isAuthenticated = false;
+      _userRole = null;
     }
     _isInitializing = false;
     notifyListeners();
