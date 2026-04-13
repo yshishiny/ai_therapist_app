@@ -6,6 +6,10 @@
 -keep class io.flutter.** { *; }
 -keep class io.flutter.plugins.** { *; }
 
+# Google Play Core (required by Flutter deferred components / R8)
+-dontwarn com.google.android.play.core.**
+-keep class com.google.android.play.core.** { *; }
+
 # Firebase
 -keep class com.google.firebase.** { *; }
 -dontwarn com.google.firebase.**
