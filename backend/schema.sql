@@ -1,9 +1,40 @@
 -- AI Therapist Database Schema
+
+-- Organisations (must exist before patients, clinicians, etc.)
+CREATE TABLE IF NOT EXISTS organisations (
+    id   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Clinicians
+CREATE TABLE IF NOT EXISTS clinicians (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id        UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+    email         TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role          TEXT NOT NULL DEFAULT 'clinician',
+    active        BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Assessment Results (referenced by migration_patient_portal)
+CREATE TABLE IF NOT EXISTS assessment_results (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id  UUID,
+    template_id TEXT,
+    score       INTEGER,
+    severity    TEXT,
+    taken_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Patients
 CREATE TABLE IF NOT EXISTS patients (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
+    org_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
     therapist_id TEXT NOT NULL,
     full_name TEXT NOT NULL,
+    name TEXT,
     dob DATE,
     gender VARCHAR(20),
     phone TEXT,
@@ -11,14 +42,12 @@ CREATE TABLE IF NOT EXISTS patients (
     emergency_contact_name TEXT,
     emergency_contact_phone TEXT,
     consent_ai_analysis BOOLEAN DEFAULT false,
-    status VARCHAR(20) DEFAULT 'ACTIVE', -- ACTIVE, PAUSED, DISCHARGED
-    wellbeing_status VARCHAR(20) DEFAULT 'GREEN', -- GREEN, YELLOW, RED
-    created_at TIMESTAMP
-    WITH
-        TIME ZONE DEFAULT NOW (),
-        updated_at TIMESTAMP
-    WITH
-        TIME ZONE DEFAULT NOW ()
+    status VARCHAR(20) DEFAULT 'ACTIVE',
+    risk VARCHAR(20) DEFAULT 'Low',
+    diagnosis TEXT,
+    wellbeing_status VARCHAR(20) DEFAULT 'GREEN',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Clinical Profiles

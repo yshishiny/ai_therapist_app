@@ -139,4 +139,17 @@ def get_current_user(
     return _decode(credentials.credentials, "access")
 
 
+def require_role(*roles: Role):
+    """Create a dependency that checks if the user has one of the required roles."""
+    def _check(user: Annotated[TokenPayload, Depends(get_current_user)]) -> TokenPayload:
+        if user.role not in roles:
+            role_names = ", ".join(r.value for r in roles)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"User role '{user.role.value}' is not authorized. Required roles: {role_names}.",
+            )
+        return user
+    return Depends(_check)
+
+
 CurrentUser = Annotated[TokenPayload, Depends(get_current_user)]
