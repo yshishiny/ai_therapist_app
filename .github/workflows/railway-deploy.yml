@@ -1,0 +1,44 @@
+name: Deploy to Railway
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'portal/**'
+      - 'Dockerfile'
+      - 'railway.toml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          railway up --service ai-therapist-portal --detach
+          echo "Deployment triggered!"
+          echo "Check status at: https://railway.app/project/25becd80-7067-4a31-bbd5-c60728dbb8a2"
+
+      - name: Wait for Deployment
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          echo "Waiting 30 seconds for deployment to start..."
+          sleep 30
+          railway status || echo "Status check skipped"
+
+      - name: Deployment Complete
+        run: |
+          echo "✓ Deployment submitted to Railway"
+          echo "✓ Portal URL: https://aitherapistapp-portal.up.railway.app"
