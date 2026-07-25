@@ -22,19 +22,19 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
-      - name: Link to Railway Project
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      - name: Configure Railway Project
         run: |
-          railway link --project 25becd80-7067-4a31-bbd5-c60728dbb8a2
+          mkdir -p .railway
+          echo '{"projectId":"25becd80-7067-4a31-bbd5-c60728dbb8a2"}' > .railway/config.json
 
       - name: Deploy to Railway
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          railway up --detach
-          echo "Deployment triggered!"
-          echo "Check status at: https://railway.app/project/25becd80-7067-4a31-bbd5-c60728dbb8a2"
+          echo "Starting Railway deployment..."
+          railway up --detach || railway up
+          echo "✓ Deployment triggered!"
+          echo "Monitor at: https://railway.app/project/25becd80-7067-4a31-bbd5-c60728dbb8a2"
 
       - name: Wait for Deployment
         env:
