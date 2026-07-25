@@ -26,7 +26,7 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          railway link 25becd80-7067-4a31-bbd5-c60728dbb8a2 --force
+          railway link --project 25becd80-7067-4a31-bbd5-c60728dbb8a2
 
       - name: Deploy to Railway
         env:
