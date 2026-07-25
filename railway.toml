@@ -3,7 +3,6 @@
 
 [build]
 builder = "dockerfile"
-dockerfilePath = "./Dockerfile.prod"
 watchPatterns = ["portal/**"]
 
 [deploy]
