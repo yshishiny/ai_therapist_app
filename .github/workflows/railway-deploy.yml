@@ -22,11 +22,17 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
+      - name: Link to Railway Project
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          railway link 25becd80-7067-4a31-bbd5-c60728dbb8a2 --force
+
       - name: Deploy to Railway
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          railway up --service ai-therapist-portal --detach
+          railway up --detach
           echo "Deployment triggered!"
           echo "Check status at: https://railway.app/project/25becd80-7067-4a31-bbd5-c60728dbb8a2"
 
