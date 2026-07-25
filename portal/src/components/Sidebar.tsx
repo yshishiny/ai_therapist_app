@@ -12,7 +12,7 @@ const clinicianLinks = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/patients', label: 'Patients', icon: Users },
   { path: '/assessments', label: 'Assessments', icon: ClipboardList },
-  { path: '/sessions', label: 'Sessions', icon: Calendar },
+  { path: '/workspace', label: 'Workspace', icon: Calendar },
 ]
 
 const patientLinks = [

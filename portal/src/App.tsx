@@ -6,6 +6,7 @@ import LoginPage from './pages/Login'
 import DashboardPage from './pages/Dashboard'
 import PatientsPage from './pages/Patients'
 import AssessmentsPage from './pages/Assessments'
+import ClinicianWorkspace from './pages/ClinicianWorkspace'
 
 export default function App() {
   const { checkAuth } = useAuthStore()
@@ -47,6 +48,15 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <AssessmentsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/workspace"
+            element={
+              <ProtectedRoute>
+                <ClinicianWorkspace />
               </ProtectedRoute>
             }
           />
