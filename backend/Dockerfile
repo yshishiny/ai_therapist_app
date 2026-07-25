@@ -8,13 +8,16 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY backend/requirements.txt ./backend/requirements.txt
-RUN pip install --no-cache-dir -r ./backend/requirements.txt
+# Copy requirements from backend directory (assuming build context is repo root)
+COPY backend/requirements.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy application files
 COPY backend ./backend
+COPY assessments ./assessments
 
 # Expose port (default 8000, overridden by Railway)
-EXPOSE $PORT
+EXPOSE 8000
 
-# Run using Uvicorn
-CMD ["sh", "-c", "uvicorn backend.app:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Run application
+CMD ["python", "backend/app.py"]
