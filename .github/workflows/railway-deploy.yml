@@ -27,12 +27,20 @@ jobs:
           mkdir -p .railway
           echo '{"projectId":"25becd80-7067-4a31-bbd5-c60728dbb8a2"}' > .railway/config.json
 
+      - name: List Railway Services
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          echo "Available services:"
+          railway service list || echo "Could not list services"
+
       - name: Deploy to Railway
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           echo "Starting Railway deployment..."
-          railway up --detach || railway up
+          # Try with 'portal' service first, fallback to any service
+          railway up --service portal --detach 2>/dev/null || railway up --detach || railway up
           echo "✓ Deployment triggered!"
           echo "Monitor at: https://railway.app/project/25becd80-7067-4a31-bbd5-c60728dbb8a2"
 
