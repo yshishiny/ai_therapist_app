@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import MainLayout from '../components/MainLayout'
-import { Card, Button, Badge, ProgressBar, GradientCard } from '../components/OrganicUI'
+import { Card, Button, Badge, GradientCard } from '../components/OrganicUI'
 import { AlertCircle, Download, Edit2 } from 'lucide-react'
 
 export default function AssessmentsPage() {

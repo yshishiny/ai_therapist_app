@@ -1,9 +1,14 @@
 import React from 'react'
 
 // Card
-export function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  children: React.ReactNode
+  className?: string
+}
+
+export function Card({ children, className = '', ...props }: CardProps) {
   return (
-    <div className={`bg-organic-surface rounded-organic-card p-6 shadow-organic-md border border-organic-neutral-200/30 ${className}`}>
+    <div className={`bg-organic-surface rounded-organic-card p-6 shadow-organic-md border border-organic-neutral-200/30 ${className}`} {...props}>
       {children}
     </div>
   )

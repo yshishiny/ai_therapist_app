@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import MainLayout from '../components/MainLayout'
 import { Card, Button, Badge, Avatar, Input, Table } from '../components/OrganicUI'
-import { Search, Plus, ChevronRight } from 'lucide-react'
+import { Plus } from 'lucide-react'
 
 export default function PatientsPage() {
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null)

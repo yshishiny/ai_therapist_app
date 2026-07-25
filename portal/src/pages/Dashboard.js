@@ -1,68 +1,44 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import MainLayout from '../components/MainLayout';
-import { useAuthStore } from '../store/authStore';
-import apiClient from '../services/api';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { AlertCircle, Users, TrendingUp, CheckCircle } from 'lucide-react';
+import { Card, StatCard, Button, Badge, SegmentedControl, ProgressBar, GradientCard, Avatar, Table } from '../components/OrganicUI';
+import { Activity, AlertCircle, TrendingDown, Users, Zap } from 'lucide-react';
 export default function DashboardPage() {
-    const { user } = useAuthStore();
-    const [stats, setStats] = useState(null);
-    const [patients, setPatients] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                setLoading(true);
-                // Fetch dashboard stats
-                try {
-                    const dashboardData = await apiClient.getDashboard();
-                    setStats(dashboardData);
-                }
-                catch {
-                    // Dashboard might not be implemented yet, use defaults
-                    setStats({
-                        activePatients: 12,
-                        totalSessions: 48,
-                        completedAssessments: 24,
-                        avgScore: 7.2,
-                    });
-                }
-                // Fetch patients list
-                try {
-                    const patientsData = await apiClient.getPatients();
-                    setPatients(Array.isArray(patientsData) ? patientsData : []);
-                }
-                catch {
-                    setPatients([]);
-                }
-            }
-            catch (err) {
-                setError(err.message || 'Failed to load dashboard');
-            }
-            finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
-    }, []);
-    const mockTrendData = [
-        { week: 'Week 1', score: 18 },
-        { week: 'Week 2', score: 16 },
-        { week: 'Week 3', score: 14 },
-        { week: 'Week 4', score: 12 },
-    ];
-    if (loading) {
-        return (_jsx(MainLayout, { children: _jsx("div", { className: "flex items-center justify-center min-h-screen", children: _jsx("div", { className: "text-lg text-gray-600", children: "Loading dashboard..." }) }) }));
-    }
-    return (_jsx(MainLayout, { children: _jsxs("div", { className: "space-y-8", children: [_jsxs("div", { children: [_jsx("h1", { className: "text-4xl font-bold text-gray-900", children: "Dashboard" }), _jsxs("p", { className: "text-gray-600 mt-2", children: ["Welcome back, ", user?.role || 'User'] })] }), error && (_jsxs("div", { className: "p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex gap-3 items-start", children: [_jsx(AlertCircle, { className: "w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" }), _jsx("p", { className: "text-yellow-800", children: error })] })), stats && (_jsxs("div", { className: "grid grid-cols-1 md:grid-cols-4 gap-4", children: [_jsx("div", { className: "bg-white rounded-lg p-6 border border-gray-200", children: _jsxs("div", { className: "flex items-center justify-between", children: [_jsxs("div", { children: [_jsx("p", { className: "text-gray-600 text-sm", children: "Active Patients" }), _jsx("p", { className: "text-3xl font-bold text-gray-900", children: stats.activePatients })] }), _jsx(Users, { className: "w-8 h-8 text-blue-500" })] }) }), _jsx("div", { className: "bg-white rounded-lg p-6 border border-gray-200", children: _jsxs("div", { className: "flex items-center justify-between", children: [_jsxs("div", { children: [_jsx("p", { className: "text-gray-600 text-sm", children: "Total Sessions" }), _jsx("p", { className: "text-3xl font-bold text-gray-900", children: stats.totalSessions })] }), _jsx(CheckCircle, { className: "w-8 h-8 text-green-500" })] }) }), _jsx("div", { className: "bg-white rounded-lg p-6 border border-gray-200", children: _jsxs("div", { className: "flex items-center justify-between", children: [_jsxs("div", { children: [_jsx("p", { className: "text-gray-600 text-sm", children: "Assessments" }), _jsx("p", { className: "text-3xl font-bold text-gray-900", children: stats.completedAssessments })] }), _jsx(TrendingUp, { className: "w-8 h-8 text-purple-500" })] }) }), _jsx("div", { className: "bg-white rounded-lg p-6 border border-gray-200", children: _jsxs("div", { className: "flex items-center justify-between", children: [_jsxs("div", { children: [_jsx("p", { className: "text-gray-600 text-sm", children: "Avg. Score" }), _jsx("p", { className: "text-3xl font-bold text-gray-900", children: stats.avgScore.toFixed(1) })] }), _jsx(BarChart, { className: "w-8 h-8 text-orange-500" })] }) })] })), _jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-6", children: [_jsxs("div", { className: "bg-white rounded-lg p-6 border border-gray-200", children: [_jsx("h2", { className: "text-lg font-semibold mb-4", children: "PHQ-9 Trend (Sample)" }), _jsx(ResponsiveContainer, { width: "100%", height: 300, children: _jsxs(LineChart, { data: mockTrendData, children: [_jsx(CartesianGrid, { strokeDasharray: "3 3" }), _jsx(XAxis, { dataKey: "week" }), _jsx(YAxis, { domain: [0, 30] }), _jsx(Tooltip, {}), _jsx(Line, { type: "monotone", dataKey: "score", stroke: "#6366f1", strokeWidth: 2 })] }) })] }), _jsxs("div", { className: "bg-white rounded-lg p-6 border border-gray-200", children: [_jsx("h2", { className: "text-lg font-semibold mb-4", children: "Patient Status" }), _jsx(ResponsiveContainer, { width: "100%", height: 300, children: _jsxs(BarChart, { data: [
-                                            { status: 'Active', count: 8 },
-                                            { status: 'Paused', count: 2 },
-                                            { status: 'Discharged', count: 2 },
-                                        ], children: [_jsx(CartesianGrid, { strokeDasharray: "3 3" }), _jsx(XAxis, { dataKey: "status" }), _jsx(YAxis, {}), _jsx(Tooltip, {}), _jsx(Bar, { dataKey: "count", fill: "#6366f1" })] }) })] })] }), _jsxs("div", { className: "bg-white rounded-lg p-6 border border-gray-200", children: [_jsx("h2", { className: "text-lg font-semibold mb-4", children: "Recent Patients" }), patients.length > 0 ? (_jsx("div", { className: "overflow-x-auto", children: _jsxs("table", { className: "w-full", children: [_jsx("thead", { className: "border-b border-gray-200", children: _jsxs("tr", { children: [_jsx("th", { className: "text-left py-3 px-4 font-semibold text-gray-900", children: "Name" }), _jsx("th", { className: "text-left py-3 px-4 font-semibold text-gray-900", children: "Status" }), _jsx("th", { className: "text-left py-3 px-4 font-semibold text-gray-900", children: "Risk Level" })] }) }), _jsx("tbody", { children: patients.slice(0, 5).map(patient => (_jsxs("tr", { className: "border-b border-gray-100 hover:bg-gray-50", children: [_jsx("td", { className: "py-3 px-4 text-gray-900", children: patient.full_name }), _jsx("td", { className: "py-3 px-4", children: _jsx("span", { className: `px-2 py-1 rounded text-sm font-medium ${patient.status === 'Active' ? 'bg-green-100 text-green-800' :
-                                                            patient.status === 'Paused' ? 'bg-yellow-100 text-yellow-800' :
-                                                                'bg-gray-100 text-gray-800'}`, children: patient.status }) }), _jsx("td", { className: "py-3 px-4", children: _jsx("span", { className: `px-2 py-1 rounded text-sm font-medium ${patient.risk === 'High' ? 'bg-red-100 text-red-800' :
-                                                            patient.risk === 'Moderate' ? 'bg-yellow-100 text-yellow-800' :
-                                                                'bg-green-100 text-green-800'}`, children: patient.risk }) })] }, patient.id))) })] }) })) : (_jsx("p", { className: "text-gray-600", children: "No patients found" }))] })] }) }));
+    const [dashView, setDashView] = useState('analytics');
+    return (_jsx(MainLayout, { children: _jsx("div", { className: "min-h-screen bg-organic-bg p-8", children: _jsxs("div", { className: "max-w-7xl mx-auto", children: [_jsxs("div", { className: "mb-8", children: [_jsx("h1", { className: "text-5xl font-heading text-organic-text mb-2", children: "Welcome back" }), _jsx("p", { className: "text-organic-neutral-600", children: "Practice overview and quick actions" })] }), _jsx("div", { className: "mb-8", children: _jsx(SegmentedControl, { options: [
+                                { value: 'analytics', label: 'Analytics' },
+                                { value: 'welcome', label: 'Welcome' },
+                                { value: 'bento', label: 'Bento' },
+                            ], value: dashView, onChange: (v) => setDashView(v) }) }), dashView === 'analytics' && _jsx(AnalyticsView, {}), dashView === 'welcome' && _jsx(WelcomeView, {}), dashView === 'bento' && _jsx(BentoView, {})] }) }) }));
+}
+// Analytics View
+function AnalyticsView() {
+    return (_jsxs("div", { className: "space-y-8", children: [_jsxs("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6", children: [_jsx(StatCard, { label: "Active patients", value: "48", icon: _jsx(Users, { size: 24 }), trend: { direction: 'up', percent: 12 } }), _jsx(StatCard, { label: "Sessions this month", value: "156", icon: _jsx(Activity, { size: 24 }), trend: { direction: 'up', percent: 8 } }), _jsx(StatCard, { label: "Assessments pending", value: "12", icon: _jsx(AlertCircle, { size: 24 }), trend: { direction: 'down', percent: 3 } }), _jsx(StatCard, { label: "Avg score improvement", value: "18%", icon: _jsx(TrendingDown, { size: 24 }) })] }), _jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-3 gap-6", children: [_jsxs(Card, { className: "lg:col-span-2", children: [_jsx("h2", { className: "text-2xl font-heading text-organic-text mb-6", children: "Symptom trends (last 4 weeks)" }), _jsxs("svg", { viewBox: "0 0 400 200", className: "w-full h-64", children: [_jsx("rect", { width: "400", height: "200", fill: "transparent" }), _jsx("line", { x1: "50", y1: "150", x2: "390", y2: "150", stroke: "#dcd3c4", strokeWidth: "1" }), _jsx("line", { x1: "50", y1: "100", x2: "390", y2: "100", stroke: "#dcd3c4", strokeWidth: "1" }), _jsx("line", { x1: "50", y1: "50", x2: "390", y2: "50", stroke: "#dcd3c4", strokeWidth: "1" }), _jsx("polyline", { points: "50,80 120,70 190,50 260,65 330,75 390,60", fill: "none", stroke: "#c67139", strokeWidth: "3", strokeLinecap: "round", strokeLinejoin: "round" }), _jsx("polyline", { points: "50,100 120,95 190,75 260,85 330,90 390,80", fill: "none", stroke: "#7a8a5e", strokeWidth: "3", strokeLinecap: "round", strokeLinejoin: "round", strokeDasharray: "5,5" }), _jsx("line", { x1: "50", y1: "20", x2: "50", y2: "160", stroke: "#201e1d", strokeWidth: "2" }), _jsx("line", { x1: "50", y1: "160", x2: "390", y2: "160", stroke: "#201e1d", strokeWidth: "2" }), _jsx("text", { x: "50", y: "180", fontSize: "12", textAnchor: "middle", fill: "#82796a", children: "Week 1" }), _jsx("text", { x: "150", y: "180", fontSize: "12", textAnchor: "middle", fill: "#82796a", children: "Week 2" }), _jsx("text", { x: "250", y: "180", fontSize: "12", textAnchor: "middle", fill: "#82796a", children: "Week 3" }), _jsx("text", { x: "350", y: "180", fontSize: "12", textAnchor: "middle", fill: "#82796a", children: "Week 4" }), _jsx("line", { x1: "50", y1: "15", x2: "80", y2: "15", stroke: "#c67139", strokeWidth: "2" }), _jsx("text", { x: "90", y: "18", fontSize: "12", fill: "#201e1d", children: "PHQ-9" }), _jsx("line", { x1: "150", y1: "15", x2: "180", y2: "15", stroke: "#7a8a5e", strokeWidth: "2", strokeDasharray: "5,5" }), _jsx("text", { x: "190", y: "18", fontSize: "12", fill: "#201e1d", children: "GAD-7" })] })] }), _jsxs(Card, { children: [_jsx("h3", { className: "text-xl font-heading text-organic-text mb-4", children: "Risk flags" }), _jsxs("div", { className: "space-y-3", children: [_jsxs("div", { className: "p-3 bg-red-50 rounded-lg border border-red-200", children: [_jsx("p", { className: "font-medium text-red-800 text-sm", children: "High risk" }), _jsx("p", { className: "text-xs text-red-700 mt-1", children: "2 patients flagged for follow-up" })] }), _jsxs("div", { className: "p-3 bg-orange-50 rounded-lg border border-orange-200", children: [_jsx("p", { className: "font-medium text-orange-800 text-sm", children: "Medium risk" }), _jsx("p", { className: "text-xs text-orange-700 mt-1", children: "5 patients in observation" })] }), _jsxs("div", { className: "p-3 bg-green-50 rounded-lg border border-green-200", children: [_jsx("p", { className: "font-medium text-green-800 text-sm", children: "Stable" }), _jsx("p", { className: "text-xs text-green-700 mt-1", children: "41 patients stable" })] })] })] })] }), _jsxs(Card, { children: [_jsx("h3", { className: "text-xl font-heading text-organic-text mb-4", children: "Priority patients" }), _jsx(Table, { headers: ['Patient', 'Status', 'Last session', 'Risk level'], rows: [
+                            [
+                                _jsxs("div", { className: "flex items-center gap-2", children: [_jsx(Avatar, { name: "Sarah Johnson", size: "sm" }), _jsxs("div", { children: [_jsx("p", { className: "font-medium", children: "Sarah Johnson" }), _jsx("p", { className: "text-xs text-organic-neutral-600", children: "ID: #2841" })] })] }, "1"),
+                                _jsx(Badge, { variant: "sage", children: "Active" }, "2"),
+                                '2 days ago',
+                                _jsx(Badge, { variant: "danger", children: "High" }, "3"),
+                            ],
+                            [
+                                _jsxs("div", { className: "flex items-center gap-2", children: [_jsx(Avatar, { name: "Michael Chen", size: "sm" }), _jsxs("div", { children: [_jsx("p", { className: "font-medium", children: "Michael Chen" }), _jsx("p", { className: "text-xs text-organic-neutral-600", children: "ID: #2837" })] })] }, "4"),
+                                _jsx(Badge, { variant: "sage", children: "Active" }, "5"),
+                                '5 days ago',
+                                _jsx(Badge, { variant: "accent", children: "Medium" }, "6"),
+                            ],
+                            [
+                                _jsxs("div", { className: "flex items-center gap-2", children: [_jsx(Avatar, { name: "Emma Davis", size: "sm" }), _jsxs("div", { children: [_jsx("p", { className: "font-medium", children: "Emma Davis" }), _jsx("p", { className: "text-xs text-organic-neutral-600", children: "ID: #2834" })] })] }, "7"),
+                                _jsx(Badge, { variant: "sage", children: "Active" }, "8"),
+                                '1 week ago',
+                                _jsx(Badge, { variant: "sage", children: "Low" }, "9"),
+                            ],
+                        ] })] })] }));
+}
+// Welcome View
+function WelcomeView() {
+    return (_jsxs("div", { className: "space-y-8", children: [_jsx(GradientCard, { variant: "accent", className: "mb-8", children: _jsxs("div", { className: "flex justify-between items-start", children: [_jsxs("div", { children: [_jsx("h2", { className: "text-3xl font-heading text-orange-50 mb-2", children: "Good morning, Dr. Patel" }), _jsx("p", { className: "text-orange-100 mb-4", children: "3 alerts require attention today" }), _jsx(Button, { variant: "primary", className: "bg-white text-organic-accent hover:bg-orange-50", children: "Review alerts \u2192" })] }), _jsx(Zap, { size: 48, className: "text-orange-200" })] }) }), _jsxs("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-4", children: [_jsxs(Card, { className: "text-center p-4", children: [_jsx("p", { className: "text-sm text-organic-neutral-600 mb-1", children: "Today's sessions" }), _jsx("p", { className: "text-3xl font-heading text-organic-accent", children: "6" })] }), _jsxs(Card, { className: "text-center p-4", children: [_jsx("p", { className: "text-sm text-organic-neutral-600 mb-1", children: "New patients" }), _jsx("p", { className: "text-3xl font-heading text-organic-accent-2-700", children: "2" })] }), _jsxs(Card, { className: "text-center p-4", children: [_jsx("p", { className: "text-sm text-organic-neutral-600 mb-1", children: "Pending reviews" }), _jsx("p", { className: "text-3xl font-heading text-organic-accent", children: "8" })] }), _jsxs(Card, { className: "text-center p-4", children: [_jsx("p", { className: "text-sm text-organic-neutral-600 mb-1", children: "Messages" }), _jsx("p", { className: "text-3xl font-heading text-organic-neutral-600", children: "12" })] })] }), _jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-6", children: [_jsxs(Card, { children: [_jsx("h3", { className: "text-xl font-heading text-organic-text mb-4", children: "Today's schedule" }), _jsx("div", { className: "space-y-3", children: ['09:00 - Sarah Johnson (Follow-up)', '10:30 - Michael Chen (Initial)', '14:00 - Emma Davis (Review)', '15:30 - Group session (4 patients)'].map((item, i) => (_jsx("div", { className: "p-3 bg-organic-neutral-100 rounded-lg text-sm text-organic-text", children: item }, i))) })] }), _jsxs(Card, { children: [_jsx("h3", { className: "text-xl font-heading text-organic-text mb-4", children: "Risk flags" }), _jsxs("div", { className: "space-y-2", children: [_jsx("div", { className: "p-3 bg-red-50 rounded-lg", children: _jsx("p", { className: "text-sm font-medium text-red-800", children: "Sarah Johnson - Suicidal ideation flagged" }) }), _jsx("div", { className: "p-3 bg-orange-50 rounded-lg", children: _jsx("p", { className: "text-sm font-medium text-orange-800", children: "Michael Chen - Sleep disruption worsening" }) })] })] })] })] }));
+}
+// Bento View
+function BentoView() {
+    return (_jsxs("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-6", children: [_jsxs(GradientCard, { variant: "sage", className: "md:col-span-2 md:row-span-2 p-8", children: [_jsxs("div", { className: "flex justify-between items-start mb-6", children: [_jsxs("div", { children: [_jsx("p", { className: "text-orange-100 text-sm mb-1", children: "PRACTICE HEALTH" }), _jsx("p", { className: "text-5xl font-heading text-white", children: "94%" })] }), _jsx(Zap, { size: 32, className: "text-orange-200" })] }), _jsxs("svg", { viewBox: "0 0 300 80", className: "w-full h-20", children: [_jsx("polyline", { points: "10,60 40,30 70,50 100,20 130,40 160,15 190,35 220,25 250,45 280,30", fill: "none", stroke: "rgba(255,255,255,0.3)", strokeWidth: "2" }), _jsx("polyline", { points: "10,60 40,30 70,50 100,20 130,40 160,15 190,35 220,25 250,45 280,30", fill: "none", stroke: "rgba(255,255,255,0.8)", strokeWidth: "3", strokeDasharray: "5,5" })] })] }), _jsx(StatCard, { label: "Active patients", value: "48", trend: { direction: 'up', percent: 5 } }), _jsx(StatCard, { label: "This week sessions", value: "22", trend: { direction: 'up', percent: 12 } }), _jsx(StatCard, { label: "Avg satisfaction", value: "4.6\u2605", trend: { direction: 'up', percent: 2 } }), _jsx(StatCard, { label: "Risk alerts", value: "3", trend: { direction: 'down', percent: 8 } }), _jsxs(Card, { className: "md:col-span-2", children: [_jsx("h3", { className: "text-xl font-heading text-organic-text mb-4", children: "Risk flags requiring attention" }), _jsxs("div", { className: "space-y-4", children: [_jsx(ProgressBar, { label: "High risk", value: 2, max: 25, variant: "accent" }), _jsx(ProgressBar, { label: "Medium risk", value: 5, max: 25, variant: "sage" }), _jsx(ProgressBar, { label: "Low risk", value: 18, max: 25, variant: "sage" })] })] })] }));
 }

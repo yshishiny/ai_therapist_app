@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Badge, ProgressBar } from '../components/OrganicUI'
-import { Heart, MessageCircle, CheckSquare2, TrendingUp, Send, SmilePlus } from 'lucide-react'
+import { Badge } from '../components/OrganicUI'
+import { Send } from 'lucide-react'
 
 type PatientTab = 'home' | 'aria' | 'tasks' | 'progress'
 

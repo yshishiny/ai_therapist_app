@@ -1,0 +1,98 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { useState } from 'react';
+import { Card, StatCard, Button, Badge, ProgressBar, GradientCard, Avatar } from '../components/OrganicUI';
+import { Activity, Clipboard, Mic, Map, Plus, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
+export default function ClinicianWorkspace() {
+    const [currentView, setCurrentView] = useState('caseload');
+    const [selectedPatientId, setSelectedPatientId] = useState(null);
+    const mockPatients = [
+        {
+            id: '1',
+            name: 'Sarah Johnson',
+            status: 'Active',
+            risk: 'High',
+            phq9: 14,
+            lastSession: '2 days ago',
+            nextSession: 'Today at 2:00 PM',
+        },
+        {
+            id: '2',
+            name: 'Michael Chen',
+            status: 'Active',
+            risk: 'Medium',
+            phq9: 11,
+            lastSession: '5 days ago',
+            nextSession: 'Tomorrow at 10:00 AM',
+        },
+        {
+            id: '3',
+            name: 'Emma Davis',
+            status: 'Active',
+            risk: 'Low',
+            phq9: 5,
+            lastSession: '1 week ago',
+            nextSession: 'Friday at 3:00 PM',
+        },
+    ];
+    return (_jsxs("div", { className: "min-h-screen bg-organic-bg flex", children: [_jsx(IconRail, { currentView: currentView, onViewChange: setCurrentView }), _jsx("div", { className: "flex-1 p-8", children: _jsxs("div", { className: "max-w-7xl mx-auto", children: [_jsxs("div", { className: "mb-8", children: [_jsx("h1", { className: "text-5xl font-heading text-organic-text mb-2", children: "Clinician Workspace" }), _jsx("p", { className: "text-organic-neutral-600", children: "Manage your caseload and patient sessions" })] }), currentView === 'caseload' && _jsx(CaseloadView, { patients: mockPatients, onSelectPatient: setSelectedPatientId }), currentView === 'chart' && selectedPatientId && (_jsx(PatientChartView, { patient: mockPatients.find((p) => p.id === selectedPatientId) })), currentView === 'scribe' && selectedPatientId && (_jsx(AIScriveView, { patient: mockPatients.find((p) => p.id === selectedPatientId) })), currentView === 'plan' && selectedPatientId && (_jsx(CarePlanView, { patient: mockPatients.find((p) => p.id === selectedPatientId) }))] }) })] }));
+}
+function IconRail({ currentView, onViewChange }) {
+    const navItems = [
+        { icon: Activity, label: 'Caseload', view: 'caseload' },
+        { icon: Clipboard, label: 'Chart', view: 'chart' },
+        { icon: Mic, label: 'Scribe', view: 'scribe' },
+        { icon: Map, label: 'Plan', view: 'plan' },
+    ];
+    return (_jsxs("div", { className: "w-24 bg-organic-neutral-100 border-r border-organic-neutral-200 flex flex-col items-center py-8 gap-4", children: [_jsx("div", { className: "w-12 h-12 rounded-organic-tile bg-gradient-to-br from-organic-accent to-orange-600 flex items-center justify-center text-white font-heading text-lg mb-4", children: "\uD83E\uDDE0" }), _jsx("div", { className: "flex-1 flex flex-col gap-2", children: navItems.map(({ icon: Icon, label, view }) => (_jsx("button", { onClick: () => onViewChange(view), className: `w-12 h-12 rounded-organic-tile flex items-center justify-center transition-all ${currentView === view
+                        ? 'bg-organic-accent text-orange-50'
+                        : 'text-organic-neutral-600 hover:bg-organic-neutral-200'}`, title: label, children: _jsx(Icon, { size: 20 }) }, view))) }), _jsx(Avatar, { name: "Dr. Patel", size: "sm" })] }));
+}
+function CaseloadView({ patients, onSelectPatient }) {
+    return (_jsxs("div", { className: "space-y-8", children: [_jsxs("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-6", children: [_jsx(StatCard, { label: "Today sessions", value: "6", icon: _jsx(Clock, { size: 24 }) }), _jsx(StatCard, { label: "My patients", value: "41", icon: _jsx(Activity, { size: 24 }) }), _jsx(StatCard, { label: "Notes due", value: "3", icon: _jsx(AlertCircle, { size: 24 }) })] }), _jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-3 gap-8", children: [_jsx("div", { className: "lg:col-span-2 space-y-6", children: _jsxs(Card, { children: [_jsx("h2", { className: "text-2xl font-heading text-organic-text mb-4", children: "Today's schedule" }), _jsx("div", { className: "space-y-3", children: [
+                                        { time: '09:00', name: 'Sarah Johnson', type: 'Follow-up', risk: 'High' },
+                                        { time: '10:30', name: 'Michael Chen', type: 'Initial', risk: 'Medium' },
+                                        { time: '14:00', name: 'Emma Davis', type: 'Review', risk: 'Low' },
+                                        { time: '15:30', name: 'Group session', type: '4 patients', risk: 'Mixed' },
+                                    ].map((session, i) => (_jsx("button", { onClick: () => onSelectPatient(patients[Math.min(i, patients.length - 1)].id), className: "p-4 bg-organic-neutral-100 rounded-lg hover:bg-organic-neutral-200 transition-colors text-left", children: _jsxs("div", { className: "flex justify-between items-start", children: [_jsxs("div", { children: [_jsx("p", { className: "font-medium text-organic-text", children: session.time }), _jsx("p", { className: "text-sm text-organic-neutral-600 mt-1", children: session.name })] }), _jsxs("div", { className: "text-right", children: [_jsx(Badge, { variant: "neutral", children: session.type }), _jsxs("p", { className: "text-xs text-organic-neutral-600 mt-2", children: ["Risk: ", session.risk] })] })] }) }, i))) })] }) }), _jsxs("div", { className: "space-y-6", children: [_jsxs(Card, { className: "border-l-4 border-organic-accent", children: [_jsx("h3", { className: "text-lg font-heading text-organic-text mb-3", children: "Needs review" }), _jsxs("div", { className: "space-y-2", children: [_jsxs("div", { className: "p-2 bg-orange-50 rounded", children: [_jsx("p", { className: "text-sm font-medium text-orange-900", children: "Sarah Johnson" }), _jsx("p", { className: "text-xs text-orange-700", children: "Suicide risk flag" })] }), _jsxs("div", { className: "p-2 bg-orange-50 rounded", children: [_jsx("p", { className: "text-sm font-medium text-orange-900", children: "Michael Chen" }), _jsx("p", { className: "text-xs text-orange-700", children: "Missing assessment" })] })] })] }), _jsxs(Card, { children: [_jsx("h3", { className: "text-lg font-heading text-organic-text mb-3", children: "Tasks" }), _jsx("div", { className: "space-y-2", children: [
+                                            { title: 'Document session notes', done: false },
+                                            { title: 'Review PHQ-9 scores', done: false },
+                                            { title: 'Send homework assignments', done: true },
+                                        ].map((task, i) => (_jsxs("div", { className: "flex items-center gap-3 p-2", children: [_jsx("input", { type: "checkbox", checked: task.done, className: "w-5 h-5 rounded", readOnly: true }), _jsx("span", { className: task.done ? 'line-through text-organic-neutral-500' : 'text-organic-text', children: task.title })] }, i))) })] })] })] })] }));
+}
+function PatientChartView({ patient }) {
+    return (_jsxs("div", { className: "space-y-8", children: [_jsxs("div", { className: "flex items-center gap-4 mb-8", children: [_jsx(Avatar, { name: patient.name, size: "lg" }), _jsxs("div", { children: [_jsx("h2", { className: "text-3xl font-heading text-organic-text", children: patient.name }), _jsxs("p", { className: "text-organic-neutral-600", children: ["Last session: ", patient.lastSession] })] })] }), _jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-3 gap-8", children: [_jsxs("div", { className: "lg:col-span-2 space-y-6", children: [_jsxs(Card, { children: [_jsx("h3", { className: "text-xl font-heading text-organic-text mb-4", children: "Symptom trajectory" }), _jsxs("svg", { viewBox: "0 0 500 250", className: "w-full h-64", children: [_jsx("line", { x1: "60", y1: "200", x2: "480", y2: "200", stroke: "#dcd3c4", strokeWidth: "1" }), _jsx("line", { x1: "60", y1: "150", x2: "480", y2: "150", stroke: "#dcd3c4", strokeWidth: "1" }), _jsx("line", { x1: "60", y1: "100", x2: "480", y2: "100", stroke: "#dcd3c4", strokeWidth: "1" }), _jsx("line", { x1: "60", y1: "50", x2: "480", y2: "50", stroke: "#dcd3c4", strokeWidth: "1" }), _jsx("polyline", { points: "60,120 140,110 220,80 300,95 380,85 460,95", fill: "none", stroke: "#c67139", strokeWidth: "3" }), _jsx("polyline", { points: "60,140 140,135 220,110 300,120 380,115 460,125", fill: "none", stroke: "#7a8a5e", strokeWidth: "3", strokeDasharray: "5,5" }), _jsx("line", { x1: "60", y1: "20", x2: "60", y2: "200", stroke: "#201e1d", strokeWidth: "2" }), _jsx("line", { x1: "60", y1: "200", x2: "480", y2: "200", stroke: "#201e1d", strokeWidth: "2" }), _jsx("text", { x: "60", y: "230", fontSize: "12", textAnchor: "middle", fill: "#82796a", children: "4w ago" }), _jsx("text", { x: "270", y: "230", fontSize: "12", textAnchor: "middle", fill: "#82796a", children: "Today" }), _jsx("line", { x1: "60", y1: "15", x2: "90", y2: "15", stroke: "#c67139", strokeWidth: "2" }), _jsx("text", { x: "100", y: "18", fontSize: "12", fill: "#201e1d", children: "PHQ-9" }), _jsx("line", { x1: "180", y1: "15", x2: "210", y2: "15", stroke: "#7a8a5e", strokeWidth: "2", strokeDasharray: "5,5" }), _jsx("text", { x: "220", y: "18", fontSize: "12", fill: "#201e1d", children: "GAD-7" })] })] }), _jsxs(Card, { children: [_jsx("h3", { className: "text-xl font-heading text-organic-text mb-4", children: "Signed session notes" }), _jsx("div", { className: "space-y-3", children: [
+                                            { date: '2024-07-25', title: 'Session notes - week 5', type: 'SOAP' },
+                                            { date: '2024-07-18', title: 'Session notes - week 4', type: 'SOAP' },
+                                            { date: '2024-07-11', title: 'Session notes - week 3', type: 'SOAP' },
+                                            { date: '2024-07-04', title: 'Initial assessment', type: 'Intake' },
+                                        ].map((note, i) => (_jsxs("div", { className: "p-3 bg-organic-neutral-100 rounded-lg hover:bg-organic-neutral-200 transition-colors cursor-pointer flex justify-between items-center", children: [_jsxs("div", { children: [_jsx("p", { className: "font-medium text-organic-text", children: note.title }), _jsx("p", { className: "text-xs text-organic-neutral-600", children: note.date })] }), _jsx(Badge, { variant: "accent", children: note.type })] }, i))) })] })] }), _jsxs("div", { className: "space-y-6", children: [_jsxs(GradientCard, { variant: "accent", children: [_jsx("h3", { className: "text-lg font-heading text-white mb-3", children: "AI clinical summary" }), _jsxs("ul", { className: "text-sm text-orange-100 space-y-2", children: [_jsxs("li", { className: "flex gap-2", children: [_jsx("span", { children: "\u2022" }), _jsx("span", { children: "Consistent progress over 5 weeks" })] }), _jsxs("li", { className: "flex gap-2", children: [_jsx("span", { children: "\u2022" }), _jsx("span", { children: "Response to CBT interventions positive" })] }), _jsxs("li", { className: "flex gap-2", children: [_jsx("span", { children: "\u2022" }), _jsx("span", { children: "Sleep quality improving" })] })] })] }), _jsxs(Card, { children: [_jsx("h3", { className: "text-lg font-heading text-organic-text mb-4", children: "Latest scores" }), _jsxs("div", { className: "space-y-4", children: [_jsx(ProgressBar, { label: "PHQ-9", value: patient.phq9, max: 27, variant: "accent" }), _jsx(ProgressBar, { label: "GAD-7", value: 11, max: 21, variant: "sage" })] })] })] })] })] }));
+}
+// AI Scribe View
+function AIScriveView({ patient }) {
+    const [isRecording] = useState(false);
+    const [recordingTime] = useState('24:11');
+    return (_jsxs("div", { className: "space-y-8", children: [_jsxs("div", { className: "flex items-center gap-4 mb-8", children: [_jsx(Avatar, { name: patient.name, size: "lg" }), _jsxs("div", { children: [_jsx("h2", { className: "text-3xl font-heading text-organic-text", children: patient.name }), _jsx("p", { className: "text-organic-neutral-600", children: "Active session" })] })] }), _jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-8", children: [_jsxs(Card, { children: [_jsxs("div", { className: "flex justify-between items-center mb-4", children: [_jsx("h3", { className: "text-xl font-heading text-organic-text", children: "Live session transcript" }), _jsxs("div", { className: `flex items-center gap-2 px-3 py-1 rounded-organic-pill ${isRecording ? 'bg-red-100' : 'bg-organic-neutral-100'}`, children: [_jsx("div", { className: `w-3 h-3 rounded-full ${isRecording ? 'bg-red-600 animate-pulse' : 'bg-organic-neutral-600'}` }), _jsx("span", { className: `text-sm font-medium ${isRecording ? 'text-red-700' : 'text-organic-neutral-700'}`, children: isRecording ? `Recording ${recordingTime}` : 'Not recording' })] })] }), _jsx("div", { className: "space-y-3 max-h-96 overflow-y-auto mb-4", children: [
+                                    { speaker: 'CLINICIAN', text: 'How have you been feeling since our last session?' },
+                                    { speaker: 'PATIENT', text: "Better, actually. I've been trying those breathing exercises you suggested." },
+                                    { speaker: 'CLINICIAN', text: "That's great to hear. How often have you been practicing?" },
+                                    { speaker: 'PATIENT', text: 'About 3 times a day. They really help when I feel anxious.' },
+                                ].map((turn, i) => (_jsxs("div", { className: `p-3 rounded-lg ${turn.speaker === 'CLINICIAN' ? 'bg-organic-accent-100' : 'bg-organic-neutral-100'}`, children: [_jsx("p", { className: "text-xs font-bold text-organic-neutral-700 mb-1", children: turn.speaker }), _jsx("p", { className: "text-sm text-organic-text", children: turn.text })] }, i))) }), _jsx(Button, { variant: "primary", className: "w-full", children: isRecording ? 'Stop recording' : 'Start recording' })] }), _jsxs(Card, { children: [_jsx("h3", { className: "text-xl font-heading text-organic-text mb-4", children: "AI session note (SOAP)" }), _jsxs("div", { className: "space-y-4", children: [_jsxs("div", { children: [_jsx("p", { className: "text-sm font-bold text-organic-neutral-700 mb-2", children: "SUBJECTIVE" }), _jsx("div", { className: "p-3 bg-organic-neutral-100 rounded-lg text-sm text-organic-text", children: "Patient reports improved mood and reduced anxiety. Practicing breathing exercises 3x daily with positive results." })] }), _jsxs("div", { children: [_jsx("p", { className: "text-sm font-bold text-organic-neutral-700 mb-2", children: "OBJECTIVE" }), _jsx("div", { className: "p-3 bg-organic-neutral-100 rounded-lg text-sm text-organic-text", children: "Affect: stable, slightly improved. Speech: normal rate and volume. Engagement: active participation." })] }), _jsxs("div", { children: [_jsx("p", { className: "text-sm font-bold text-organic-neutral-700 mb-2", children: "ASSESSMENT" }), _jsx("div", { className: "p-3 bg-organic-neutral-100 rounded-lg text-sm text-organic-text", children: "GAD with depressive features. Responding well to CBT. PHQ-9 trending downward (14\u219212)." })] }), _jsxs("div", { children: [_jsx("p", { className: "text-sm font-bold text-organic-neutral-700 mb-2", children: "PLAN" }), _jsx("div", { className: "p-3 bg-organic-neutral-100 rounded-lg text-sm text-organic-text", children: "Continue weekly sessions. Add exposure exercises for situational anxiety. Assign homework: daily mood log." })] })] }), _jsxs("div", { className: "flex gap-2 mt-6", children: [_jsx(Button, { variant: "primary", className: "flex-1", children: "Save to chart" }), _jsx(Button, { variant: "secondary", className: "flex-1", children: "Edit" })] })] })] })] }));
+}
+// Care Plan View
+function CarePlanView({ patient }) {
+    return (_jsxs("div", { className: "space-y-8", children: [_jsxs("div", { className: "flex items-center gap-4 mb-8", children: [_jsx(Avatar, { name: patient.name, size: "lg" }), _jsxs("div", { children: [_jsx("h2", { className: "text-3xl font-heading text-organic-text", children: patient.name }), _jsx("p", { className: "text-organic-neutral-600", children: "Treatment plan" })] })] }), _jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-3 gap-8", children: [_jsx("div", { className: "lg:col-span-2", children: _jsxs(Card, { children: [_jsx("h3", { className: "text-xl font-heading text-organic-text mb-6", children: "Phased treatment timeline" }), _jsx("div", { className: "space-y-0", children: [
+                                        { phase: 'Phase 1: Stabilization', done: true, current: false, desc: 'Assessment & psychoeducation' },
+                                        { phase: 'Phase 2: Skill Building', done: true, current: true, desc: 'CBT techniques & exposure' },
+                                        { phase: 'Phase 3: Integration', done: false, current: false, desc: 'Real-world application' },
+                                        { phase: 'Phase 4: Maintenance', done: false, current: false, desc: 'Relapse prevention' },
+                                    ].map((phase, i) => (_jsxs("div", { className: "flex gap-4 pb-6 relative", children: [i < 3 && (_jsx("div", { className: `absolute left-5 top-12 w-0.5 h-12 ${phase.done ? 'bg-organic-accent-2-700' : 'bg-organic-neutral-300'}` })), _jsx("div", { className: "relative z-10", children: _jsx("div", { className: `w-11 h-11 rounded-full flex items-center justify-center font-heading text-sm ${phase.current
+                                                        ? 'bg-organic-accent text-orange-50'
+                                                        : phase.done
+                                                            ? 'bg-organic-accent-2-700 text-white'
+                                                            : 'bg-organic-neutral-300 text-organic-neutral-700'}`, children: phase.done ? _jsx(CheckCircle2, { size: 20 }) : phase.current ? '→' : i + 1 }) }), _jsxs("div", { className: "flex-1 pt-1", children: [_jsx("p", { className: "font-heading text-organic-text", children: phase.phase }), _jsx("p", { className: "text-sm text-organic-neutral-600", children: phase.desc })] })] }, i))) })] }) }), _jsx("div", { children: _jsxs(Card, { children: [_jsx("h3", { className: "text-lg font-heading text-organic-text mb-4", children: "Assign homework" }), _jsx("div", { className: "space-y-3 mb-4", children: [
+                                        { icon: '📋', title: 'Mood tracking', assigned: true },
+                                        { icon: '🧘', title: 'Breathing exercises', assigned: true },
+                                        { icon: '📚', title: 'Psychoeducation', assigned: false },
+                                        { icon: '🎯', title: 'Exposure practice', assigned: false },
+                                    ].map((hw, i) => (_jsxs("button", { className: "w-full p-3 rounded-lg bg-organic-neutral-100 hover:bg-organic-neutral-200 transition-colors text-left flex items-center gap-3", children: [_jsx("span", { className: "text-lg", children: hw.icon }), _jsx("div", { className: "flex-1", children: _jsx("p", { className: "text-sm font-medium text-organic-text", children: hw.title }) }), hw.assigned && _jsx(CheckCircle2, { size: 18, className: "text-organic-accent-2-700" })] }, i))) }), _jsxs(Button, { variant: "primary", className: "w-full", children: [_jsx(Plus, { size: 18 }), " Add assignment"] })] }) })] })] }));
+}

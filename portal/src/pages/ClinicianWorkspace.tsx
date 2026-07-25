@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Card, StatCard, Button, Badge, Input, ProgressBar, GradientCard, Avatar } from '../components/OrganicUI'
-import { Activity, Clipboard, Mic, Map, Search, Plus, Clock, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Card, StatCard, Button, Badge, ProgressBar, GradientCard, Avatar } from '../components/OrganicUI'
+import { Activity, Clipboard, Mic, Map, Plus, Clock, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 type WorkspaceView = 'caseload' | 'chart' | 'scribe' | 'plan'
 
@@ -316,8 +316,8 @@ function PatientChartView({ patient }: PatientChartViewProps) {
 
 // AI Scribe View
 function AIScriveView({ patient }: PatientChartViewProps) {
-  const [isRecording, setIsRecording] = useState(false)
-  const [recordingTime, setRecordingTime] = useState('24:11')
+  const [isRecording] = useState(false)
+  const [recordingTime] = useState('24:11')
 
   return (
     <div className="space-y-8">
@@ -346,7 +346,7 @@ function AIScriveView({ patient }: PatientChartViewProps) {
             {[
               { speaker: 'CLINICIAN', text: 'How have you been feeling since our last session?' },
               { speaker: 'PATIENT', text: "Better, actually. I've been trying those breathing exercises you suggested." },
-              { speaker: 'CLINICIAN', text: 'That's great to hear. How often have you been practicing?' },
+              { speaker: 'CLINICIAN', text: "That's great to hear. How often have you been practicing?" },
               { speaker: 'PATIENT', text: 'About 3 times a day. They really help when I feel anxious.' },
             ].map((turn, i) => (
               <div key={i} className={`p-3 rounded-lg ${turn.speaker === 'CLINICIAN' ? 'bg-organic-accent-100' : 'bg-organic-neutral-100'}`}>

@@ -6,7 +6,7 @@ const clinicianLinks = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/patients', label: 'Patients', icon: Users },
     { path: '/assessments', label: 'Assessments', icon: ClipboardList },
-    { path: '/sessions', label: 'Sessions', icon: Calendar },
+    { path: '/workspace', label: 'Workspace', icon: Calendar },
 ];
 const patientLinks = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -17,7 +17,7 @@ export default function Sidebar() {
     const location = useLocation();
     const { user } = useAuthStore();
     const links = user?.role === 'patient' ? patientLinks : clinicianLinks;
-    return (_jsx("aside", { className: "w-64 bg-gray-50 border-r border-gray-200 p-4", children: _jsx("nav", { className: "space-y-2", children: links.map(({ path, label, icon: Icon }) => (_jsxs(Link, { to: path, className: `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${location.pathname === path
-                    ? 'bg-indigo-100 text-indigo-700 font-medium'
-                    : 'text-gray-700 hover:bg-gray-200'}`, children: [_jsx(Icon, { className: "w-5 h-5" }), label] }, path))) }) }));
+    return (_jsx("aside", { className: "w-64 bg-organic-neutral-100 border-r border-organic-neutral-200 p-6", children: _jsx("nav", { className: "space-y-2", children: links.map(({ path, label, icon: Icon }) => (_jsxs(Link, { to: path, className: `flex items-center gap-3 px-4 py-3 rounded-organic-pill transition-colors ${location.pathname === path
+                    ? 'bg-organic-accent text-orange-50 font-medium'
+                    : 'text-organic-neutral-700 hover:bg-organic-neutral-200'}`, children: [_jsx(Icon, { className: "w-5 h-5" }), label] }, path))) }) }));
 }
