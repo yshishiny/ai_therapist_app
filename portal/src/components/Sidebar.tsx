@@ -28,16 +28,16 @@ export default function Sidebar() {
   const links = user?.role === 'patient' ? patientLinks : clinicianLinks
 
   return (
-    <aside className="w-64 bg-gray-50 border-r border-gray-200 p-4">
+    <aside className="w-64 bg-organic-neutral-100 border-r border-organic-neutral-200 p-6">
       <nav className="space-y-2">
         {links.map(({ path, label, icon: Icon }) => (
           <Link
             key={path}
             to={path}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+            className={`flex items-center gap-3 px-4 py-3 rounded-organic-pill transition-colors ${
               location.pathname === path
-                ? 'bg-indigo-100 text-indigo-700 font-medium'
-                : 'text-gray-700 hover:bg-gray-200'
+                ? 'bg-organic-accent text-orange-50 font-medium'
+                : 'text-organic-neutral-700 hover:bg-organic-neutral-200'
             }`}
           >
             <Icon className="w-5 h-5" />

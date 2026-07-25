@@ -4,6 +4,8 @@ import { useAuthStore } from './store/authStore'
 import ProtectedRoute from './components/ProtectedRoute'
 import LoginPage from './pages/Login'
 import DashboardPage from './pages/Dashboard'
+import PatientsPage from './pages/Patients'
+import AssessmentsPage from './pages/Assessments'
 
 export default function App() {
   const { checkAuth } = useAuthStore()
@@ -17,7 +19,7 @@ export default function App() {
   }, [checkAuth])
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f5ead8' }}>
       <Router>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
@@ -31,9 +33,24 @@ export default function App() {
             }
           />
 
-          {/* TODO: Add more routes */}
-          <Route path="/patients" element={<Navigate to="/" replace />} />
-          <Route path="/assessments" element={<Navigate to="/" replace />} />
+          <Route
+            path="/patients"
+            element={
+              <ProtectedRoute>
+                <PatientsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/assessments"
+            element={
+              <ProtectedRoute>
+                <AssessmentsPage />
+              </ProtectedRoute>
+            }
+          />
+
           <Route path="/sessions" element={<Navigate to="/" replace />} />
           <Route path="/settings" element={<Navigate to="/" replace />} />
           <Route path="/my-assessments" element={<Navigate to="/" replace />} />
