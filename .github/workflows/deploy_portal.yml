@@ -1,0 +1,73 @@
+name: Portal Deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'portal/**'
+      - 'Dockerfile'
+      - 'railway.toml'
+      - '.github/workflows/deploy_portal.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'portal/package-lock.json'
+
+      - name: Install Portal Dependencies
+        working-directory: portal
+        run: npm ci
+
+      - name: Build Portal
+        working-directory: portal
+        env:
+          VITE_API_URL: https://aitherapistapp-production.up.railway.app
+          VITE_APP_NAME: AI Therapist Portal
+          VITE_ACCESS_TOKEN_TTL_MINUTES: 30
+          NODE_ENV: production
+        run: npm run build
+
+      - name: Verify Build Output
+        run: |
+          echo "Checking if dist directory exists..."
+          if [ -d "portal/dist" ]; then
+            echo "✓ dist directory found"
+            ls -lh portal/dist/
+          else
+            echo "✗ dist directory NOT found - build may have failed"
+            exit 1
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker Image (Dry Run)
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: ai-therapist-portal:latest
+          build-args: |
+            VITE_API_URL=https://aitherapistapp-production.up.railway.app
+            VITE_APP_NAME=AI Therapist Portal
+
+      - name: Deploy Status
+        run: |
+          echo "✓ Portal build successful"
+          echo "✓ Docker build verified"
+          echo ""
+          echo "Next: Railway will auto-deploy from main branch"
+          echo "Monitor at: https://railway.app/project/25becd80-7067-4a31-bbd5-c60728dbb8a2"
