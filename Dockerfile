@@ -1,46 +1,47 @@
-# Build stage for AI Therapist Portal
-FROM node:18-alpine AS build
+# Build stage
+FROM node:18-alpine AS builder
 
-WORKDIR /app
+WORKDIR /build
 
-# Copy package files from portal directory
+# Copy package files
 COPY portal/package*.json ./
 
 # Install dependencies
 RUN npm ci
 
-# Copy portal source code
+# Copy source
 COPY portal/ .
 
-# Set build-time environment variables for Vite
+# Build with environment variables
 ENV VITE_API_URL=https://aitherapistapp-production.up.railway.app
 ENV VITE_APP_NAME="AI Therapist Portal"
 ENV VITE_ACCESS_TOKEN_TTL_MINUTES=30
 ENV NODE_ENV=production
 
-# Build the app
 RUN npm run build
 
-# Production stage
-FROM node:18-alpine
+# Runtime stage - use nginx
+FROM nginx:alpine
 
-WORKDIR /app
+# Copy nginx config
+RUN mkdir -p /etc/nginx/conf.d
 
-# Install serve to run the app
-RUN npm install -g serve
+# Create nginx config for SPA routing
+RUN echo 'server {\n\
+  listen 3000;\n\
+  server_name _;\n\
+  root /usr/share/nginx/html;\n\
+  index index.html;\n\
+  location / {\n\
+    try_files $uri $uri/ /index.html;\n\
+  }\n\
+}' > /etc/nginx/conf.d/default.conf
 
-# Copy built app from build stage
-COPY --from=build /app/dist ./dist
+RUN sed -i 's/listen 80/listen 3000/' /etc/nginx/conf.d/default.conf || true
 
-# Set environment
-ENV NODE_ENV=production
+# Copy built files
+COPY --from=builder /build/dist /usr/share/nginx/html/
 
-# Expose port
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
-
-# Start the app on the PORT env variable or default to 3000
-CMD ["sh", "-c", "serve -s dist -l ${PORT:-3000}"]
+CMD ["nginx", "-g", "daemon off;"]
