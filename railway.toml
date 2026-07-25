@@ -1,14 +1,13 @@
-# Railway Configuration
+# Railway Configuration for AI Therapist Portal
 # https://docs.railway.app/reference/railway-toml
 
 [build]
 builder = "dockerfile"
-dockerfilePath = "./Dockerfile"
-watchPatterns = ["backend/**", "assessments/**"]
+dockerfilePath = "./portal/Dockerfile"
+watchPatterns = ["portal/**"]
 
 [deploy]
-healthcheckPath = "/health"
-healthcheckTimeout = 100
+healthcheckPath = "/"
+healthcheckTimeout = 60
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
-startCommand = "python backend/app.py"
