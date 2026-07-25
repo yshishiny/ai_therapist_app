@@ -3,7 +3,7 @@
 
 [build]
 builder = "dockerfile"
-dockerfilePath = "./portal/Dockerfile"
+dockerfilePath = "./Dockerfile.prod"
 watchPatterns = ["portal/**"]
 
 [deploy]
@@ -11,3 +11,9 @@ healthcheckPath = "/"
 healthcheckTimeout = 60
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
+
+[env]
+VITE_API_URL = "https://aitherapistapp-production.up.railway.app"
+VITE_APP_NAME = "AI Therapist Portal"
+VITE_ACCESS_TOKEN_TTL_MINUTES = "30"
+NODE_ENV = "production"
