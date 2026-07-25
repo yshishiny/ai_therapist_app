@@ -6,9 +6,6 @@ import {
   clearTokens,
   getAccessToken,
   decodeToken,
-  getStoredRole,
-  getStoredUserId,
-  getStoredOrgId,
   isTokenExpired
 } from '../services/storage'
 

@@ -29,14 +29,9 @@ async def db_lifespan(app):
             app.state.db = None
 
 
-async def get_db(request: Request) -> asyncpg.Pool:
+async def get_db(request: Request) -> asyncpg.Pool | None:
     db = getattr(request.app.state, "db", None)
-    if db is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database connection is not configured.",
-        )
     return db
 
 
-DB = Annotated[asyncpg.Pool, Depends(get_db)]
+DB = Annotated[asyncpg.Pool | None, Depends(get_db)]

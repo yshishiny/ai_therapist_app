@@ -1,8 +1,8 @@
 import axios, { AxiosInstance, AxiosError } from 'axios'
-import { TokenPair, TokenPayload, RefreshRequest } from '../types/auth'
+import { TokenPair } from '../types/auth'
 import { getAccessToken, getRefreshToken, saveTokens, clearTokens } from './storage'
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://aitherapistapp-production.up.railway.app'
+const API_URL = (import.meta as any).env.VITE_API_URL || 'https://aitherapistapp-production.up.railway.app'
 
 let isRefreshing = false
 let failedQueue: Array<{ resolve: (value: any) => void; reject: (reason?: any) => void }> = []

@@ -9,35 +9,40 @@ export default function App() {
   const { checkAuth } = useAuthStore()
 
   useEffect(() => {
-    // Check if user is already authenticated on app load
-    checkAuth()
+    try {
+      checkAuth()
+    } catch (error) {
+      console.error('Auth check failed:', error)
+    }
   }, [checkAuth])
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
+    <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
 
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <DashboardPage />
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* TODO: Add more routes */}
-        <Route path="/patients" element={<Navigate to="/" replace />} />
-        <Route path="/assessments" element={<Navigate to="/" replace />} />
-        <Route path="/sessions" element={<Navigate to="/" replace />} />
-        <Route path="/settings" element={<Navigate to="/" replace />} />
-        <Route path="/my-assessments" element={<Navigate to="/" replace />} />
-        <Route path="/homework" element={<Navigate to="/" replace />} />
+          {/* TODO: Add more routes */}
+          <Route path="/patients" element={<Navigate to="/" replace />} />
+          <Route path="/assessments" element={<Navigate to="/" replace />} />
+          <Route path="/sessions" element={<Navigate to="/" replace />} />
+          <Route path="/settings" element={<Navigate to="/" replace />} />
+          <Route path="/my-assessments" element={<Navigate to="/" replace />} />
+          <Route path="/homework" element={<Navigate to="/" replace />} />
 
-        {/* Catch all */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+          {/* Catch all */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+    </div>
   )
 }

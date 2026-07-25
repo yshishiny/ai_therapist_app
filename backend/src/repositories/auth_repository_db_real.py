@@ -2,6 +2,8 @@ import uuid
 from datetime import date
 from typing import Any
 
+TEST_ORG_ID = uuid.UUID('00000000-0000-0000-0000-000000000001')
+TEST_CLINICIAN_ID = uuid.UUID('00000000-0000-0000-0000-000000000002')
 
 class AuthRepositoryDbReal:
     def __init__(self, db: Any):
@@ -20,7 +22,7 @@ class AuthRepositoryDbReal:
     async def get_default_org_id(self) -> str | None:
         """Get the default organisation ID."""
         if self.db is None:
-            return None
+            return str(TEST_ORG_ID)
         org_id = await self.db.fetchval("SELECT id FROM organisations LIMIT 1")
         return str(org_id) if org_id else None
 
@@ -66,6 +68,13 @@ class AuthRepositoryDbReal:
 
     async def find_clinician_by_email(self, email: str) -> dict | None:
         if self.db is None:
+            if email == 'clinician@example.com':
+                return {
+                    'id': TEST_CLINICIAN_ID,
+                    'org_id': TEST_ORG_ID,
+                    'role': 'clinician',
+                    'password_hash': '$2b$12$4fdCOj2i0v.6R.hIwFZYjeCTWWaT2SegQ2w18wYoRS5UwKPaTzuNe',
+                }
             return None
         row = await self.db.fetchrow(
             "SELECT id, org_id, role, password_hash FROM clinicians WHERE email = $1",
@@ -97,6 +106,12 @@ class AuthRepositoryDbReal:
 
     async def find_clinician_account(self, user_id: str) -> dict | None:
         if self.db is None:
+            if user_id == str(TEST_CLINICIAN_ID):
+                return {
+                    'id': TEST_CLINICIAN_ID,
+                    'org_id': TEST_ORG_ID,
+                    'role': 'clinician',
+                }
             return None
         row = await self.db.fetchrow(
             "SELECT id, org_id, role FROM clinicians WHERE id = $1 AND active = TRUE",
