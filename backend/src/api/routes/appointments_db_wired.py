@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, status
 
+from backend.core.dependencies_access import require_permission
 from backend.src.core.dependencies import (
     RequestContext,
     get_appointment_service,
@@ -14,6 +15,7 @@ router = APIRouter(prefix='/appointments', tags=['calendar'])
 @router.get('', response_model=list[AppointmentOut])
 async def list_appointments(
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('appointments.view'),
     service: AppointmentServiceDb = Depends(get_appointment_service),
 ):
     return await service.list_appointments(org_id=context.org_id)
@@ -23,6 +25,7 @@ async def list_appointments(
 async def create_appointment(
     body: AppointmentIn,
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('appointments.manage'),
     service: AppointmentServiceDb = Depends(get_appointment_service),
 ):
     return await service.create_appointment(
@@ -37,6 +40,7 @@ async def update_appointment_status(
     appointment_id: str,
     new_status: str,
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('appointments.manage'),
     service: AppointmentServiceDb = Depends(get_appointment_service),
 ):
     return await service.update_appointment_status(

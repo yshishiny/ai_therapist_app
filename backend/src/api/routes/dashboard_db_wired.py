@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 
+from backend.core.dependencies_access import require_permission
 from backend.src.core.dependencies import (
     RequestContext,
     get_clinician_context,
@@ -14,6 +15,7 @@ router = APIRouter(prefix='/dashboard', tags=['ops'])
 @router.get('/summary', response_model=DashboardSummaryOut)
 async def dashboard_summary(
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('dashboard.view'),
     service: DashboardServiceDb = Depends(get_dashboard_service),
 ):
     return await service.get_summary(org_id=context.org_id)

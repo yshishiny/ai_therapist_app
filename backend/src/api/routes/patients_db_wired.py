@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from backend.core.dependencies_access import require_permission
 from backend.src.core.dependencies import (
     RequestContext,
     get_clinician_context,
@@ -16,6 +17,7 @@ async def list_patients(
     limit: int = 50,
     offset: int = 0,
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('patients.view'),
     service: PatientServiceDb = Depends(get_patient_service),
 ):
     return await service.list_patients(org_id=context.org_id, limit=limit, offset=offset)
@@ -25,6 +27,7 @@ async def list_patients(
 async def get_patient(
     patient_id: str,
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('patients.view'),
     service: PatientServiceDb = Depends(get_patient_service),
 ):
     patient = await service.get_patient(patient_id=patient_id, org_id=context.org_id)
@@ -37,6 +40,7 @@ async def get_patient(
 async def create_patient(
     body: PatientCreateIn,
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('patients.manage'),
     service: PatientServiceDb = Depends(get_patient_service),
 ):
     return await service.create_patient(

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from backend.core.dependencies_access import require_permission
 from backend.src.core.dependencies import (
     RequestContext,
     get_careplan_service,
@@ -15,6 +16,7 @@ router = APIRouter(prefix='/patients/{patient_id}/careplans', tags=['careplans']
 async def list_careplans(
     patient_id: str,
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('careplans.view'),
     service: CarePlanServiceDb = Depends(get_careplan_service),
 ):
     return await service.list_careplans(patient_id=patient_id, org_id=context.org_id)
@@ -25,6 +27,7 @@ async def create_careplan(
     patient_id: str,
     body: CarePlanIn,
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('careplans.manage'),
     service: CarePlanServiceDb = Depends(get_careplan_service),
 ):
     result = await service.create_careplan(
@@ -42,6 +45,7 @@ async def create_careplan(
 async def get_active_careplan(
     patient_id: str,
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('careplans.view'),
     service: CarePlanServiceDb = Depends(get_careplan_service),
 ):
     return await service.get_active_careplan(patient_id=patient_id, org_id=context.org_id)

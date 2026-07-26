@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from backend.core.dependencies_access import require_permission
 from backend.src.core.dependencies import (
     RequestContext,
     get_assessment_service,
@@ -15,6 +16,7 @@ router = APIRouter(tags=['assessments'])
 async def list_assessments(
     patient_id: str,
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('assessments.view'),
     service: AssessmentServiceDb = Depends(get_assessment_service),
 ):
     return await service.list_assessments(patient_id=patient_id, org_id=context.org_id)
@@ -25,6 +27,7 @@ async def submit_assessment(
     patient_id: str,
     body: SubmitAssessmentIn,
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('assessments.assign'),
     service: AssessmentServiceDb = Depends(get_assessment_service),
 ):
     result = await service.submit_assessment(
@@ -41,6 +44,7 @@ async def submit_assessment(
 @router.get('/assessments/templates')
 async def list_assessment_templates(
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('assessments.view'),
     service: AssessmentServiceDb = Depends(get_assessment_service),
 ):
     return await service.list_templates()

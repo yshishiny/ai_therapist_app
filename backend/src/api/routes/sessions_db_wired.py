@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from backend.core.dependencies_access import require_permission
 from backend.src.core.dependencies import (
     RequestContext,
     get_clinician_context,
@@ -15,6 +16,7 @@ router = APIRouter(prefix='/patients/{patient_id}/sessions', tags=['sessions'])
 async def list_sessions(
     patient_id: str,
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('sessions.view'),
     service: SessionServiceDb = Depends(get_session_service),
 ):
     return await service.list_sessions(patient_id=patient_id, org_id=context.org_id)
@@ -25,6 +27,7 @@ async def create_session(
     patient_id: str,
     body: SessionNoteIn,
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('sessions.manage'),
     service: SessionServiceDb = Depends(get_session_service),
 ):
     result = await service.create_session(patient_id=patient_id, body=body, org_id=context.org_id)

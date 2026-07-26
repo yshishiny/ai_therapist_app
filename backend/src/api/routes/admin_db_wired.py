@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from backend.auth import Role
+from backend.core.dependencies_access import require_permission
 from backend.src.core.dependencies import (
     RequestContext,
     get_admin_service,
@@ -27,6 +28,7 @@ def _require_admin(context: RequestContext) -> None:
 @router.get('/resources', response_model=list[ResourceOut])
 async def list_resources(
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('content_library.view'),
     service: AdminServiceDb = Depends(get_admin_service),
 ):
     return await service.list_resources(org_id=context.org_id)
@@ -35,6 +37,7 @@ async def list_resources(
 @router.get('/contacts', response_model=list[ContactOut])
 async def list_contacts(
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('content_library.view'),
     service: AdminServiceDb = Depends(get_admin_service),
 ):
     return await service.list_contacts(org_id=context.org_id)
@@ -44,6 +47,7 @@ async def list_contacts(
 async def create_resource(
     body: ResourceIn,
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('admin_content.manage'),
     service: AdminServiceDb = Depends(get_admin_service),
 ):
     _require_admin(context)
@@ -58,6 +62,7 @@ async def create_resource(
 async def create_contact(
     body: ContactIn,
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('admin_content.manage'),
     service: AdminServiceDb = Depends(get_admin_service),
 ):
     _require_admin(context)
@@ -68,6 +73,7 @@ async def create_contact(
 async def list_assessment_questions(
     assessment_id: str,
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('assessments.view'),
     service: AdminServiceDb = Depends(get_admin_service),
 ):
     return await service.list_assessment_questions(
@@ -81,6 +87,7 @@ async def create_assessment_question(
     assessment_id: str,
     body: AssessmentQuestionIn,
     context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('admin_content.manage'),
     service: AdminServiceDb = Depends(get_admin_service),
 ):
     _require_admin(context)
