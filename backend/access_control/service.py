@@ -1,6 +1,35 @@
 from __future__ import annotations
 
+import json
 from typing import Any
+
+
+async def write_audit_log(
+    db,
+    *,
+    org_id: str,
+    actor_user_id: str | None,
+    action: str,
+    entity_type: str,
+    entity_id: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    """Record an admin action. Used by assessment_admin routes, which log by
+    CRUD action (CREATE/UPDATE) rather than a free-form event_type."""
+    await db.execute(
+        """
+        INSERT INTO audit_log (
+            org_id, actor_user_id, action, event_type, entity_type, entity_id, metadata
+        )
+        VALUES ($1, $2, $3, $3, $4, $5, $6::jsonb)
+        """,
+        org_id,
+        actor_user_id,
+        action,
+        entity_type,
+        entity_id,
+        json.dumps(metadata or {}, default=str),
+    )
 
 
 def _row_to_dict(row) -> dict[str, Any]:

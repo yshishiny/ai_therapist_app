@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from access_control.schemas import (
+from backend.access_control.schemas import (
     AuditEventOut,
     ClinicianGroupCreateIn,
     ClinicianGroupMemberIn,
@@ -13,10 +13,10 @@ from access_control.schemas import (
     UserPermissionOverrideIn,
     UserPermissionOverrideOut,
 )
-from access_control.service import AccessControlService
-from auth import CurrentUser, Role, require_role
-from core.audit import write_audit_event
-from core.dependencies_access import get_db
+from backend.access_control.service import AccessControlService
+from backend.auth import CurrentUser, Role, require_role
+from backend.core.audit import write_audit_event
+from backend.core.dependencies_access import get_db
 
 router = APIRouter(prefix="/admin", tags=["access-control"])
 

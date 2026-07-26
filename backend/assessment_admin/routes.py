@@ -7,17 +7,17 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, status
 
-from access_control.service import write_audit_log
-from assessment_admin.schemas import (
+from backend.access_control.service import write_audit_log
+from backend.assessment_admin.schemas import (
     AssessmentCatalogCreateIn,
     AssessmentCatalogOut,
     AssessmentCatalogUpdateIn,
     AssessmentVersionCreateIn,
     AssessmentVersionOut,
 )
-from assessment_admin.service import catalog_row_to_dict, version_row_to_dict
-from auth import Role, TokenPayload, require_role
-from core.dependencies_access import DB
+from backend.assessment_admin.service import catalog_row_to_dict, version_row_to_dict
+from backend.auth import Role, TokenPayload, require_role
+from backend.core.dependencies_access import DB
 
 
 CatalogViewer = Annotated[

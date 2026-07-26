@@ -1,13 +1,19 @@
 from __future__ import annotations
 
+from typing import Annotated
+
+import asyncpg
 from fastapi import Depends, HTTPException, Request, status
 
-from access_control.service import AccessControlService
-from auth import CurrentUser
+from backend.access_control.service import AccessControlService
+from backend.auth import CurrentUser
 
 
-async def get_db(request: Request):
+async def get_db(request: Request) -> asyncpg.Pool | None:
     return request.app.state.db
+
+
+DB = Annotated[asyncpg.Pool, Depends(get_db)]
 
 
 def require_permission(permission_key: str):

@@ -15,6 +15,8 @@ from backend.src.api.routes.admin_db_wired import router as admin_router
 from backend.src.api.routes.patient_portal_db_wired import router as portal_router
 from backend.src.api.routes.ai_reporting_db_wired import router as ai_router
 from backend.src.core.db import db_lifespan
+from backend.access_control.routes import router as access_control_router
+from backend.assessment_admin.routes import router as assessment_admin_router
 
 app = FastAPI(
     title="AI Therapist API Modular Consolidated",
@@ -119,6 +121,8 @@ app.include_router(dashboard_router)
 app.include_router(admin_router)
 app.include_router(portal_router)
 app.include_router(ai_router)
+app.include_router(access_control_router)
+app.include_router(assessment_admin_router)
 
 @app.get('/health')
 async def health():
