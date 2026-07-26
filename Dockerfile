@@ -58,13 +58,15 @@ EOF
 COPY --from=builder /build/dist /usr/share/nginx/html/
 
 # Verify dist files exist and are not empty
-RUN if [ -z "$(ls -A /usr/share/nginx/html/)" ]; then \
-      echo "ERROR: dist directory is empty!"; \
-      ls -la /usr/share/nginx/html/; \
+RUN echo "📁 Checking /usr/share/nginx/html contents:" && \
+    ls -lah /usr/share/nginx/html/ && \
+    if [ -f /usr/share/nginx/html/index.html ]; then \
+      echo "✓ index.html found"; \
+      head -5 /usr/share/nginx/html/index.html; \
+    else \
+      echo "❌ ERROR: index.html not found!"; \
       exit 1; \
-    fi && \
-    echo "✓ Dist files copied successfully" && \
-    ls -la /usr/share/nginx/html/ | head -10
+    fi
 
 EXPOSE 3000
 
