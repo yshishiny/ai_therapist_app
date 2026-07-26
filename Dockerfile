@@ -11,6 +11,7 @@ COPY portal/ .
 ENV VITE_API_URL=https://ai-therapist-backend-827557836856.us-central1.run.app
 ENV VITE_APP_NAME="AI Therapist Portal"
 ENV VITE_ACCESS_TOKEN_TTL_MINUTES=30
+ENV VITE_GOOGLE_CLIENT_ID=827557836856-7rvgsjntvrca29n7slj6lmhat53cpefg.apps.googleusercontent.com
 
 RUN npm run build
 
