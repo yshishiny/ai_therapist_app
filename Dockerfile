@@ -7,7 +7,7 @@ WORKDIR /build
 COPY portal/package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm ci --prefer-offline --no-audit
 
 # Copy source
 COPY portal/ .
@@ -18,7 +18,7 @@ ENV VITE_APP_NAME="AI Therapist Portal"
 ENV VITE_ACCESS_TOKEN_TTL_MINUTES=30
 ENV NODE_ENV=production
 
-RUN npm run build
+RUN npm run build && echo "✓ Build successful" && ls -la dist/ || (echo "✗ Build failed" && exit 1)
 
 # Runtime stage - use nginx
 FROM nginx:alpine
@@ -55,12 +55,19 @@ EOF
 # Copy built files from builder
 COPY --from=builder /build/dist /usr/share/nginx/html/
 
-# Verify dist files exist
-RUN ls -la /usr/share/nginx/html/ || (echo "ERROR: dist files not found!" && exit 1)
+# Verify dist files exist and are not empty
+RUN if [ -z "$(ls -A /usr/share/nginx/html/)" ]; then \
+      echo "ERROR: dist directory is empty!"; \
+      ls -la /usr/share/nginx/html/; \
+      exit 1; \
+    fi && \
+    echo "✓ Dist files copied successfully" && \
+    ls -la /usr/share/nginx/html/ | head -10
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
+# More lenient healthcheck: gives 30s for nginx to start, checks every 5s
+HEALTHCHECK --interval=5s --timeout=5s --start-period=30s --retries=5 \
     CMD wget --quiet --tries=1 --spider http://localhost:3000/ || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]
