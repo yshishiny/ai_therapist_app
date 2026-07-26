@@ -21,10 +21,11 @@ async def write_audit_log(
         INSERT INTO audit_log (
             org_id, actor_user_id, action, event_type, entity_type, entity_id, metadata
         )
-        VALUES ($1, $2, $3, $3, $4, $5, $6::jsonb)
+        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
         """,
         org_id,
         actor_user_id,
+        action,
         action,
         entity_type,
         entity_id,
@@ -40,6 +41,15 @@ def _row_to_dict(row) -> dict[str, Any]:
     if hasattr(row, "keys"):
         return {key: row[key] for key in row.keys()}
     return dict(row)
+
+
+def _audit_row_to_dict(row) -> dict[str, Any]:
+    """asyncpg returns JSONB columns as raw strings (no codec registered on
+    this pool), so decode metadata before handing the row to AuditEventOut."""
+    data = _row_to_dict(row)
+    if isinstance(data.get("metadata"), str):
+        data["metadata"] = json.loads(data["metadata"]) if data["metadata"] else {}
+    return data
 
 
 class AccessControlService:
@@ -227,7 +237,7 @@ class AccessControlService:
             limit,
             offset,
         )
-        return [_row_to_dict(row) for row in rows]
+        return [_audit_row_to_dict(row) for row in rows]
 
     async def get_audit_event(
         self,
@@ -245,4 +255,4 @@ class AccessControlService:
             org_id,
             event_id,
         )
-        return _row_to_dict(row) if row else None
+        return _audit_row_to_dict(row) if row else None
