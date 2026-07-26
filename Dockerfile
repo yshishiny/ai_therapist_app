@@ -22,20 +22,27 @@ RUN apk add --no-cache curl
 COPY --from=builder /build/dist /usr/share/nginx/html/
 COPY public /usr/share/nginx/html/
 
-# Nginx config for SPA routing
-RUN echo 'server {' > /etc/nginx/conf.d/default.conf && \
-    echo '  listen 3000;' >> /etc/nginx/conf.d/default.conf && \
-    echo '  server_name _;' >> /etc/nginx/conf.d/default.conf && \
-    echo '  root /usr/share/nginx/html;' >> /etc/nginx/conf.d/default.conf && \
-    echo '  index index.html index.htm;' >> /etc/nginx/conf.d/default.conf && \
-    echo '  location / { try_files $uri $uri/ /index.html; }' >> /etc/nginx/conf.d/default.conf && \
-    echo '  location ~* \.html?$ { add_header Cache-Control "no-cache, no-store, must-revalidate" always; }' >> /etc/nginx/conf.d/default.conf && \
-    echo '  location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ { expires 1y; add_header Cache-Control "public, immutable" always; }' >> /etc/nginx/conf.d/default.conf && \
-    echo '}' >> /etc/nginx/conf.d/default.conf
+# Nginx config template for SPA routing (uses $PORT at runtime for Cloud Run compatibility)
+RUN echo 'server {' > /etc/nginx/conf.d/default.conf.template && \
+    echo '  listen PORT_PLACEHOLDER;' >> /etc/nginx/conf.d/default.conf.template && \
+    echo '  server_name _;' >> /etc/nginx/conf.d/default.conf.template && \
+    echo '  root /usr/share/nginx/html;' >> /etc/nginx/conf.d/default.conf.template && \
+    echo '  index index.html index.htm;' >> /etc/nginx/conf.d/default.conf.template && \
+    echo '  location / { try_files $uri $uri/ /index.html; }' >> /etc/nginx/conf.d/default.conf.template && \
+    echo '  location ~* \.html?$ { add_header Cache-Control "no-cache, no-store, must-revalidate" always; }' >> /etc/nginx/conf.d/default.conf.template && \
+    echo '  location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ { expires 1y; add_header Cache-Control "public, immutable" always; }' >> /etc/nginx/conf.d/default.conf.template && \
+    echo '}' >> /etc/nginx/conf.d/default.conf.template
+
+# Entrypoint script: substitute $PORT (Cloud Run sets this; defaults to 3000 for local/Railway use)
+RUN echo '#!/bin/sh' > /docker-entrypoint.d/40-substitute-port.sh && \
+    echo 'PORT="${PORT:-3000}"' >> /docker-entrypoint.d/40-substitute-port.sh && \
+    echo 'sed "s/PORT_PLACEHOLDER/$PORT/" /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf' >> /docker-entrypoint.d/40-substitute-port.sh && \
+    chmod +x /docker-entrypoint.d/40-substitute-port.sh
 
 EXPOSE 3000
+EXPOSE 8080
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl -sf http://localhost:3000/ || exit 1
+    CMD curl -sf http://localhost:${PORT:-3000}/ || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]
