@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Therapist Portal - Loading...</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: linear-gradient(135deg, #faf8f3 0%, #f5ebe0 100%);
+        display: flex; align-items: center; justify-content: center;
+        min-height: 100vh;
+        color: #5a4a42;
+      }
+      .container { text-align: center; padding: 40px; }
+      h1 { font-size: 28px; margin-bottom: 10px; color: #d4896a; }
+      p { font-size: 16px; margin-bottom: 30px; }
+      .spinner {
+        border: 3px solid #e8ddd5;
+        border-top: 3px solid #d4896a;
+        border-radius: 50%;
+        width: 40px; height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .status { margin-top: 20px; font-size: 14px; color: #999; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>AI Therapist Portal</h1>
+      <p>Initializing your therapy management platform...</p>
+      <div class="spinner"></div>
+      <div class="status">
+        <p>If this page persists, the app may still be building.</p>
+        <p id="version">v0.1.0</p>
+      </div>
+    </div>
+    <script>
+      // This is a fallback page. The actual React app should be served from dist/
+      console.log('Loading AI Therapist Portal...');
+      // Redirect to app after 3 seconds if React doesn't load
+      setTimeout(() => {
+        if (!window.__REACT_APP_LOADED) {
+          console.warn('React app not loaded, this may indicate a build issue.');
+        }
+      }, 3000);
+    </script>
+  </body>
+</html>

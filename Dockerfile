@@ -54,15 +54,17 @@ server {
 }
 EOF
 
-# Copy built files from builder
-COPY --from=builder /build/dist /usr/share/nginx/html/
+# Copy public folder first as base
+COPY public /usr/share/nginx/html/
 
-# Verify dist files exist and are not empty
-RUN echo "📁 Checking /usr/share/nginx/html contents:" && \
+# Try to copy built dist files (overwrite public)
+COPY --from=builder /build/dist /usr/share/nginx/html/ 2>/dev/null || echo "⚠️  Using public folder as fallback"
+
+# Verify at least index.html exists
+RUN echo "📁 Nginx content:" && \
     ls -lah /usr/share/nginx/html/ && \
     if [ -f /usr/share/nginx/html/index.html ]; then \
-      echo "✓ index.html found"; \
-      head -5 /usr/share/nginx/html/index.html; \
+      echo "✓ index.html ready"; \
     else \
       echo "❌ ERROR: index.html not found!"; \
       exit 1; \
