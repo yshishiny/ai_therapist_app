@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 
+const GOOGLE_CLIENT_ID = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID as string | undefined
+
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { login, isLoading } = useAuthStore()
+  const { login, loginWithGoogle, isLoading } = useAuthStore()
+  const googleButtonRef = useRef<HTMLDivElement>(null)
 
   const [formData, setFormData] = useState({
     email: '',
@@ -29,6 +32,32 @@ export default function LoginPage() {
       setError(err.response?.data?.detail || 'Invalid credentials')
     }
   }
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return
+
+    const google = (window as any).google
+    if (!google?.accounts?.id || !googleButtonRef.current) return
+
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: async (response: { credential: string }) => {
+        setError(null)
+        try {
+          await loginWithGoogle(response.credential)
+          navigate('/')
+        } catch (err: any) {
+          setError(err.response?.data?.detail || 'Google sign-in failed')
+        }
+      },
+    })
+
+    google.accounts.id.renderButton(googleButtonRef.current, {
+      theme: 'outline',
+      size: 'large',
+      width: 320,
+    })
+  }, [loginWithGoogle, navigate])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -87,6 +116,19 @@ export default function LoginPage() {
             {isLoading ? 'Logging in...' : 'Login'}
           </button>
         </form>
+
+        {GOOGLE_CLIENT_ID && (
+          <>
+            <div className="flex items-center my-6">
+              <div className="flex-grow border-t border-gray-300" />
+              <span className="mx-4 text-xs font-semibold text-gray-400 uppercase">Or</span>
+              <div className="flex-grow border-t border-gray-300" />
+            </div>
+            <div className="flex justify-center">
+              <div ref={googleButtonRef} />
+            </div>
+          </>
+        )}
 
         <p className="text-center text-gray-600 text-sm mt-6">
           For demo: use any email and password

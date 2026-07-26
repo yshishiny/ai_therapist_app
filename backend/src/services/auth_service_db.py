@@ -1,10 +1,21 @@
+import os
 from datetime import date
 
 from fastapi import HTTPException, status
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 
 from backend.auth import Role, TokenPair, _decode, create_token_pair, hash_password, verify_password
 from backend.src.repositories.auth_repository_db_real import AuthRepositoryDbReal
 from backend.src.schemas.auth import LoginRequest, PatientRegisterRequest, RefreshRequest
+
+# Comma-separated list of Google-account emails allowed to sign in / be
+# auto-provisioned as admins. Set via env var; defaults to the platform owner.
+_ALLOWED_GOOGLE_EMAILS = {
+    e.strip().lower()
+    for e in os.getenv("GOOGLE_SIGNIN_ALLOWED_EMAILS", "shishiny@gmail.com").split(",")
+    if e.strip()
+}
 
 
 class AuthServiceDb:
@@ -75,6 +86,44 @@ class AuthServiceDb:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials.",
+        )
+
+    async def login_with_google(self, google_id_token_str: str) -> TokenPair:
+        client_id = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
+        if not client_id:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Google Sign-In is not configured on the server.",
+            )
+
+        try:
+            claims = google_id_token.verify_oauth2_token(
+                google_id_token_str, google_requests.Request(), client_id,
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid Google sign-in token.",
+            ) from exc
+
+        email = (claims.get("email") or "").lower()
+        if not email or not claims.get("email_verified"):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Google account email is not verified.",
+            )
+
+        if email not in _ALLOWED_GOOGLE_EMAILS:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This Google account is not authorized for this application.",
+            )
+
+        clinician = await self.repository.find_or_create_admin_clinician(email)
+        return create_token_pair(
+            user_id=str(clinician["id"]),
+            role=Role(clinician["role"]),
+            org_id=str(clinician["org_id"]),
         )
 
     async def refresh_lookup(self, body: RefreshRequest) -> TokenPair:

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Response, status
 
 from backend.auth import CurrentUser, TokenPair, revoke_token
 from backend.src.core.dependencies import get_auth_service
-from backend.src.schemas.auth import LoginRequest, PatientRegisterRequest, RefreshRequest
+from backend.src.schemas.auth import GoogleLoginRequest, LoginRequest, PatientRegisterRequest, RefreshRequest
 from backend.src.services.auth_service_db import AuthServiceDb
 
 router = APIRouter(prefix='/auth', tags=['auth'])
@@ -22,6 +22,14 @@ async def login(
     service: AuthServiceDb = Depends(get_auth_service),
 ):
     return await service.login_lookup(body)
+
+
+@router.post('/google', response_model=TokenPair)
+async def login_with_google(
+    body: GoogleLoginRequest,
+    service: AuthServiceDb = Depends(get_auth_service),
+):
+    return await service.login_with_google(body.id_token)
 
 
 @router.post('/refresh', response_model=TokenPair)

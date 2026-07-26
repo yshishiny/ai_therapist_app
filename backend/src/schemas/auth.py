@@ -10,6 +10,10 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class GoogleLoginRequest(BaseModel):
+    id_token: str
+
+
 class PatientRegisterRequest(BaseModel):
     full_name: str
     email: EmailStr

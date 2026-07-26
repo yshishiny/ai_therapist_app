@@ -104,6 +104,46 @@ class AuthRepositoryDbReal:
         )
         return dict(row) if row else None
 
+    async def find_or_create_admin_clinician(self, email: str) -> dict:
+        """Look up a clinician by email; if absent, provision them as an admin
+        in the default organisation. Used for Google Sign-In of pre-approved
+        admin addresses (there is no password for these accounts)."""
+        existing = await self.find_clinician_by_email(email)
+        if existing:
+            return existing
+
+        if self.db is None:
+            return {
+                'id': TEST_CLINICIAN_ID,
+                'org_id': TEST_ORG_ID,
+                'role': 'admin',
+                'password_hash': '',
+            }
+
+        org_id = await self.get_default_org_id()
+        if org_id is None:
+            org_uuid = uuid.uuid4()
+            await self.db.execute(
+                "INSERT INTO organisations (id, name) VALUES ($1, $2)",
+                org_uuid, 'Default Organisation',
+            )
+            org_id = str(org_uuid)
+
+        clinician_id = uuid.uuid4()
+        await self.db.execute(
+            """INSERT INTO clinicians (id, org_id, email, password_hash, role, active)
+               VALUES ($1, $2, $3, '', 'admin', TRUE)
+               ON CONFLICT (email) DO NOTHING""",
+            clinician_id,
+            uuid.UUID(org_id),
+            email,
+        )
+        row = await self.db.fetchrow(
+            "SELECT id, org_id, role, password_hash FROM clinicians WHERE email = $1",
+            email,
+        )
+        return dict(row)
+
     async def find_clinician_account(self, user_id: str) -> dict | None:
         if self.db is None:
             if user_id == str(TEST_CLINICIAN_ID):

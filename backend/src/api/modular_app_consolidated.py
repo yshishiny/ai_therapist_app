@@ -1,4 +1,7 @@
+import os
+
 from fastapi import FastAPI, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.src.api.routes.auth_db_wired import router as auth_router
 from backend.src.api.routes.patients_db_wired import router as patients_router
@@ -17,6 +20,20 @@ app = FastAPI(
     title="AI Therapist API Modular Consolidated",
     version="0.8.0",
     lifespan=db_lifespan,
+)
+
+_allowed_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_allowed_origins or ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Middleware (Order: Outer to Inner)

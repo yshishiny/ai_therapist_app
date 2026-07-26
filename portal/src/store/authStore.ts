@@ -11,6 +11,7 @@ import {
 
 interface AuthStore extends AuthState {
   login: (email: string, password: string) => Promise<void>
+  loginWithGoogle: (idToken: string) => Promise<void>
   logout: () => Promise<void>
   checkAuth: () => void
   hasRole: (role: UserRole | UserRole[]) => boolean
@@ -36,6 +37,26 @@ export const useAuthStore = create<AuthStore>((set, get) => {
       set({ isLoading: true })
       try {
         const tokens = await apiClient.login(email, password)
+        saveTokens(tokens.access_token, tokens.refresh_token)
+
+        const decoded = decodeToken(tokens.access_token) as TokenPayload
+        set({
+          user: decoded,
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          isAuthenticated: true,
+          isLoading: false,
+        })
+      } catch (error) {
+        set({ isLoading: false })
+        throw error
+      }
+    },
+
+    loginWithGoogle: async (idToken: string) => {
+      set({ isLoading: true })
+      try {
+        const tokens = await apiClient.loginWithGoogle(idToken)
         saveTokens(tokens.access_token, tokens.refresh_token)
 
         const decoded = decodeToken(tokens.access_token) as TokenPayload

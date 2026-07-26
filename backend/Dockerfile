@@ -16,8 +16,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend ./backend
 COPY assessments ./assessments
 
-# Expose port (default 8000, overridden by Railway)
+# Expose port (default 8000, overridden by Cloud Run/Railway)
 EXPOSE 8000
 
-# Run application
-CMD ["python", "backend/app.py"]
+# Run as a module (not a script) so `from backend.src...` imports resolve
+# against /app on sys.path, rather than /app/backend.
+CMD ["python", "-m", "backend.app"]
