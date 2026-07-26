@@ -58,7 +58,7 @@ EOF
 COPY public /usr/share/nginx/html/
 
 # Try to copy built dist files (overwrite public)
-COPY --from=builder /build/dist /usr/share/nginx/html/ 2>/dev/null || echo "Using public folder as fallback"
+COPY --from=builder /build/dist /usr/share/nginx/html/
 
 # Verify at least index.html exists
 RUN echo "Nginx content:" && \
