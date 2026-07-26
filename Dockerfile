@@ -8,7 +8,7 @@ RUN npm ci --prefer-offline --no-audit
 
 COPY portal/ .
 
-ENV VITE_API_URL=https://service-production.up.railway.app
+ENV VITE_API_URL=https://ai-therapist-backend-827557836856.us-central1.run.app
 ENV VITE_APP_NAME="AI Therapist Portal"
 ENV VITE_ACCESS_TOKEN_TTL_MINUTES=30
 
