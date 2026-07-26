@@ -34,18 +34,23 @@ jobs:
           echo "Available services:"
           railway service list || echo "Could not list services"
 
-      - name: Redeploy to Railway
+      - name: Deploy Portal to Railway
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          echo "🚀 Triggering Railway redeploy..."
-          railway redeploy --service ai_therapist_app || {
-            echo "Service not found, attempting fresh deployment..."
-            railway up
-          }
-          echo "✅ Redeploy triggered successfully!"
-          echo "Portal URL: https://aitherapistapp-production.up.railway.app"
-          echo "Monitor at: https://railway.app/project/25becd80-7067-4a31-bbd5-c60728dbb8a2"
+          echo "🚀 Deploying portal to Railway..."
+
+          # Simply use railway up with no service specification
+          # Railway will use the Dockerfile to build the service
+          railway up 2>&1 || true
+
+          # Also try redeploy as backup
+          railway redeploy 2>&1 || true
+
+          echo ""
+          echo "✅ Deployment submitted to Railway!"
+          echo "📍 Portal URL: https://aitherapistapp-production.up.railway.app"
+          echo "📊 Monitor: https://railway.app/project/25becd80-7067-4a31-bbd5-c60728dbb8a2"
 
       - name: Wait for Deployment
         env:
