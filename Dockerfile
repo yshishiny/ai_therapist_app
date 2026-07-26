@@ -16,12 +16,14 @@ COPY portal/ .
 ENV VITE_API_URL=https://aitherapistapp-production.up.railway.app
 ENV VITE_APP_NAME="AI Therapist Portal"
 ENV VITE_ACCESS_TOKEN_TTL_MINUTES=30
-ENV NODE_ENV=production
 
 RUN npm run build && echo "✓ Build successful" && ls -la dist/ || (echo "✗ Build failed" && exit 1)
 
 # Runtime stage - use nginx
 FROM nginx:alpine
+
+# Install curl for healthcheck
+RUN apk add --no-cache curl
 
 # Remove default nginx config
 RUN rm /etc/nginx/conf.d/default.conf
@@ -68,6 +70,6 @@ EXPOSE 3000
 
 # More lenient healthcheck: gives 30s for nginx to start, checks every 5s
 HEALTHCHECK --interval=5s --timeout=5s --start-period=30s --retries=5 \
-    CMD wget --quiet --tries=1 --spider http://localhost:3000/ || exit 1
+    CMD curl -sf http://localhost:3000/index.html > /dev/null || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

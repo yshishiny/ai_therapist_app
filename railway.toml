@@ -16,4 +16,3 @@ restartPolicyMaxRetries = 3
 VITE_API_URL = "https://aitherapistapp-production.up.railway.app"
 VITE_APP_NAME = "AI Therapist Portal"
 VITE_ACCESS_TOKEN_TTL_MINUTES = "30"
-NODE_ENV = "production"
