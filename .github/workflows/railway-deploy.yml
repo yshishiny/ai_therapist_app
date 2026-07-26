@@ -39,9 +39,9 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           echo "🚀 Triggering Railway redeploy..."
-          railway redeploy --service ai_therapist_app --detach 2>&1 || {
-            echo "Redeploy failed, trying alternative method..."
-            railway up --service ai_therapist_app --detach
+          railway redeploy --service ai_therapist_app || {
+            echo "Service not found, attempting fresh deployment..."
+            railway up
           }
           echo "✅ Redeploy triggered successfully!"
           echo "Portal URL: https://aitherapistapp-production.up.railway.app"
