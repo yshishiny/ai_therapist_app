@@ -13,7 +13,7 @@ RUN npm ci --prefer-offline --no-audit
 COPY portal/ .
 
 # Build with environment variables
-ENV VITE_API_URL=https://aitherapistapp-production.up.railway.app
+ENV VITE_API_URL=https://service-production.up.railway.app
 ENV VITE_APP_NAME="AI Therapist Portal"
 ENV VITE_ACCESS_TOKEN_TTL_MINUTES=30
 

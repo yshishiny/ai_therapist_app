@@ -13,6 +13,6 @@ restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
 
 [env]
-VITE_API_URL = "https://aitherapistapp-production.up.railway.app"
+VITE_API_URL = "https://service-production.up.railway.app"
 VITE_APP_NAME = "AI Therapist Portal"
 VITE_ACCESS_TOKEN_TTL_MINUTES = "30"
