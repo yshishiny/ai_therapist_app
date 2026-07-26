@@ -19,8 +19,8 @@ FROM nginx:alpine
 
 RUN apk add --no-cache curl
 
-COPY --from=builder /build/dist /usr/share/nginx/html/
 COPY public /usr/share/nginx/html/
+COPY --from=builder /build/dist /usr/share/nginx/html/
 
 # Nginx config template for SPA routing (uses $PORT at runtime for Cloud Run compatibility)
 RUN echo 'server {' > /etc/nginx/conf.d/default.conf.template && \
