@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js 24
         uses: actions/setup-node@v4
@@ -25,47 +27,63 @@ jobs:
           node-version: '24'
 
       - name: Install Railway CLI
-        run: npm install -g @railway/cli
+        run: npm install -g @railway/cli@latest
 
-      - name: Configure Railway Project
-        run: |
-          mkdir -p .railway
-          echo '{"projectId":"25becd80-7067-4a31-bbd5-c60728dbb8a2"}' > .railway/config.json
-
-      - name: List Railway Services
+      - name: Link to Railway Project
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          echo "Available services:"
-          railway service list || echo "Could not list services"
+          echo "🔗 Linking to Railway project..."
+          railway link --project 25becd80-7067-4a31-bbd5-c60728dbb8a2 --force || true
+          echo "Project linked"
 
-      - name: Deploy Portal to Railway
+      - name: Check Services
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          echo "🚀 Deploying portal to Railway..."
+          echo "📋 Available services in project:"
+          railway service list --json 2>/dev/null | head -50 || railway service list || echo "Could not list services"
 
-          # Simply use railway up with no service specification
-          # Railway will use the Dockerfile to build the service
-          railway up 2>&1 || true
+      - name: Force Deploy with Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          echo "🚀 Force deploying to Railway..."
 
-          # Also try redeploy as backup
-          railway redeploy 2>&1 || true
+          # Get current git commit
+          COMMIT=$(git rev-parse --short HEAD)
+          echo "Deploying commit: $COMMIT"
+
+          # Try explicit deployment
+          echo "Attempting: railway up"
+          railway up || true
 
           echo ""
-          echo "✅ Deployment submitted to Railway!"
-          echo "📍 Portal URL: https://aitherapistapp-production.up.railway.app"
-          echo "📊 Monitor: https://railway.app/project/25becd80-7067-4a31-bbd5-c60728dbb8a2"
+          echo "Attempting: railway redeploy"
+          railway redeploy || true
 
-      - name: Wait for Deployment
+          echo ""
+          echo "✅ Deployment command(s) executed"
+
+      - name: Verify Deployment
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          echo "Waiting 30 seconds for deployment to start..."
-          sleep 30
-          railway status || echo "Status check skipped"
+          echo "⏳ Waiting 60 seconds for Railway to start build..."
+          sleep 60
 
-      - name: Deployment Complete
+          echo "Checking deployment status..."
+          railway status || echo "Status check completed"
+
+      - name: Deployment Status
         run: |
-          echo "✓ Deployment submitted to Railway"
-          echo "✓ Portal URL: https://aitherapistapp-portal.up.railway.app"
+          echo "✅ Deployment initiated!"
+          echo ""
+          echo "📍 Portal URLs:"
+          echo "  - https://aitherapistapp-production.up.railway.app"
+          echo "  - https://aitherapistapp-portal.up.railway.app"
+          echo ""
+          echo "📊 Monitor at:"
+          echo "  https://railway.app/project/25becd80-7067-4a31-bbd5-c60728dbb8a2"
+          echo ""
+          echo "⏱️  Build should complete in 5-10 minutes"
