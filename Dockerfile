@@ -57,22 +57,22 @@ EOF
 # Copy public folder first as base
 COPY public /usr/share/nginx/html/
 
-# Try to copy built dist files (overwrite public)
+# Copy built dist files
 COPY --from=builder /build/dist /usr/share/nginx/html/
 
 # Verify at least index.html exists
-RUN echo "Nginx content:" && \
+RUN echo "Checking nginx content..." && \
     ls -lah /usr/share/nginx/html/ && \
     if [ -f /usr/share/nginx/html/index.html ]; then \
       echo "index.html ready"; \
     else \
-      echo "ERROR: index.html not found!"; \
+      echo "ERROR: index.html not found"; \
       exit 1; \
     fi
 
 EXPOSE 3000
 
-# More lenient healthcheck: gives 30s for nginx to start, checks every 5s
+# Health check
 HEALTHCHECK --interval=5s --timeout=5s --start-period=30s --retries=5 \
     CMD curl -sf http://localhost:3000/index.html > /dev/null || exit 1
 
