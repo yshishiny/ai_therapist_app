@@ -23,7 +23,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 export function Button({ variant = 'primary', children, className = '', ...props }: ButtonProps) {
   const baseClass = 'rounded-organic-pill px-6 py-2.5 font-medium transition-colors text-sm'
   const variants = {
-    primary: 'bg-organic-accent text-orange-50 hover:bg-organic-accent-600 active:bg-organic-accent-700',
+    primary: 'bg-organic-accent text-organic-accent-100 hover:bg-organic-accent-600 active:bg-organic-accent-700',
     secondary: 'border border-organic-neutral-400 bg-transparent hover:bg-organic-neutral-100 text-organic-text',
   }
   return (
@@ -136,7 +136,7 @@ export function SegmentedControl({ options, value, onChange }: SegmentedControlP
           onClick={() => onChange(opt.value)}
           className={`px-4 py-2 rounded-organic-pill text-sm font-medium transition-colors ${
             value === opt.value
-              ? 'bg-organic-accent text-orange-50'
+              ? 'bg-organic-accent text-organic-accent-100'
               : 'text-organic-neutral-700 hover:text-organic-text'
           }`}
         >
@@ -198,7 +198,7 @@ export function Avatar({ name, size = 'md', initials }: AvatarProps) {
   }
   const initial = initials || name.split(' ').map((n) => n[0]).join('')
   return (
-    <div className={`${sizeClass[size]} rounded-full bg-gradient-accent text-orange-50 flex items-center justify-center font-semibold`}>
+    <div className={`${sizeClass[size]} rounded-full bg-gradient-accent text-organic-accent-100 flex items-center justify-center font-semibold`}>
       {initial}
     </div>
   )

@@ -87,6 +87,12 @@ class ApiClient {
         });
         return response.data;
     }
+    async loginWithGoogle(idToken) {
+        const response = await this.client.post('/auth/google', {
+            id_token: idToken,
+        });
+        return response.data;
+    }
     async logout() {
         try {
             await this.client.post('/auth/logout');

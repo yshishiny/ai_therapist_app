@@ -36,7 +36,7 @@ export default function Sidebar() {
             to={path}
             className={`flex items-center gap-3 px-4 py-3 rounded-organic-pill transition-colors ${
               location.pathname === path
-                ? 'bg-organic-accent text-orange-50 font-medium'
+                ? 'bg-organic-accent text-organic-accent-100 font-medium'
                 : 'text-organic-neutral-700 hover:bg-organic-neutral-200'
             }`}
           >

@@ -34,6 +34,25 @@ export const useAuthStore = create((set, get) => {
                 throw error;
             }
         },
+        loginWithGoogle: async (idToken) => {
+            set({ isLoading: true });
+            try {
+                const tokens = await apiClient.loginWithGoogle(idToken);
+                saveTokens(tokens.access_token, tokens.refresh_token);
+                const decoded = decodeToken(tokens.access_token);
+                set({
+                    user: decoded,
+                    accessToken: tokens.access_token,
+                    refreshToken: tokens.refresh_token,
+                    isAuthenticated: true,
+                    isLoading: false,
+                });
+            }
+            catch (error) {
+                set({ isLoading: false });
+                throw error;
+            }
+        },
         logout: async () => {
             set({ isLoading: true });
             try {

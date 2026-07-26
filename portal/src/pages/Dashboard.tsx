@@ -95,9 +95,9 @@ function AnalyticsView() {
               <p className="font-medium text-red-800 text-sm">High risk</p>
               <p className="text-xs text-red-700 mt-1">2 patients flagged for follow-up</p>
             </div>
-            <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
-              <p className="font-medium text-orange-800 text-sm">Medium risk</p>
-              <p className="text-xs text-orange-700 mt-1">5 patients in observation</p>
+            <div className="p-3 bg-organic-accent-2-100 rounded-lg border border-organic-accent-2-200">
+              <p className="font-medium text-organic-accent-2-800 text-sm">Medium risk</p>
+              <p className="text-xs text-organic-accent-2-700 mt-1">5 patients in observation</p>
             </div>
             <div className="p-3 bg-green-50 rounded-lg border border-green-200">
               <p className="font-medium text-green-800 text-sm">Stable</p>
@@ -175,13 +175,13 @@ function WelcomeView() {
       <GradientCard variant="accent" className="mb-8">
         <div className="flex justify-between items-start">
           <div>
-            <h2 className="text-3xl font-heading text-orange-50 mb-2">Good morning, Dr. Patel</h2>
-            <p className="text-orange-100 mb-4">3 alerts require attention today</p>
-            <Button variant="primary" className="bg-white text-organic-accent hover:bg-orange-50">
+            <h2 className="text-3xl font-heading text-organic-accent-100 mb-2">Good morning, Dr. Patel</h2>
+            <p className="text-organic-accent-100 mb-4">3 alerts require attention today</p>
+            <Button variant="primary" className="bg-white text-organic-accent hover:bg-organic-accent-100">
               Review alerts →
             </Button>
           </div>
-          <Zap size={48} className="text-orange-200" />
+          <Zap size={48} className="text-organic-accent-200" />
         </div>
       </GradientCard>
 
@@ -222,8 +222,8 @@ function WelcomeView() {
             <div className="p-3 bg-red-50 rounded-lg">
               <p className="text-sm font-medium text-red-800">Sarah Johnson - Suicidal ideation flagged</p>
             </div>
-            <div className="p-3 bg-orange-50 rounded-lg">
-              <p className="text-sm font-medium text-orange-800">Michael Chen - Sleep disruption worsening</p>
+            <div className="p-3 bg-organic-accent-2-100 rounded-lg">
+              <p className="text-sm font-medium text-organic-accent-2-800">Michael Chen - Sleep disruption worsening</p>
             </div>
           </div>
         </Card>
@@ -239,10 +239,10 @@ function BentoView() {
       <GradientCard variant="sage" className="md:col-span-2 md:row-span-2 p-8">
         <div className="flex justify-between items-start mb-6">
           <div>
-            <p className="text-orange-100 text-sm mb-1">PRACTICE HEALTH</p>
+            <p className="text-organic-accent-2-100 text-sm mb-1">PRACTICE HEALTH</p>
             <p className="text-5xl font-heading text-white">94%</p>
           </div>
-          <Zap size={32} className="text-orange-200" />
+          <Zap size={32} className="text-organic-accent-2-200" />
         </div>
         <svg viewBox="0 0 300 80" className="w-full h-20">
           <polyline points="10,60 40,30 70,50 100,20 130,40 160,15 190,35 220,25 250,45 280,30" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" />

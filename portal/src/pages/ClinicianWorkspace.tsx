@@ -1,502 +1,488 @@
 import { useState } from 'react'
-import { Card, StatCard, Button, Badge, ProgressBar, GradientCard, Avatar } from '../components/OrganicUI'
-import { Activity, Clipboard, Mic, Map, Plus, Clock, AlertCircle, CheckCircle2 } from 'lucide-react'
+import {
+  Brain,
+  LayoutGrid,
+  FolderOpen,
+  Mic,
+  ListChecks,
+  Search,
+  Plus,
+  AlertTriangle,
+  Calendar,
+  UsersRound,
+  FileEdit,
+  Sparkles,
+  FileText,
+  PenLine,
+  Volume2,
+  BookOpen,
+  Footprints,
+  CheckCircle2,
+  Circle,
+  Lock,
+  Check,
+} from 'lucide-react'
 
 type WorkspaceView = 'caseload' | 'chart' | 'scribe' | 'plan'
 
+const NAV_ITEMS: { view: WorkspaceView; label: string; short: string; icon: typeof LayoutGrid }[] = [
+  { view: 'caseload', label: 'Caseload', short: 'Home', icon: LayoutGrid },
+  { view: 'chart', label: 'Patient chart', short: 'Chart', icon: FolderOpen },
+  { view: 'scribe', label: 'AI Scribe', short: 'Scribe', icon: Mic },
+  { view: 'plan', label: 'Care plan', short: 'Plan', icon: ListChecks },
+]
+
+const TITLES: Record<WorkspaceView, string> = {
+  caseload: 'Good morning, Dr. Nasser',
+  chart: 'Patient chart',
+  scribe: 'AI Scribe',
+  plan: 'Care plan',
+}
+const SUBTITLES: Record<WorkspaceView, string> = {
+  caseload: 'Thursday, July 24 · 6 sessions today',
+  chart: 'Maya Okonkwo · clinical record',
+  scribe: 'Live documentation assistant',
+  plan: 'Phased treatment & homework',
+}
+
 export default function ClinicianWorkspace() {
-  const [currentView, setCurrentView] = useState<WorkspaceView>('caseload')
-  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null)
-
-  const mockPatients = [
-    {
-      id: '1',
-      name: 'Sarah Johnson',
-      status: 'Active',
-      risk: 'High',
-      phq9: 14,
-      lastSession: '2 days ago',
-      nextSession: 'Today at 2:00 PM',
-    },
-    {
-      id: '2',
-      name: 'Michael Chen',
-      status: 'Active',
-      risk: 'Medium',
-      phq9: 11,
-      lastSession: '5 days ago',
-      nextSession: 'Tomorrow at 10:00 AM',
-    },
-    {
-      id: '3',
-      name: 'Emma Davis',
-      status: 'Active',
-      risk: 'Low',
-      phq9: 5,
-      lastSession: '1 week ago',
-      nextSession: 'Friday at 3:00 PM',
-    },
-  ]
+  const [view, setView] = useState<WorkspaceView>('caseload')
+  const goToChart = () => setView('chart')
 
   return (
-    <div className="min-h-screen bg-organic-bg flex">
-      {/* Icon Rail */}
-      <IconRail currentView={currentView} onViewChange={setCurrentView} />
+    <div className="min-h-screen bg-organic-bg flex items-stretch">
+      <IconRail view={view} onChange={setView} />
 
-      {/* Main Content */}
-      <div className="flex-1 p-8">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-5xl font-heading text-organic-text mb-2">Clinician Workspace</h1>
-            <p className="text-organic-neutral-600">Manage your caseload and patient sessions</p>
+      <main className="flex-1 min-w-0 px-9 pt-8 pb-16 max-w-[1240px]">
+        <header className="flex justify-between items-end gap-5 flex-wrap mb-7">
+          <div>
+            <h1 className="text-[34px] font-heading text-organic-text mb-1">{TITLES[view]}</h1>
+            <p className="text-organic-neutral-600 text-sm">{SUBTITLES[view]}</p>
           </div>
+          <div className="flex gap-2.5 items-center">
+            <div className="flex items-center gap-2 bg-organic-surface border border-organic-neutral-300/60 rounded-organic-pill px-3.5 py-2 min-w-[190px]">
+              <Search size={16} className="text-organic-neutral-500" />
+              <span className="text-sm text-organic-neutral-500">Find patient…</span>
+            </div>
+            <button className="rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm px-[18px] py-2.5 inline-flex items-center gap-1.5 hover:bg-organic-accent-600 transition-colors">
+              <Plus size={16} /> New session
+            </button>
+          </div>
+        </header>
 
-          {currentView === 'caseload' && <CaseloadView patients={mockPatients} onSelectPatient={setSelectedPatientId} />}
-          {currentView === 'chart' && selectedPatientId && (
-            <PatientChartView patient={mockPatients.find((p) => p.id === selectedPatientId)!} />
-          )}
-          {currentView === 'scribe' && selectedPatientId && (
-            <AIScriveView patient={mockPatients.find((p) => p.id === selectedPatientId)!} />
-          )}
-          {currentView === 'plan' && selectedPatientId && (
-            <CarePlanView patient={mockPatients.find((p) => p.id === selectedPatientId)!} />
-          )}
-        </div>
-      </div>
+        {view === 'caseload' && <CaseloadView onOpenPatient={goToChart} />}
+        {view === 'chart' && <ChartView />}
+        {view === 'scribe' && <ScribeView />}
+        {view === 'plan' && <PlanView />}
+      </main>
     </div>
   )
 }
 
-// Icon Rail Navigation
-interface IconRailProps {
-  currentView: WorkspaceView
-  onViewChange: (view: WorkspaceView) => void
-}
+// ─── Icon rail ────────────────────────────────────────────────────────────
 
-function IconRail({ currentView, onViewChange }: IconRailProps) {
-  const navItems = [
-    { icon: Activity, label: 'Caseload', view: 'caseload' as WorkspaceView },
-    { icon: Clipboard, label: 'Chart', view: 'chart' as WorkspaceView },
-    { icon: Mic, label: 'Scribe', view: 'scribe' as WorkspaceView },
-    { icon: Map, label: 'Plan', view: 'plan' as WorkspaceView },
-  ]
-
+function IconRail({ view, onChange }: { view: WorkspaceView; onChange: (v: WorkspaceView) => void }) {
   return (
-    <div className="w-24 bg-organic-neutral-100 border-r border-organic-neutral-200 flex flex-col items-center py-8 gap-4">
-      {/* Brand */}
-      <div className="w-12 h-12 rounded-organic-tile bg-gradient-to-br from-organic-accent to-orange-600 flex items-center justify-center text-white font-heading text-lg mb-4">
-        🧠
+    <aside className="flex-none w-[84px] bg-organic-neutral-100 border-r border-organic-neutral-300/50 py-[22px] flex flex-col items-center gap-2 sticky top-0 h-screen">
+      <div className="w-11 h-11 rounded-organic-tile bg-organic-accent grid place-items-center text-organic-accent-100 mb-3.5">
+        <Brain size={22} />
       </div>
-
-      {/* Nav Items */}
-      <div className="flex-1 flex flex-col gap-2">
-        {navItems.map(({ icon: Icon, label, view }) => (
+      {NAV_ITEMS.map(({ view: v, label, short, icon: Icon }) => {
+        const active = v === view
+        return (
           <button
-            key={view}
-            onClick={() => onViewChange(view)}
-            className={`w-12 h-12 rounded-organic-tile flex items-center justify-center transition-all ${
-              currentView === view
-                ? 'bg-organic-accent text-orange-50'
-                : 'text-organic-neutral-600 hover:bg-organic-neutral-200'
-            }`}
+            key={v}
+            onClick={() => onChange(v)}
             title={label}
+            className={`w-[54px] h-[54px] rounded-2xl flex flex-col items-center justify-center gap-0.5 transition-colors ${
+              active ? 'bg-organic-accent text-organic-neutral-100' : 'text-organic-neutral-700 hover:bg-organic-neutral-200'
+            }`}
           >
-            <Icon size={20} />
+            <Icon size={21} />
+            <span className="text-[9px] font-semibold">{short}</span>
           </button>
-        ))}
+        )
+      })}
+      <div className="mt-auto w-10 h-10 rounded-full bg-organic-accent-2-200 grid place-items-center text-xs font-bold text-organic-accent-2-800">
+        ON
       </div>
-
-      {/* User Avatar */}
-      <Avatar name="Dr. Patel" size="sm" />
-    </div>
+    </aside>
   )
 }
 
-// Caseload View
-interface CaseloadViewProps {
-  patients: any[]
-  onSelectPatient: (id: string) => void
+// ─── Caseload ─────────────────────────────────────────────────────────────
+
+const STATS = [
+  { label: 'Today', value: '6', icon: Calendar },
+  { label: 'My patients', value: '41', icon: UsersRound },
+  { label: 'Notes due', value: '3', icon: FileEdit },
+]
+
+const RISK_STYLE: Record<string, { color: string; bg: string }> = {
+  High: { color: 'text-organic-accent-800', bg: 'bg-organic-accent-200' },
+  Med: { color: 'text-organic-accent-2-800', bg: 'bg-organic-accent-2-200' },
+  Low: { color: 'text-organic-neutral-700', bg: 'bg-organic-neutral-200' },
 }
 
-function CaseloadView({ patients, onSelectPatient }: CaseloadViewProps) {
-  return (
-    <div className="space-y-8">
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard label="Today sessions" value="6" icon={<Clock size={24} />} />
-        <StatCard label="My patients" value="41" icon={<Activity size={24} />} />
-        <StatCard label="Notes due" value="3" icon={<AlertCircle size={24} />} />
-      </div>
+const SCHEDULE = [
+  { time: '09:00', name: 'Tomas Ruiz', initials: 'TR', kind: 'Intake · in person', risk: 'Low' },
+  { time: '10:00', name: 'Maya Okonkwo', initials: 'MO', kind: 'Follow-up · video', risk: 'High' },
+  { time: '11:30', name: 'Sara Farouk', initials: 'SF', kind: 'Follow-up · video', risk: 'High' },
+  { time: '14:00', name: 'Grace Kim', initials: 'GK', kind: 'CBT session · in person', risk: 'Med' },
+]
 
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left: Today's Schedule */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <h2 className="text-2xl font-heading text-organic-text mb-4">Today's schedule</h2>
-            <div className="space-y-3">
-              {[
-                { time: '09:00', name: 'Sarah Johnson', type: 'Follow-up', risk: 'High' },
-                { time: '10:30', name: 'Michael Chen', type: 'Initial', risk: 'Medium' },
-                { time: '14:00', name: 'Emma Davis', type: 'Review', risk: 'Low' },
-                { time: '15:30', name: 'Group session', type: '4 patients', risk: 'Mixed' },
-              ].map((session, i) => (
-                <button
-                  key={i}
-                  onClick={() => onSelectPatient(patients[Math.min(i, patients.length - 1)].id)}
-                  className="p-4 bg-organic-neutral-100 rounded-lg hover:bg-organic-neutral-200 transition-colors text-left"
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-medium text-organic-text">{session.time}</p>
-                      <p className="text-sm text-organic-neutral-600 mt-1">{session.name}</p>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant="neutral">{session.type}</Badge>
-                      <p className="text-xs text-organic-neutral-600 mt-2">Risk: {session.risk}</p>
-                    </div>
-                  </div>
-                </button>
-              ))}
+const FLAGS = [
+  { name: 'Maya Okonkwo', detail: 'PHQ-9 item 9 elevated — review safety plan' },
+  { name: 'Sara Farouk', detail: 'GAD-7 rose to 19 since last week' },
+]
+
+const TODOS = ['Sign session note · D. Alvarez', 'Send GAD-7 to L. Petrova', 'Review AI summary · G. Kim']
+
+function CaseloadView({ onOpenPatient }: { onOpenPatient: () => void }) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-4">
+      <div>
+        <div className="grid grid-cols-3 gap-3.5 mb-4">
+          {STATS.map((st) => (
+            <div key={st.label} className="bg-organic-surface rounded-organic-card p-4 shadow-organic-sm">
+              <div className="flex justify-between">
+                <span className="text-xs text-organic-neutral-600">{st.label}</span>
+                <st.icon size={16} className="text-organic-accent-500" />
+              </div>
+              <div className="font-heading text-[28px] mt-1.5 text-organic-text">{st.value}</div>
             </div>
-          </Card>
+          ))}
         </div>
 
-        {/* Right: Tasks & Flags */}
-        <div className="space-y-6">
-          {/* Needs Review */}
-          <Card className="border-l-4 border-organic-accent">
-            <h3 className="text-lg font-heading text-organic-text mb-3">Needs review</h3>
-            <div className="space-y-2">
-              <div className="p-2 bg-orange-50 rounded">
-                <p className="text-sm font-medium text-orange-900">Sarah Johnson</p>
-                <p className="text-xs text-orange-700">Suicide risk flag</p>
-              </div>
-              <div className="p-2 bg-orange-50 rounded">
-                <p className="text-sm font-medium text-orange-900">Michael Chen</p>
-                <p className="text-xs text-orange-700">Missing assessment</p>
-              </div>
-            </div>
-          </Card>
-
-          {/* Tasks Checklist */}
-          <Card>
-            <h3 className="text-lg font-heading text-organic-text mb-3">Tasks</h3>
-            <div className="space-y-2">
-              {[
-                { title: 'Document session notes', done: false },
-                { title: 'Review PHQ-9 scores', done: false },
-                { title: 'Send homework assignments', done: true },
-              ].map((task, i) => (
-                <div key={i} className="flex items-center gap-3 p-2">
-                  <input
-                    type="checkbox"
-                    checked={task.done}
-                    className="w-5 h-5 rounded"
-                    readOnly
-                  />
-                  <span className={task.done ? 'line-through text-organic-neutral-500' : 'text-organic-text'}>
-                    {task.title}
-                  </span>
+        <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
+          <h3 className="text-[19px] font-heading text-organic-text mb-3">Today&apos;s schedule</h3>
+          <div className="flex flex-col">
+            {SCHEDULE.map((s) => (
+              <button
+                key={s.time}
+                onClick={onOpenPatient}
+                className="flex items-center gap-3.5 py-3 px-1 border-b border-organic-text/[0.07] last:border-b-0 text-left"
+              >
+                <span className="text-sm font-bold text-organic-accent-700 w-14">{s.time}</span>
+                <div className="w-9 h-9 rounded-full bg-organic-accent-200 grid place-items-center text-[11px] font-bold text-organic-accent-800">
+                  {s.initials}
                 </div>
-              ))}
-            </div>
-          </Card>
+                <div className="flex-1">
+                  <div className="font-semibold text-sm text-organic-text">{s.name}</div>
+                  <div className="text-xs text-organic-neutral-600">{s.kind}</div>
+                </div>
+                <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill ${RISK_STYLE[s.risk].bg} ${RISK_STYLE[s.risk].color}`}>
+                  {s.risk}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <div className="bg-organic-accent-100 rounded-organic-card p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle size={17} className="text-organic-accent-700" />
+            <h3 className="text-[17px] font-heading text-organic-accent-800">Needs review</h3>
+          </div>
+          <div className="flex flex-col gap-2.5">
+            {FLAGS.map((f) => (
+              <div key={f.name} className="bg-organic-bg rounded-organic-tile p-3">
+                <div className="font-semibold text-[13.5px] text-organic-text">{f.name}</div>
+                <div className="text-xs text-organic-neutral-700">{f.detail}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm">
+          <h3 className="text-[17px] font-heading text-organic-text mb-3">Tasks</h3>
+          <div className="flex flex-col gap-2.5">
+            {TODOS.map((t) => (
+              <div key={t} className="flex items-center gap-2.5 text-[13.5px] text-organic-text">
+                <span className="w-5 h-5 rounded-[6px] border-2 border-organic-neutral-400 flex-none" />
+                {t}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-// Patient Chart View
-interface PatientChartViewProps {
-  patient: any
-}
+// ─── Patient chart ──────────────────────────────────────────────────────────
 
-function PatientChartView({ patient }: PatientChartViewProps) {
+const SESSION_HISTORY = [
+  { title: 'Session 08 — CBT reframing', date: 'Jul 17, 2026', tag: 'Signed' },
+  { title: 'Session 07 — Sleep & rumination', date: 'Jul 10, 2026', tag: 'Signed' },
+  { title: 'Session 06 — Behavioral activation', date: 'Jul 3, 2026', tag: 'Signed' },
+]
+
+function ChartView() {
   return (
-    <div className="space-y-8">
-      {/* Patient Header */}
-      <div className="flex items-center gap-4 mb-8">
-        <Avatar name={patient.name} size="lg" />
+    <div>
+      <div className="flex items-center gap-3.5 mb-[18px]">
+        <div className="w-[52px] h-[52px] rounded-full bg-organic-accent-200 grid place-items-center font-bold text-base text-organic-accent-800">
+          MO
+        </div>
         <div>
-          <h2 className="text-3xl font-heading text-organic-text">{patient.name}</h2>
-          <p className="text-organic-neutral-600">Last session: {patient.lastSession}</p>
+          <div className="flex items-center gap-2.5">
+            <span className="font-heading text-[22px] text-organic-text">Maya Okonkwo</span>
+            <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill bg-organic-accent-200 text-organic-accent-800">
+              High risk
+            </span>
+          </div>
+          <div className="text-sm text-organic-neutral-600">34F · In treatment · 8 sessions · since Feb 2026</div>
         </div>
       </div>
 
-      {/* 2fr/1fr Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left: Symptom Trend + Session History */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Chart */}
-          <Card>
-            <h3 className="text-xl font-heading text-organic-text mb-4">Symptom trajectory</h3>
-            <svg viewBox="0 0 500 250" className="w-full h-64">
-              <line x1="60" y1="200" x2="480" y2="200" stroke="#dcd3c4" strokeWidth="1" />
-              <line x1="60" y1="150" x2="480" y2="150" stroke="#dcd3c4" strokeWidth="1" />
-              <line x1="60" y1="100" x2="480" y2="100" stroke="#dcd3c4" strokeWidth="1" />
-              <line x1="60" y1="50" x2="480" y2="50" stroke="#dcd3c4" strokeWidth="1" />
-              <polyline points="60,120 140,110 220,80 300,95 380,85 460,95" fill="none" stroke="#c67139" strokeWidth="3" />
-              <polyline points="60,140 140,135 220,110 300,120 380,115 460,125" fill="none" stroke="#7a8a5e" strokeWidth="3" strokeDasharray="5,5" />
-              <line x1="60" y1="20" x2="60" y2="200" stroke="#201e1d" strokeWidth="2" />
-              <line x1="60" y1="200" x2="480" y2="200" stroke="#201e1d" strokeWidth="2" />
-              <text x="60" y="230" fontSize="12" textAnchor="middle" fill="#82796a">
-                4w ago
-              </text>
-              <text x="270" y="230" fontSize="12" textAnchor="middle" fill="#82796a">
-                Today
-              </text>
-              <line x1="60" y1="15" x2="90" y2="15" stroke="#c67139" strokeWidth="2" />
-              <text x="100" y="18" fontSize="12" fill="#201e1d">
-                PHQ-9
-              </text>
-              <line x1="180" y1="15" x2="210" y2="15" stroke="#7a8a5e" strokeWidth="2" strokeDasharray="5,5" />
-              <text x="220" y="18" fontSize="12" fill="#201e1d">
-                GAD-7
-              </text>
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
+        <div className="flex flex-col gap-4">
+          <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
+            <h3 className="text-lg font-heading text-organic-text mb-3.5">Symptom trajectory</h3>
+            <svg viewBox="0 0 560 180" className="w-full h-[180px]">
+              <defs>
+                <linearGradient id="trajectoryFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor="#5262ad" stopOpacity="0.28" />
+                  <stop offset="1" stopColor="#5262ad" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path d="M0,40 L110,54 L220,70 L330,86 L440,110 L560,120 L560,180 L0,180 Z" fill="url(#trajectoryFill)" />
+              <path
+                d="M0,40 L110,54 L220,70 L330,86 L440,110 L560,120"
+                fill="none"
+                stroke="#5262ad"
+                strokeWidth={3}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M0,90 L110,84 L220,96 L330,88 L440,100 L560,94"
+                fill="none"
+                stroke="#c9903d"
+                strokeWidth={3}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray="1 8"
+              />
             </svg>
-          </Card>
-
-          {/* Session History */}
-          <Card>
-            <h3 className="text-xl font-heading text-organic-text mb-4">Signed session notes</h3>
-            <div className="space-y-3">
-              {[
-                { date: '2024-07-25', title: 'Session notes - week 5', type: 'SOAP' },
-                { date: '2024-07-18', title: 'Session notes - week 4', type: 'SOAP' },
-                { date: '2024-07-11', title: 'Session notes - week 3', type: 'SOAP' },
-                { date: '2024-07-04', title: 'Initial assessment', type: 'Intake' },
-              ].map((note, i) => (
-                <div key={i} className="p-3 bg-organic-neutral-100 rounded-lg hover:bg-organic-neutral-200 transition-colors cursor-pointer flex justify-between items-center">
-                  <div>
-                    <p className="font-medium text-organic-text">{note.title}</p>
-                    <p className="text-xs text-organic-neutral-600">{note.date}</p>
-                  </div>
-                  <Badge variant="accent">{note.type}</Badge>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-
-        {/* Right: AI Summary + Scores */}
-        <div className="space-y-6">
-          <GradientCard variant="accent">
-            <h3 className="text-lg font-heading text-white mb-3">AI clinical summary</h3>
-            <ul className="text-sm text-orange-100 space-y-2">
-              <li className="flex gap-2">
-                <span>•</span>
-                <span>Consistent progress over 5 weeks</span>
-              </li>
-              <li className="flex gap-2">
-                <span>•</span>
-                <span>Response to CBT interventions positive</span>
-              </li>
-              <li className="flex gap-2">
-                <span>•</span>
-                <span>Sleep quality improving</span>
-              </li>
-            </ul>
-          </GradientCard>
-
-          <Card>
-            <h3 className="text-lg font-heading text-organic-text mb-4">Latest scores</h3>
-            <div className="space-y-4">
-              <ProgressBar label="PHQ-9" value={patient.phq9} max={27} variant="accent" />
-              <ProgressBar label="GAD-7" value={11} max={21} variant="sage" />
-            </div>
-          </Card>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// AI Scribe View
-function AIScriveView({ patient }: PatientChartViewProps) {
-  const [isRecording] = useState(false)
-  const [recordingTime] = useState('24:11')
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-center gap-4 mb-8">
-        <Avatar name={patient.name} size="lg" />
-        <div>
-          <h2 className="text-3xl font-heading text-organic-text">{patient.name}</h2>
-          <p className="text-organic-neutral-600">Active session</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Live Transcript */}
-        <Card>
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-heading text-organic-text">Live session transcript</h3>
-            <div className={`flex items-center gap-2 px-3 py-1 rounded-organic-pill ${isRecording ? 'bg-red-100' : 'bg-organic-neutral-100'}`}>
-              <div className={`w-3 h-3 rounded-full ${isRecording ? 'bg-red-600 animate-pulse' : 'bg-organic-neutral-600'}`} />
-              <span className={`text-sm font-medium ${isRecording ? 'text-red-700' : 'text-organic-neutral-700'}`}>
-                {isRecording ? `Recording ${recordingTime}` : 'Not recording'}
+            <div className="flex gap-5 mt-1.5 text-xs text-organic-neutral-600">
+              <span className="flex items-center gap-1.5">
+                <span className="w-4 h-[3px] bg-organic-accent rounded-sm" />
+                PHQ-9
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-4 h-[3px] bg-organic-accent-2 rounded-sm" />
+                GAD-7
               </span>
             </div>
           </div>
 
-          <div className="space-y-3 max-h-96 overflow-y-auto mb-4">
-            {[
-              { speaker: 'CLINICIAN', text: 'How have you been feeling since our last session?' },
-              { speaker: 'PATIENT', text: "Better, actually. I've been trying those breathing exercises you suggested." },
-              { speaker: 'CLINICIAN', text: "That's great to hear. How often have you been practicing?" },
-              { speaker: 'PATIENT', text: 'About 3 times a day. They really help when I feel anxious.' },
-            ].map((turn, i) => (
-              <div key={i} className={`p-3 rounded-lg ${turn.speaker === 'CLINICIAN' ? 'bg-organic-accent-100' : 'bg-organic-neutral-100'}`}>
-                <p className="text-xs font-bold text-organic-neutral-700 mb-1">{turn.speaker}</p>
-                <p className="text-sm text-organic-text">{turn.text}</p>
-              </div>
-            ))}
+          <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
+            <h3 className="text-lg font-heading text-organic-text mb-3">Session history</h3>
+            <div className="flex flex-col">
+              {SESSION_HISTORY.map((s) => (
+                <div key={s.title} className="flex items-center gap-3.5 py-3 px-1 border-b border-organic-text/[0.07] last:border-b-0">
+                  <FileText size={17} className="text-organic-accent-600" />
+                  <div className="flex-1">
+                    <div className="font-semibold text-[13.5px] text-organic-text">{s.title}</div>
+                    <div className="text-xs text-organic-neutral-600">{s.date}</div>
+                  </div>
+                  <span className="text-[11.5px] text-organic-neutral-600">{s.tag}</span>
+                </div>
+              ))}
+            </div>
           </div>
+        </div>
 
-          <Button variant="primary" className="w-full">
-            {isRecording ? 'Stop recording' : 'Start recording'}
-          </Button>
-        </Card>
-
-        {/* AI Session Note (SOAP) */}
-        <Card>
-          <h3 className="text-xl font-heading text-organic-text mb-4">AI session note (SOAP)</h3>
-
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm font-bold text-organic-neutral-700 mb-2">SUBJECTIVE</p>
-              <div className="p-3 bg-organic-neutral-100 rounded-lg text-sm text-organic-text">
-                Patient reports improved mood and reduced anxiety. Practicing breathing exercises 3x daily with positive results.
-              </div>
+        <aside className="flex flex-col gap-3.5">
+          <div className="bg-gradient-to-br from-organic-accent-100 to-organic-surface rounded-organic-card p-5 shadow-organic-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles size={17} className="text-organic-accent-700" />
+              <h4 className="text-base font-heading text-organic-text">AI summary</h4>
             </div>
-
-            <div>
-              <p className="text-sm font-bold text-organic-neutral-700 mb-2">OBJECTIVE</p>
-              <div className="p-3 bg-organic-neutral-100 rounded-lg text-sm text-organic-text">
-                Affect: stable, slightly improved. Speech: normal rate and volume. Engagement: active participation.
-              </div>
-            </div>
-
-            <div>
-              <p className="text-sm font-bold text-organic-neutral-700 mb-2">ASSESSMENT</p>
-              <div className="p-3 bg-organic-neutral-100 rounded-lg text-sm text-organic-text">
-                GAD with depressive features. Responding well to CBT. PHQ-9 trending downward (14→12).
-              </div>
-            </div>
-
-            <div>
-              <p className="text-sm font-bold text-organic-neutral-700 mb-2">PLAN</p>
-              <div className="p-3 bg-organic-neutral-100 rounded-lg text-sm text-organic-text">
-                Continue weekly sessions. Add exposure exercises for situational anxiety. Assign homework: daily mood log.
-              </div>
+            <p className="text-[13px] text-organic-neutral-800 leading-relaxed mb-3">
+              Depression improving steadily (18→14); anxiety stable. Item 9 elevated — maintain weekly safety
+              check-ins. Client reports better sleep with breathing homework.
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              <span className="text-[11px] px-2.5 py-1 rounded-organic-pill bg-organic-accent-200 text-organic-accent-800">CBT</span>
+              <span className="text-[11px] px-2.5 py-1 rounded-organic-pill bg-organic-accent-2-200 text-organic-accent-2-800">
+                Safety plan active
+              </span>
             </div>
           </div>
 
-          <div className="flex gap-2 mt-6">
-            <Button variant="primary" className="flex-1">
-              Save to chart
-            </Button>
-            <Button variant="secondary" className="flex-1">
-              Edit
-            </Button>
+          <div className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm">
+            <h4 className="text-base font-heading text-organic-text mb-3">Latest scores</h4>
+            <div className="flex flex-col gap-2.5">
+              <div className="flex justify-between">
+                <span className="text-sm text-organic-neutral-700">PHQ-9</span>
+                <span className="font-bold text-organic-accent-700">14 · Mod. severe</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-organic-neutral-700">GAD-7</span>
+                <span className="font-bold text-organic-accent-2-700">11 · Moderate</span>
+              </div>
+            </div>
           </div>
-        </Card>
+        </aside>
       </div>
     </div>
   )
 }
 
-// Care Plan View
-function CarePlanView({ patient }: PatientChartViewProps) {
+// ─── AI Scribe ──────────────────────────────────────────────────────────────
+
+const TRANSCRIPT = [
+  { who: 'CLINICIAN', text: 'How have things been since we last spoke about the sleep routine?' },
+  { who: 'PATIENT', text: 'The breathing before bed actually helped a few nights. Still wake up around 3am worrying though.' },
+  { who: 'CLINICIAN', text: "That's real progress. When you wake at 3am, what's the first thought?" },
+  { who: 'PATIENT', text: 'Usually that I forgot something at work and it will all fall apart.' },
+]
+
+const SOAP = [
+  { k: 'Subjective', v: 'Reports improved sleep onset with breathing homework; residual 3am waking with catastrophic work-related cognitions.' },
+  { k: 'Objective', v: 'Bright affect, engaged. PHQ-9 14 (↓ from 18). No acute SI voiced; item 9 monitored.' },
+  { k: 'Assessment', v: 'MDD, moderate — improving. Anxiety maintaining. Good homework adherence.' },
+  { k: 'Plan', v: 'Continue CBT; add thought record for nighttime cognitions. Weekly safety check-in. GAD-7 next session.' },
+]
+
+function ScribeView() {
   return (
-    <div className="space-y-8">
-      <div className="flex items-center gap-4 mb-8">
-        <Avatar name={patient.name} size="lg" />
-        <div>
-          <h2 className="text-3xl font-heading text-organic-text">{patient.name}</h2>
-          <p className="text-organic-neutral-600">Treatment plan</p>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
+        <div className="flex justify-between items-center mb-3.5">
+          <h3 className="text-lg font-heading text-organic-text">Session transcript</h3>
+          <span className="inline-flex items-center gap-1.5 text-xs text-organic-accent-700">
+            <span className="w-2 h-2 rounded-full bg-organic-accent animate-pulse" />
+            Recording 24:11
+          </span>
+        </div>
+        <div className="flex flex-col gap-3">
+          {TRANSCRIPT.map((t, i) => (
+            <div key={i}>
+              <div className={`text-[11px] font-bold mb-0.5 ${t.who === 'CLINICIAN' ? 'text-organic-accent-700' : 'text-organic-accent-2-700'}`}>
+                {t.who}
+              </div>
+              <div className="text-[13.5px] text-organic-neutral-800 leading-relaxed">{t.text}</div>
+            </div>
+          ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Timeline */}
-        <div className="lg:col-span-2">
-          <Card>
-            <h3 className="text-xl font-heading text-organic-text mb-6">Phased treatment timeline</h3>
-
-            <div className="space-y-0">
-              {[
-                { phase: 'Phase 1: Stabilization', done: true, current: false, desc: 'Assessment & psychoeducation' },
-                { phase: 'Phase 2: Skill Building', done: true, current: true, desc: 'CBT techniques & exposure' },
-                { phase: 'Phase 3: Integration', done: false, current: false, desc: 'Real-world application' },
-                { phase: 'Phase 4: Maintenance', done: false, current: false, desc: 'Relapse prevention' },
-              ].map((phase, i) => (
-                <div key={i} className="flex gap-4 pb-6 relative">
-                  {/* Timeline line */}
-                  {i < 3 && (
-                    <div
-                      className={`absolute left-5 top-12 w-0.5 h-12 ${phase.done ? 'bg-organic-accent-2-700' : 'bg-organic-neutral-300'}`}
-                    />
-                  )}
-
-                  {/* Phase marker */}
-                  <div className="relative z-10">
-                    <div
-                      className={`w-11 h-11 rounded-full flex items-center justify-center font-heading text-sm ${
-                        phase.current
-                          ? 'bg-organic-accent text-orange-50'
-                          : phase.done
-                            ? 'bg-organic-accent-2-700 text-white'
-                            : 'bg-organic-neutral-300 text-organic-neutral-700'
-                      }`}
-                    >
-                      {phase.done ? <CheckCircle2 size={20} /> : phase.current ? '→' : i + 1}
-                    </div>
-                  </div>
-
-                  {/* Phase content */}
-                  <div className="flex-1 pt-1">
-                    <p className="font-heading text-organic-text">{phase.phase}</p>
-                    <p className="text-sm text-organic-neutral-600">{phase.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
+      <div className="flex flex-col gap-3.5">
+        <div className="bg-gradient-to-br from-organic-accent-100 to-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
+          <div className="flex items-center gap-2 mb-3.5">
+            <Sparkles size={18} className="text-organic-accent-700" />
+            <h3 className="text-lg font-heading text-organic-text">AI session note (SOAP)</h3>
+          </div>
+          <div className="flex flex-col gap-3">
+            {SOAP.map((s) => (
+              <div key={s.k}>
+                <div className="text-[11px] font-bold tracking-wide uppercase text-organic-accent-700 mb-0.5">{s.k}</div>
+                <div className="text-[13px] text-organic-neutral-800 leading-relaxed">{s.v}</div>
+              </div>
+            ))}
+          </div>
         </div>
+        <div className="flex gap-2.5">
+          <button className="flex-1 rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm py-3.5 hover:bg-organic-accent-600 transition-colors">
+            Save to chart
+          </button>
+          <button className="rounded-organic-pill border border-organic-neutral-300/70 bg-transparent font-heading text-sm px-[18px] py-3.5 text-organic-text hover:bg-organic-neutral-100 transition-colors">
+            Edit
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
-        {/* Homework Assignment */}
-        <div>
-          <Card>
-            <h3 className="text-lg font-heading text-organic-text mb-4">Assign homework</h3>
+// ─── Care plan ──────────────────────────────────────────────────────────────
 
-            <div className="space-y-3 mb-4">
-              {[
-                { icon: '📋', title: 'Mood tracking', assigned: true },
-                { icon: '🧘', title: 'Breathing exercises', assigned: true },
-                { icon: '📚', title: 'Psychoeducation', assigned: false },
-                { icon: '🎯', title: 'Exposure practice', assigned: false },
-              ].map((hw, i) => (
-                <button
-                  key={i}
-                  className="w-full p-3 rounded-lg bg-organic-neutral-100 hover:bg-organic-neutral-200 transition-colors text-left flex items-center gap-3"
+const PHASES = [
+  { title: 'Phase 1 · Stabilize', detail: 'Weeks 1–3 · psychoeducation, safety plan', state: 'done' as const },
+  { title: 'Phase 2 · Skills', detail: 'Weeks 4–7 · CBT reframing, sleep hygiene', state: 'done' as const },
+  { title: 'Phase 3 · Exposure', detail: 'Weeks 8–10 · behavioral activation (current)', state: 'current' as const },
+  { title: 'Phase 4 · Consolidate', detail: 'Weeks 11–12 · relapse prevention', state: 'upcoming' as const },
+]
+
+const HOMEWORK = [
+  { icon: PenLine, title: 'CBT thought record', meta: 'Daily · this week', done: true },
+  { icon: Volume2, title: 'Evening breathing', meta: 'Nightly · audio', done: true },
+  { icon: BookOpen, title: 'Read: Understanding worry', meta: 'By Friday', done: false },
+  { icon: Footprints, title: 'Morning walk log', meta: '3× this week', done: false },
+]
+
+function PlanView() {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-4">
+      <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-[19px] font-heading text-organic-text">Treatment plan · Maya O.</h3>
+          <span className="text-[11px] px-3 py-1 rounded-organic-pill bg-organic-accent-2-100 text-organic-accent-2-800 font-semibold">
+            CBT · 12 weeks
+          </span>
+        </div>
+        <div className="flex flex-col">
+          {PHASES.map((p, i) => (
+            <div key={p.title} className="flex gap-3.5">
+              <div className="flex flex-col items-center">
+                <div
+                  className={`w-7 h-7 rounded-full grid place-items-center flex-none ${
+                    p.state === 'done'
+                      ? 'bg-organic-accent-2-500 text-organic-accent-100'
+                      : p.state === 'current'
+                        ? 'bg-organic-accent text-organic-accent-100'
+                        : 'bg-organic-neutral-200 text-organic-neutral-500'
+                  }`}
                 >
-                  <span className="text-lg">{hw.icon}</span>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-organic-text">{hw.title}</p>
-                  </div>
-                  {hw.assigned && <CheckCircle2 size={18} className="text-organic-accent-2-700" />}
-                </button>
-              ))}
+                  {p.state === 'done' ? (
+                    <Check size={14} />
+                  ) : p.state === 'current' ? (
+                    <span className="w-2 h-2 rounded-full bg-organic-accent-100" />
+                  ) : (
+                    <Lock size={14} />
+                  )}
+                </div>
+                {i < PHASES.length - 1 && <div className="w-0.5 flex-1 bg-organic-divider min-h-[18px] bg-organic-neutral-300" />}
+              </div>
+              <div className="pb-[18px]">
+                <div className="font-bold text-sm text-organic-text">{p.title}</div>
+                <div className="text-[12.5px] text-organic-neutral-600">{p.detail}</div>
+              </div>
             </div>
+          ))}
+        </div>
+      </div>
 
-            <Button variant="primary" className="w-full">
-              <Plus size={18} /> Add assignment
-            </Button>
-          </Card>
+      <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
+        <div className="flex justify-between items-center mb-3.5">
+          <h3 className="text-lg font-heading text-organic-text">Assign homework</h3>
+          <button className="rounded-organic-pill bg-organic-accent text-organic-accent-100 text-[12.5px] font-heading px-3.5 py-2 hover:bg-organic-accent-600 transition-colors">
+            + Add
+          </button>
+        </div>
+        <div className="flex flex-col gap-2.5">
+          {HOMEWORK.map((h) => (
+            <div key={h.title} className="flex items-center gap-3 bg-organic-neutral-100 rounded-organic-tile p-3.5">
+              <div className="w-[38px] h-[38px] rounded-organic-tile bg-organic-accent-100 grid place-items-center flex-none">
+                <h.icon size={18} className="text-organic-accent-700" />
+              </div>
+              <div className="flex-1">
+                <div className="font-semibold text-[13.5px] text-organic-text">{h.title}</div>
+                <div className="text-[11.5px] text-organic-neutral-600">{h.meta}</div>
+              </div>
+              {h.done ? (
+                <CheckCircle2 size={17} className="text-organic-accent-2-600" />
+              ) : (
+                <Circle size={17} className="text-organic-neutral-400" />
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </div>

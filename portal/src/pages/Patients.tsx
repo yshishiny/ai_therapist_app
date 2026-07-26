@@ -92,7 +92,7 @@ export default function PatientsPage() {
                   onClick={() => setFilterStatus(status)}
                   className={`px-4 py-2.5 rounded-organic-pill text-sm font-medium transition-colors ${
                     filterStatus === status
-                      ? 'bg-organic-accent text-orange-50'
+                      ? 'bg-organic-accent text-organic-accent-100'
                       : 'bg-organic-neutral-200 text-organic-neutral-700 hover:text-organic-text'
                   }`}
                 >
@@ -194,7 +194,7 @@ function PatientDetailPage({ patient, onBack }: PatientDetailPageProps) {
                   {['Intake & raw docs', 'Processed notes', 'AI summaries', 'Patient reports'].map((folder) => (
                     <button
                       key={folder}
-                      className="px-3 py-2 rounded-organic-pill bg-organic-neutral-200 text-sm font-medium text-organic-neutral-700 hover:bg-organic-accent hover:text-orange-50 transition-colors"
+                      className="px-3 py-2 rounded-organic-pill bg-organic-neutral-200 text-sm font-medium text-organic-neutral-700 hover:bg-organic-accent hover:text-organic-accent-100 transition-colors"
                     >
                       {folder}
                     </button>
@@ -267,7 +267,7 @@ function PatientDetailPage({ patient, onBack }: PatientDetailPageProps) {
             {/* Right Column - AI Insights & Scores */}
             <div className="space-y-6">
               {/* AI Clinical Insights */}
-              <div className="bg-gradient-to-br from-organic-accent to-orange-600 text-white rounded-organic-card p-6 shadow-organic-lg">
+              <div className="bg-gradient-to-br from-organic-accent to-organic-accent-600 text-white rounded-organic-card p-6 shadow-organic-lg">
                 <h3 className="text-lg font-heading mb-3">AI clinical insights</h3>
                 <ul className="text-sm space-y-2">
                   <li className="flex gap-2">

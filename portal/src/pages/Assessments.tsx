@@ -46,7 +46,7 @@ export default function AssessmentsPage() {
                       <h3 className="text-lg font-heading text-organic-text">{assessment.name}</h3>
                       <p className="text-sm text-organic-neutral-600">{assessment.desc}</p>
                     </div>
-                    <div className="w-12 h-12 rounded-organic-tile bg-gradient-to-br from-organic-accent to-orange-600 flex items-center justify-center text-white font-heading text-lg">
+                    <div className="w-12 h-12 rounded-organic-tile bg-gradient-to-br from-organic-accent to-organic-accent-600 flex items-center justify-center text-white font-heading text-lg">
                       {assessment.items}
                     </div>
                   </div>
@@ -65,9 +65,9 @@ export default function AssessmentsPage() {
               {/* Big Score Card */}
               <GradientCard variant="accent">
                 <div className="text-center">
-                  <p className="text-orange-100 text-sm mb-2">TOTAL SCORE</p>
+                  <p className="text-organic-accent-100 text-sm mb-2">TOTAL SCORE</p>
                   <p className="text-6xl font-heading text-white mb-2">14 / 27</p>
-                  <p className="text-orange-50 text-lg font-medium">Moderately severe depression</p>
+                  <p className="text-organic-accent-100 text-lg font-medium">Moderately severe depression</p>
                 </div>
               </GradientCard>
 
@@ -211,7 +211,7 @@ function PHQ9ScoringPage({ onBack }: PHQ9ScoringPageProps) {
                       onClick={() => handleResponse(i, option.value)}
                       className={`p-3 rounded-organic-pill border-2 transition-all ${
                         responses[i] === option.value
-                          ? 'bg-organic-accent border-organic-accent text-orange-50 font-medium'
+                          ? 'bg-organic-accent border-organic-accent text-organic-accent-100 font-medium'
                           : 'border-organic-neutral-300 text-organic-text hover:border-organic-accent'
                       }`}
                     >
@@ -229,9 +229,9 @@ function PHQ9ScoringPage({ onBack }: PHQ9ScoringPageProps) {
             <div className="space-y-6">
               <GradientCard variant="accent">
                 <div className="text-center">
-                  <p className="text-orange-100 text-sm mb-2">TOTAL SCORE</p>
+                  <p className="text-organic-accent-100 text-sm mb-2">TOTAL SCORE</p>
                   <p className="text-6xl font-heading text-white">{totalScore} / 27</p>
-                  <p className="text-orange-50 text-lg mt-2">
+                  <p className="text-organic-accent-100 text-lg mt-2">
                     {totalScore <= 4 && 'Minimal depression'}
                     {totalScore > 4 && totalScore <= 9 && 'Mild depression'}
                     {totalScore > 9 && totalScore <= 14 && 'Moderate depression'}

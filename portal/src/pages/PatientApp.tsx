@@ -94,7 +94,7 @@ export default function PatientApp() {
                 onClick={() => setCurrentTab(tab.id as PatientTab)}
                 className={`flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${
                   currentTab === tab.id
-                    ? 'bg-organic-accent text-orange-50'
+                    ? 'bg-organic-accent text-organic-accent-100'
                     : 'text-organic-neutral-600 hover:bg-organic-neutral-100'
                 }`}
               >
@@ -127,11 +127,11 @@ function HomeTab({ moodCheckin, onMoodChange }: HomeTabProps) {
   return (
     <div className="p-4 space-y-4">
       {/* Next Session Card */}
-      <div className="bg-gradient-to-br from-organic-accent to-orange-600 text-white rounded-2xl p-4">
-        <p className="text-xs text-orange-100 mb-1">NEXT SESSION</p>
+      <div className="bg-gradient-to-br from-organic-accent to-organic-accent-600 text-white rounded-2xl p-4">
+        <p className="text-xs text-organic-accent-100 mb-1">NEXT SESSION</p>
         <p className="font-heading text-lg">Thu, 2:00 PM</p>
-        <p className="text-sm text-orange-50 mt-1">with Dr. Moustafa</p>
-        <button className="mt-3 bg-white text-organic-accent px-4 py-2 rounded-full text-sm font-medium hover:bg-orange-50 transition-colors">
+        <p className="text-sm text-organic-accent-100 mt-1">with Dr. Moustafa</p>
+        <button className="mt-3 bg-white text-organic-accent px-4 py-2 rounded-full text-sm font-medium hover:bg-organic-accent-100 transition-colors">
           Join & prepare
         </button>
       </div>
@@ -227,7 +227,7 @@ function AriaTab({ messages, messageInput, onMessageChange, onSendMessage }: Ari
             <div
               className={`max-w-xs px-4 py-2 rounded-2xl ${
                 msg.sender === 'user'
-                  ? 'bg-organic-accent text-orange-50 rounded-br-none'
+                  ? 'bg-organic-accent text-organic-accent-100 rounded-br-none'
                   : 'bg-organic-surface text-organic-text rounded-bl-none'
               }`}
             >
@@ -263,7 +263,7 @@ function AriaTab({ messages, messageInput, onMessageChange, onSendMessage }: Ari
         />
         <button
           onClick={onSendMessage}
-          className="w-10 h-10 bg-organic-accent text-orange-50 rounded-full flex items-center justify-center hover:bg-organic-accent-600 transition-colors"
+          className="w-10 h-10 bg-organic-accent text-organic-accent-100 rounded-full flex items-center justify-center hover:bg-organic-accent-600 transition-colors"
         >
           <Send size={18} />
         </button>
@@ -300,7 +300,7 @@ function TasksTab() {
         </p>
         <div className="w-full bg-organic-neutral-200 rounded-full h-2 mt-2">
           <div
-            className="bg-gradient-to-r from-organic-accent to-orange-600 h-full rounded-full"
+            className="bg-gradient-to-r from-organic-accent to-organic-accent-600 h-full rounded-full"
             style={{ width: `${(completedCount / totalCount) * 100}%` }}
           />
         </div>
@@ -330,7 +330,7 @@ function TasksTab() {
       </div>
 
       {/* Add Button */}
-      <button className="w-full bg-organic-accent text-orange-50 rounded-xl py-3 font-medium hover:bg-organic-accent-600 transition-colors">
+      <button className="w-full bg-organic-accent text-organic-accent-100 rounded-xl py-3 font-medium hover:bg-organic-accent-600 transition-colors">
         + Add custom task
       </button>
     </div>
@@ -343,10 +343,10 @@ function ProgressTab() {
     <div className="p-4 space-y-4">
       {/* Streak Card */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-gradient-to-br from-organic-accent to-orange-600 text-white rounded-2xl p-4">
-          <p className="text-xs text-orange-100 mb-1">CURRENT STREAK</p>
+        <div className="bg-gradient-to-br from-organic-accent to-organic-accent-600 text-white rounded-2xl p-4">
+          <p className="text-xs text-organic-accent-100 mb-1">CURRENT STREAK</p>
           <p className="text-3xl font-heading">12 days</p>
-          <p className="text-xs text-orange-100 mt-1">🔥 Keep it up!</p>
+          <p className="text-xs text-organic-accent-100 mt-1">🔥 Keep it up!</p>
         </div>
         <div className="bg-gradient-to-br from-organic-accent-2 to-green-600 text-white rounded-2xl p-4">
           <p className="text-xs text-green-100 mb-1">SESSIONS</p>

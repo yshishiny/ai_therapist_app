@@ -5,7 +5,7 @@ export function Card({ children, className = '', ...props }) {
 export function Button({ variant = 'primary', children, className = '', ...props }) {
     const baseClass = 'rounded-organic-pill px-6 py-2.5 font-medium transition-colors text-sm';
     const variants = {
-        primary: 'bg-organic-accent text-orange-50 hover:bg-organic-accent-600 active:bg-organic-accent-700',
+        primary: 'bg-organic-accent text-organic-accent-100 hover:bg-organic-accent-600 active:bg-organic-accent-700',
         secondary: 'border border-organic-neutral-400 bg-transparent hover:bg-organic-neutral-100 text-organic-text',
     };
     return (_jsx("button", { className: `${baseClass} ${variants[variant]} ${className}`, ...props, children: children }));
@@ -30,7 +30,7 @@ export function Select({ label, options, className = '', ...props }) {
 }
 export function SegmentedControl({ options, value, onChange }) {
     return (_jsx("div", { className: "inline-flex gap-1 bg-organic-neutral-200 rounded-organic-pill p-1", children: options.map((opt) => (_jsx("button", { onClick: () => onChange(opt.value), className: `px-4 py-2 rounded-organic-pill text-sm font-medium transition-colors ${value === opt.value
-                ? 'bg-organic-accent text-orange-50'
+                ? 'bg-organic-accent text-organic-accent-100'
                 : 'text-organic-neutral-700 hover:text-organic-text'}`, children: opt.label }, opt.value))) }));
 }
 export function Table({ headers, rows, className = '' }) {
@@ -43,7 +43,7 @@ export function Avatar({ name, size = 'md', initials }) {
         lg: 'w-16 h-16 text-lg',
     };
     const initial = initials || name.split(' ').map((n) => n[0]).join('');
-    return (_jsx("div", { className: `${sizeClass[size]} rounded-full bg-gradient-accent text-orange-50 flex items-center justify-center font-semibold`, children: initial }));
+    return (_jsx("div", { className: `${sizeClass[size]} rounded-full bg-gradient-accent text-organic-accent-100 flex items-center justify-center font-semibold`, children: initial }));
 }
 export function ProgressBar({ value, max = 100, label, variant = 'accent' }) {
     const percent = (value / max) * 100;
