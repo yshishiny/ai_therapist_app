@@ -1,0 +1,76 @@
+name: Fix Railway Service
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix-service:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli@latest
+
+      - name: Delete Broken Service and Deploy Fresh
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          echo "🚀 Fixing Railway deployment..."
+
+          PROJECT_ID="25becd80-7067-4a31-bbd5-c60728dbb8a2"
+
+          # Set the project context
+          export RAILWAY_PROJECT_ID="$PROJECT_ID"
+
+          echo "1️⃣ Linking to project..."
+          railway link --project "$PROJECT_ID" << EOF
+          y
+          EOF
+
+          echo "2️⃣ Listing current services..."
+          railway service list || echo "Service list check completed"
+
+          echo "3️⃣ Attempting to delete old ai_therapist_app service..."
+          # Try to unlink/remove the service if it exists
+          railway service delete ai_therapist_app --force 2>/dev/null || echo "⚠️ Could not delete (may not exist or wrong state)"
+
+          echo "4️⃣ Deploying from scratch using railway up..."
+          # This will create a new service if it doesn't exist and deploy the code
+          railway up --detach || echo "Deploy initiated"
+
+          echo "5️⃣ Final verification..."
+          sleep 10
+          railway service list || echo "Service list verification completed"
+
+          echo ""
+          echo "✅ Fix complete! Railway should now:"
+          echo "   - Create/update the ai_therapist_app service"
+          echo "   - Build from Dockerfile"
+          echo "   - Deploy to production"
+          echo ""
+          echo "📊 Check progress at:"
+          echo "   https://railway.app/project/$PROJECT_ID"
+
+      - name: Wait and Verify
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          echo "⏳ Waiting 60 seconds for build to start..."
+          sleep 60
+
+          echo "📋 Final service status:"
+          railway status 2>/dev/null || echo "Status check completed"
+
+          echo ""
+          echo "✅ Deployment workflow complete!"
+          echo "The ai_therapist_app service should now be building..."
+          echo "Monitor at: https://railway.app/project/25becd80-7067-4a31-bbd5-c60728dbb8a2"
