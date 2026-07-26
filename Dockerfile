@@ -17,7 +17,7 @@ ENV VITE_API_URL=https://service-production.up.railway.app
 ENV VITE_APP_NAME="AI Therapist Portal"
 ENV VITE_ACCESS_TOKEN_TTL_MINUTES=30
 
-RUN npm run build && echo "✓ Build successful" && ls -la dist/ || (echo "✗ Build failed" && exit 1)
+RUN npm run build && echo "Build successful" && ls -la dist/ || (echo "Build failed" && exit 1)
 
 # Runtime stage - use nginx
 FROM nginx:alpine
@@ -58,15 +58,15 @@ EOF
 COPY public /usr/share/nginx/html/
 
 # Try to copy built dist files (overwrite public)
-COPY --from=builder /build/dist /usr/share/nginx/html/ 2>/dev/null || echo "⚠️  Using public folder as fallback"
+COPY --from=builder /build/dist /usr/share/nginx/html/ 2>/dev/null || echo "Using public folder as fallback"
 
 # Verify at least index.html exists
-RUN echo "📁 Nginx content:" && \
+RUN echo "Nginx content:" && \
     ls -lah /usr/share/nginx/html/ && \
     if [ -f /usr/share/nginx/html/index.html ]; then \
-      echo "✓ index.html ready"; \
+      echo "index.html ready"; \
     else \
-      echo "❌ ERROR: index.html not found!"; \
+      echo "ERROR: index.html not found!"; \
       exit 1; \
     fi
 
