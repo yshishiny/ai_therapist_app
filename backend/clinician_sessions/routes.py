@@ -44,6 +44,7 @@ async def _build_session_out(db, session_row, user: TokenPayload) -> dict:
             {
                 "template_key": key,
                 "name": tmpl["name"] if tmpl else key,
+                "name_ar": tmpl.get("name_ar") if tmpl else None,
                 "definition_json": tmpl["definition_json"] if tmpl else None,
                 "delivery": tmpl["delivery"] if tmpl else None,
                 "completed": key in completed_keys,

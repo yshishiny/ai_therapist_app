@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel
 
@@ -10,6 +10,9 @@ class PatientOut(BaseModel):
     risk: str
     diagnosis: str
     last_seen: datetime | None
+    therapist_id: str | None = None
+    dob: date | None = None
+    gender: str | None = None
 
 
 class PatientCreateIn(BaseModel):
@@ -21,3 +24,20 @@ class PatientCreateIn(BaseModel):
     phone: str | None = None
     email: str | None = None
     dob: str | None = None
+
+
+class PatientUpdateIn(BaseModel):
+    therapist_id: str | None = None
+    status: str | None = None
+    risk: str | None = None
+
+
+class PatientBulkRowError(BaseModel):
+    row: int
+    error: str
+
+
+class PatientBulkUploadSummaryOut(BaseModel):
+    created: int
+    failed: int
+    errors: list[PatientBulkRowError]

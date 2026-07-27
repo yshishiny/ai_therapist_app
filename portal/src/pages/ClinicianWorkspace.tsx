@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import apiClient from '../services/api'
+import { useSampleDataHidden } from '../hooks/useSampleDataHidden'
+import { SampleGate } from '../components/SampleGate'
 import {
   Brain,
   LayoutGrid,
@@ -26,6 +28,8 @@ import {
   Check,
   LayoutDashboard,
   LogOut,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 
 type WorkspaceView = 'caseload' | 'chart' | 'scribe' | 'plan'
@@ -37,31 +41,63 @@ const NAV_ITEMS: { view: WorkspaceView; label: string; short: string; icon: type
   { view: 'plan', label: 'Care plan', short: 'Plan', icon: ListChecks },
 ]
 
-const TITLES: Record<WorkspaceView, string> = {
-  caseload: 'Good morning, Dr. Nasser',
-  chart: 'Patient chart',
-  scribe: 'AI Scribe',
-  plan: 'Care plan',
-}
-const SUBTITLES: Record<WorkspaceView, string> = {
-  caseload: 'Thursday, July 24 · 6 sessions today',
+const SUBTITLES: Record<Exclude<WorkspaceView, 'caseload'>, string> = {
   chart: 'Maya Okonkwo · clinical record',
   scribe: 'Live documentation assistant',
   plan: 'Phased treatment & homework',
 }
 
+type ScheduleItem = {
+  id: string
+  patient_id: string
+  patient_name: string
+  patient_risk: string
+  start_time: string
+  end_time: string
+  location: string
+  status: string
+}
+type NeedsReviewItem = { patient_id: string; patient_name: string; instrument_name: string; interpretation_text: string | null; taken_at: string }
+type NoteDueItem = { note_id: string; patient_id: string; patient_name: string; created_at: string }
+type ClinicianDashboard = {
+  patients_count: number
+  sessions_today_count: number
+  notes_due_count: number
+  today_schedule: ScheduleItem[]
+  needs_review: NeedsReviewItem[]
+  notes_due: NoteDueItem[]
+}
+
+const TODAY_LABEL = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
+
 export default function ClinicianWorkspace() {
   const [view, setView] = useState<WorkspaceView>('caseload')
   const goToChart = () => setView('chart')
   const navigate = useNavigate()
-  const { logout } = useAuthStore()
+  const { logout, user } = useAuthStore()
   const [showNewSession, setShowNewSession] = useState(false)
   const [activeSession, setActiveSession] = useState<SessionData | null>(null)
+  const [dashboard, setDashboard] = useState<ClinicianDashboard | null>(null)
+  const [myName, setMyName] = useState<string | null>(null)
+
+  const loadDashboard = () => apiClient.getClinicianDashboard().then(setDashboard)
+
+  useEffect(() => {
+    loadDashboard()
+    apiClient.getClinicians().then((rows: any[]) => {
+      const me = rows.find((r) => r.id === user?.sub)
+      if (me) setMyName(me.full_name)
+    })
+  }, [])
 
   const handleLogout = async () => {
     await logout()
     navigate('/login')
   }
+
+  const title = view === 'caseload' ? `Good morning, ${myName || '…'}` : { chart: 'Patient chart', scribe: 'AI Scribe', plan: 'Care plan' }[view]
+  const subtitle =
+    view === 'caseload' ? `${TODAY_LABEL} · ${dashboard ? dashboard.sessions_today_count : '…'} sessions today` : SUBTITLES[view]
 
   return (
     <div className="min-h-screen bg-organic-bg flex items-stretch">
@@ -70,8 +106,8 @@ export default function ClinicianWorkspace() {
       <main className="flex-1 min-w-0 px-9 pt-8 pb-16 max-w-[1240px]">
         <header className="flex justify-between items-end gap-5 flex-wrap mb-7">
           <div>
-            <h1 className="text-[34px] font-heading text-organic-text mb-1">{TITLES[view]}</h1>
-            <p className="text-organic-neutral-600 text-sm">{SUBTITLES[view]}</p>
+            <h1 className="text-[34px] font-heading text-organic-text mb-1">{title}</h1>
+            <p className="text-organic-neutral-600 text-sm">{subtitle}</p>
           </div>
           <div className="flex gap-2.5 items-center">
             <div className="flex items-center gap-2 bg-organic-surface border border-organic-neutral-300/60 rounded-organic-pill px-3.5 py-2 min-w-[190px]">
@@ -87,7 +123,7 @@ export default function ClinicianWorkspace() {
           </div>
         </header>
 
-        {view === 'caseload' && <CaseloadView onOpenPatient={goToChart} />}
+        {view === 'caseload' && <CaseloadView dashboard={dashboard} onOpenPatient={goToChart} />}
         {view === 'chart' && <ChartView />}
         {view === 'scribe' && <ScribeView />}
         {view === 'plan' && <PlanView />}
@@ -106,10 +142,14 @@ export default function ClinicianWorkspace() {
       {activeSession && (
         <SessionRunner
           session={activeSession}
-          onClose={() => setActiveSession(null)}
+          onClose={() => {
+            setActiveSession(null)
+            loadDashboard()
+          }}
           onFinished={() => {
             setActiveSession(null)
             setView('chart')
+            loadDashboard()
           }}
         />
       )}
@@ -120,10 +160,11 @@ export default function ClinicianWorkspace() {
 // ─── New session: pick patient + assessments ───────────────────────────────
 
 type SimplePatient = { id: string; name: string; status: string; risk: string }
-type TemplateOption = { id: string; name: string; template_type: string | null }
+type TemplateOption = { id: string; name: string; name_ar?: string | null; template_type: string | null }
 type SessionAssessment = {
   template_key: string
   name: string
+  name_ar?: string | null
   definition_json: { instructions?: string; instructions_ar?: string; questions: any[] } | null
   completed: boolean
 }
@@ -141,19 +182,37 @@ function NewSessionModal({ onClose, onStarted }: { onClose: () => void; onStarte
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [selectedPatient, setSelectedPatient] = useState<SimplePatient | null>(null)
+  const [autoDetected, setAutoDetected] = useState(false)
+  const [currentAppointment, setCurrentAppointment] = useState<{ patient_id: string } | null>(null)
   const [selectedKeys, setSelectedKeys] = useState<string[]>([])
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([apiClient.getPatients(), apiClient.getAssessmentTemplates()])
+    Promise.all([apiClient.getPatients({ mine: true }), apiClient.getAssessmentTemplates()])
       .then(([p, t]: [SimplePatient[], TemplateOption[]]) => {
         setPatients(p)
         setTemplates(t)
       })
       .catch(() => setError('Could not load patients or assessments.'))
       .finally(() => setLoading(false))
+
+    // Best-effort: pre-fill from an in-progress appointment. Never blocks
+    // the modal or falls back to anything but the manual picker below.
+    apiClient
+      .getCurrentAppointment()
+      .then((appt: { patient_id: string } | null) => setCurrentAppointment(appt))
+      .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (loading || selectedPatient || !currentAppointment) return
+    const match = patients.find((p) => p.id === currentAppointment.patient_id)
+    if (match) {
+      setSelectedPatient(match)
+      setAutoDetected(true)
+    }
+  }, [loading, currentAppointment, patients, selectedPatient])
 
   const filteredPatients = patients.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
 
@@ -218,8 +277,21 @@ function NewSessionModal({ onClose, onStarted }: { onClose: () => void; onStarte
         {!loading && selectedPatient && (
           <>
             <div className="flex items-center justify-between bg-organic-accent-100 rounded-organic-tile px-3.5 py-2.5 mb-4">
-              <span className="font-semibold text-sm text-organic-accent-800">{selectedPatient.name}</span>
-              <button onClick={() => setSelectedPatient(null)} className="text-xs text-organic-accent-700 underline">
+              <div>
+                {autoDetected && (
+                  <div className="text-[11px] uppercase tracking-wide text-organic-accent-700 mb-0.5">
+                    From your current appointment
+                  </div>
+                )}
+                <span className="font-semibold text-sm text-organic-accent-800">{selectedPatient.name}</span>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedPatient(null)
+                  setAutoDetected(false)
+                }}
+                className="text-xs text-organic-accent-700 underline"
+              >
                 Change
               </button>
             </div>
@@ -234,7 +306,12 @@ function NewSessionModal({ onClose, onStarted }: { onClose: () => void; onStarte
                   className="flex items-center gap-2.5 bg-organic-surface rounded-organic-tile px-3.5 py-2.5 text-sm cursor-pointer"
                 >
                   <input type="checkbox" checked={selectedKeys.includes(t.id)} onChange={() => toggleKey(t.id)} />
-                  {t.name}
+                  <span className="flex-1">{t.name}</span>
+                  {t.name_ar && (
+                    <span dir="rtl" className="text-xs text-organic-neutral-500">
+                      {t.name_ar}
+                    </span>
+                  )}
                 </label>
               ))}
             </div>
@@ -316,7 +393,9 @@ function SessionRunner({
                 ? 'No assessments queued — close whenever you\'re done.'
                 : done
                 ? 'All assessments completed'
-                : `Assessment ${index + 1} of ${assessments.length}: ${current.name}`}
+                : `Assessment ${index + 1} of ${assessments.length}: ${
+                    (lang === 'ar' && current.name_ar) || current.name
+                  }`}
             </p>
           </div>
           <button onClick={onClose} className="text-organic-neutral-500 hover:text-organic-neutral-800 text-2xl leading-none">
@@ -433,6 +512,7 @@ function IconRail({
   onOpenAdmin: () => void
   onLogout: () => void
 }) {
+  const [hideSampleData, setHideSampleData] = useSampleDataHidden()
   return (
     <aside className="flex-none w-[84px] bg-organic-neutral-100 border-r border-organic-neutral-300/50 py-[22px] flex flex-col items-center gap-2 sticky top-0 h-screen">
       <div className="w-11 h-11 rounded-organic-tile bg-organic-accent grid place-items-center text-organic-accent-100 mb-3.5">
@@ -457,6 +537,17 @@ function IconRail({
 
       <div className="mt-auto flex flex-col items-center gap-2">
         <button
+          onClick={() => setHideSampleData(!hideSampleData)}
+          title={hideSampleData ? 'Sample data hidden — click to show' : 'Sample data shown — click to hide'}
+          aria-pressed={hideSampleData}
+          className={`w-[54px] h-[44px] rounded-2xl flex flex-col items-center justify-center gap-0.5 transition-colors ${
+            hideSampleData ? 'bg-organic-accent-100 text-organic-accent-700' : 'text-organic-neutral-700 hover:bg-organic-neutral-200'
+          }`}
+        >
+          {hideSampleData ? <EyeOff size={18} /> : <Eye size={18} />}
+          <span className="text-[9px] font-semibold">Samples</span>
+        </button>
+        <button
           onClick={onOpenAdmin}
           title="Practice admin"
           className="w-[54px] h-[54px] rounded-2xl flex flex-col items-center justify-center gap-0.5 text-organic-neutral-700 hover:bg-organic-neutral-200 transition-colors"
@@ -479,38 +570,45 @@ function IconRail({
 
 // ─── Caseload ─────────────────────────────────────────────────────────────
 
-const STATS = [
-  { label: 'Today', value: '6', icon: Calendar },
-  { label: 'My patients', value: '41', icon: UsersRound },
-  { label: 'Notes due', value: '3', icon: FileEdit },
-]
-
 const RISK_STYLE: Record<string, { color: string; bg: string }> = {
   High: { color: 'text-organic-accent-800', bg: 'bg-organic-accent-200' },
+  Crisis: { color: 'text-organic-accent-800', bg: 'bg-organic-accent-200' },
   Med: { color: 'text-organic-accent-2-800', bg: 'bg-organic-accent-2-200' },
+  Medium: { color: 'text-organic-accent-2-800', bg: 'bg-organic-accent-2-200' },
   Low: { color: 'text-organic-neutral-700', bg: 'bg-organic-neutral-200' },
 }
 
-const SCHEDULE = [
-  { time: '09:00', name: 'Tomas Ruiz', initials: 'TR', kind: 'Intake · in person', risk: 'Low' },
-  { time: '10:00', name: 'Maya Okonkwo', initials: 'MO', kind: 'Follow-up · video', risk: 'High' },
-  { time: '11:30', name: 'Sara Farouk', initials: 'SF', kind: 'Follow-up · video', risk: 'High' },
-  { time: '14:00', name: 'Grace Kim', initials: 'GK', kind: 'CBT session · in person', risk: 'Med' },
-]
+function riskStyle(risk: string) {
+  return RISK_STYLE[risk] || RISK_STYLE.Low
+}
 
-const FLAGS = [
-  { name: 'Maya Okonkwo', detail: 'PHQ-9 item 9 elevated — review safety plan' },
-  { name: 'Sara Farouk', detail: 'GAD-7 rose to 19 since last week' },
-]
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+}
 
-const TODOS = ['Sign session note · D. Alvarez', 'Send GAD-7 to L. Petrova', 'Review AI summary · G. Kim']
+function initialsOf(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  return parts.length ? (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase() : '?'
+}
 
-function CaseloadView({ onOpenPatient }: { onOpenPatient: () => void }) {
+function CaseloadView({
+  dashboard,
+  onOpenPatient,
+}: {
+  dashboard: ClinicianDashboard | null
+  onOpenPatient: () => void
+}) {
+  const stats = [
+    { label: 'Today', value: dashboard ? String(dashboard.sessions_today_count) : '…', icon: Calendar },
+    { label: 'My patients', value: dashboard ? String(dashboard.patients_count) : '…', icon: UsersRound },
+    { label: 'Notes due', value: dashboard ? String(dashboard.notes_due_count) : '…', icon: FileEdit },
+  ]
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-4">
       <div>
         <div className="grid grid-cols-3 gap-3.5 mb-4">
-          {STATS.map((st) => (
+          {stats.map((st) => (
             <div key={st.label} className="bg-organic-surface rounded-organic-card p-4 shadow-organic-sm">
               <div className="flex justify-between">
                 <span className="text-xs text-organic-neutral-600">{st.label}</span>
@@ -524,22 +622,26 @@ function CaseloadView({ onOpenPatient }: { onOpenPatient: () => void }) {
         <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
           <h3 className="text-[19px] font-heading text-organic-text mb-3">Today&apos;s schedule</h3>
           <div className="flex flex-col">
-            {SCHEDULE.map((s) => (
+            {!dashboard && <div className="text-sm text-organic-neutral-600 py-2">Loading…</div>}
+            {dashboard && dashboard.today_schedule.length === 0 && (
+              <div className="text-sm text-organic-neutral-600 py-2">No appointments scheduled for today.</div>
+            )}
+            {dashboard?.today_schedule.map((s) => (
               <button
-                key={s.time}
+                key={s.id}
                 onClick={onOpenPatient}
                 className="flex items-center gap-3.5 py-3 px-1 border-b border-organic-text/[0.07] last:border-b-0 text-left"
               >
-                <span className="text-sm font-bold text-organic-accent-700 w-14">{s.time}</span>
+                <span className="text-sm font-bold text-organic-accent-700 w-14">{formatTime(s.start_time)}</span>
                 <div className="w-9 h-9 rounded-full bg-organic-accent-200 grid place-items-center text-[11px] font-bold text-organic-accent-800">
-                  {s.initials}
+                  {initialsOf(s.patient_name)}
                 </div>
                 <div className="flex-1">
-                  <div className="font-semibold text-sm text-organic-text">{s.name}</div>
-                  <div className="text-xs text-organic-neutral-600">{s.kind}</div>
+                  <div className="font-semibold text-sm text-organic-text">{s.patient_name}</div>
+                  <div className="text-xs text-organic-neutral-600">{s.location === 'ONLINE' ? 'Video' : 'In person'} · {s.status}</div>
                 </div>
-                <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill ${RISK_STYLE[s.risk].bg} ${RISK_STYLE[s.risk].color}`}>
-                  {s.risk}
+                <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill ${riskStyle(s.patient_risk).bg} ${riskStyle(s.patient_risk).color}`}>
+                  {s.patient_risk}
                 </span>
               </button>
             ))}
@@ -554,10 +656,15 @@ function CaseloadView({ onOpenPatient }: { onOpenPatient: () => void }) {
             <h3 className="text-[17px] font-heading text-organic-accent-800">Needs review</h3>
           </div>
           <div className="flex flex-col gap-2.5">
-            {FLAGS.map((f) => (
-              <div key={f.name} className="bg-organic-bg rounded-organic-tile p-3">
-                <div className="font-semibold text-[13.5px] text-organic-text">{f.name}</div>
-                <div className="text-xs text-organic-neutral-700">{f.detail}</div>
+            {dashboard && dashboard.needs_review.length === 0 && (
+              <div className="text-xs text-organic-accent-700">Nothing flagged in the last 14 days.</div>
+            )}
+            {dashboard?.needs_review.map((f) => (
+              <div key={`${f.patient_id}-${f.taken_at}`} className="bg-organic-bg rounded-organic-tile p-3">
+                <div className="font-semibold text-[13.5px] text-organic-text">{f.patient_name}</div>
+                <div className="text-xs text-organic-neutral-700">
+                  {f.instrument_name}{f.interpretation_text ? ` — ${f.interpretation_text}` : ' flagged'}
+                </div>
               </div>
             ))}
           </div>
@@ -566,10 +673,13 @@ function CaseloadView({ onOpenPatient }: { onOpenPatient: () => void }) {
         <div className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm">
           <h3 className="text-[17px] font-heading text-organic-text mb-3">Tasks</h3>
           <div className="flex flex-col gap-2.5">
-            {TODOS.map((t) => (
-              <div key={t} className="flex items-center gap-2.5 text-[13.5px] text-organic-text">
+            {dashboard && dashboard.notes_due.length === 0 && (
+              <div className="text-[13.5px] text-organic-neutral-600">All session notes are signed off.</div>
+            )}
+            {dashboard?.notes_due.map((n) => (
+              <div key={n.note_id} className="flex items-center gap-2.5 text-[13.5px] text-organic-text">
                 <span className="w-5 h-5 rounded-[6px] border-2 border-organic-neutral-400 flex-none" />
-                {t}
+                Sign session note · {n.patient_name}
               </div>
             ))}
           </div>
@@ -588,7 +698,16 @@ const SESSION_HISTORY = [
 ]
 
 function ChartView() {
+  const [hideSampleData] = useSampleDataHidden()
   return (
+    <SampleGate
+      hidden={hideSampleData}
+      placeholder={
+        <div className="text-sm text-organic-neutral-600 py-8">
+          Patient chart details will appear here once session and assessment history is available.
+        </div>
+      }
+    >
     <div>
       <div className="flex items-center gap-3.5 mb-[18px]">
         <div className="w-[52px] h-[52px] rounded-full bg-organic-accent-200 grid place-items-center font-bold text-base text-organic-accent-800">
@@ -698,6 +817,7 @@ function ChartView() {
         </aside>
       </div>
     </div>
+    </SampleGate>
   )
 }
 
@@ -718,7 +838,16 @@ const SOAP = [
 ]
 
 function ScribeView() {
+  const [hideSampleData] = useSampleDataHidden()
   return (
+    <SampleGate
+      hidden={hideSampleData}
+      placeholder={
+        <div className="text-sm text-organic-neutral-600 py-8">
+          Live transcript and AI session notes will appear here once a recording session starts.
+        </div>
+      }
+    >
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
         <div className="flex justify-between items-center mb-3.5">
@@ -765,6 +894,7 @@ function ScribeView() {
         </div>
       </div>
     </div>
+    </SampleGate>
   )
 }
 
@@ -785,7 +915,16 @@ const HOMEWORK = [
 ]
 
 function PlanView() {
+  const [hideSampleData] = useSampleDataHidden()
   return (
+    <SampleGate
+      hidden={hideSampleData}
+      placeholder={
+        <div className="text-sm text-organic-neutral-600 py-8">
+          Care plan details will appear here once a treatment plan is created for this patient.
+        </div>
+      }
+    >
     <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-4">
       <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
         <div className="flex justify-between items-center mb-4">
@@ -853,5 +992,6 @@ function PlanView() {
         </div>
       </div>
     </div>
+    </SampleGate>
   )
 }

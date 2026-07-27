@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import apiClient from '../services/api'
+import { useSampleDataHidden } from '../hooks/useSampleDataHidden'
+import { SampleGate } from '../components/SampleGate'
 import {
   Brain,
   Plus,
@@ -82,6 +84,44 @@ interface Patient {
   risk: 'High' | 'Med' | 'Low'
   status: string
   next: string
+  therapistId?: string
+}
+
+interface ClinicianRow {
+  id: string
+  fullName: string
+  initials: string
+  email: string
+  role: string
+  active: boolean
+  patientCount: number
+}
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase()
+}
+
+function toRiskLabel(risk: string): Patient['risk'] {
+  if (risk === 'High' || risk === 'Crisis') return 'High'
+  if (risk === 'Med' || risk === 'Medium') return 'Med'
+  return 'Low'
+}
+
+function toPatientRow(api: any, clinicians: ClinicianRow[]): Patient {
+  const clinician = clinicians.find((c) => c.id === api.therapist_id)
+  return {
+    id: api.id,
+    name: api.name,
+    initials: initialsOf(api.name || '?'),
+    clinician: clinician ? clinician.fullName : 'Unassigned',
+    last: api.last_seen ? new Date(api.last_seen).toLocaleDateString() : 'No sessions yet',
+    risk: toRiskLabel(api.risk),
+    status: api.status || 'Active',
+    next: '—',
+    therapistId: api.therapist_id,
+  }
 }
 
 const PATIENTS: Patient[] = [
@@ -102,18 +142,57 @@ const RISK_STYLE: Record<Patient['risk'], { color: string; bg: string }> = {
 export default function PracticeAdminPortal() {
   const [view, setView] = useState<View>('dashboard')
   const [dash, setDash] = useState<DashLayout>('a')
-  const [patientId, setPatientId] = useState('p1')
+  const [patientId, setPatientId] = useState<string | null>(null)
+  const [realPatients, setRealPatients] = useState<Patient[]>([])
+  const [clinicians, setClinicians] = useState<ClinicianRow[]>([])
+  const [caseloadFilter, setCaseloadFilter] = useState<string | null>(null)
+  const [hideSampleData, setHideSampleData] = useSampleDataHidden()
   const navigate = useNavigate()
-  const { logout } = useAuthStore()
+  const { logout, user } = useAuthStore()
+  const me = clinicians.find((c) => c.id === user?.sub) || null
+
+  const loadClinicians = () =>
+    apiClient.getClinicians().then((rows: any[]) =>
+      setClinicians(
+        rows.map((r) => ({
+          id: r.id,
+          fullName: r.full_name,
+          initials: initialsOf(r.full_name),
+          email: r.email,
+          role: r.role,
+          active: r.active,
+          patientCount: r.patient_count,
+        }))
+      )
+    )
+
+  const loadPatients = (cliniciansList: ClinicianRow[]) =>
+    apiClient.getPatients().then((rows: any[]) => setRealPatients(rows.map((r) => toPatientRow(r, cliniciansList))))
+
+  useEffect(() => {
+    loadClinicians().then((_) => {})
+  }, [])
+
+  // Patients need the clinician list first to resolve "Assigned to" names.
+  useEffect(() => {
+    if (clinicians.length > 0) loadPatients(clinicians)
+  }, [clinicians])
+
+  const refreshPatients = () => loadPatients(clinicians)
 
   const openPatient = (id: string) => {
     setPatientId(id)
     setView('patientDetail')
   }
 
-  const patient = PATIENTS.find((p) => p.id === patientId) || PATIENTS[0]
-  const title = view === 'patientDetail' ? patient.name : TITLES[view]
-  const subtitle = view === 'patientDetail' ? `${patient.status} · Primary: ${patient.clinician}` : SUBTITLES[view]
+  const openCaseload = (clinicianId: string) => {
+    setCaseloadFilter(clinicianId)
+    setView('patients')
+  }
+
+  const patient = realPatients.find((p) => p.id === patientId) || null
+  const title = view === 'patientDetail' ? patient?.name || '' : TITLES[view]
+  const subtitle = view === 'patientDetail' ? `${patient?.status} · Primary: ${patient?.clinician}` : SUBTITLES[view]
 
   const handleLogout = async () => {
     await logout()
@@ -165,11 +244,24 @@ export default function PracticeAdminPortal() {
             <div className="w-3/4 h-full bg-organic-accent-2-500" />
           </div>
         </div>
+        <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+          <span className="text-[11px] font-semibold text-organic-neutral-600">Hide sample data</span>
+          <button
+            onClick={() => setHideSampleData(!hideSampleData)}
+            title={hideSampleData ? 'Sample data hidden — click to show' : 'Sample data shown — click to hide'}
+            aria-pressed={hideSampleData}
+            className={`w-9 h-5 rounded-organic-pill relative flex-none transition-colors ${hideSampleData ? 'bg-organic-accent' : 'bg-organic-neutral-300'}`}
+          >
+            <span className={`absolute w-3.5 h-3.5 rounded-full bg-white top-[3px] transition-all ${hideSampleData ? 'right-[3px]' : 'left-[3px]'}`} />
+          </button>
+        </div>
         <div className="flex items-center gap-2.5 p-2 border-t border-organic-neutral-300/50 mt-1">
-          <div className="w-[34px] h-[34px] rounded-full bg-organic-accent-300 grid place-items-center font-bold text-organic-accent-900 text-[13px]">HM</div>
+          <div className="w-[34px] h-[34px] rounded-full bg-organic-accent-300 grid place-items-center font-bold text-organic-accent-900 text-[13px]">
+            {me ? initialsOf(me.fullName) : '—'}
+          </div>
           <div className="leading-tight flex-1 min-w-0">
-            <div className="text-[13px] font-semibold truncate">Dr. Heba Moustafa</div>
-            <div className="text-[11px] text-organic-neutral-600">Director</div>
+            <div className="text-[13px] font-semibold truncate">{me?.fullName || 'Loading…'}</div>
+            <div className="text-[11px] text-organic-neutral-600 capitalize">{me?.role || ''}</div>
           </div>
           <button onClick={handleLogout} title="Log out">
             <LogOut size={17} className="text-organic-neutral-600" />
@@ -196,9 +288,27 @@ export default function PracticeAdminPortal() {
         </header>
 
         {view === 'dashboard' && <DashboardView dash={dash} setDash={setDash} onOpenPatient={openPatient} />}
-        {view === 'clinicians' && <CliniciansView />}
-        {view === 'patients' && <PatientsView onOpenPatient={openPatient} />}
-        {view === 'patientDetail' && <PatientDetailView patient={patient} onBack={() => setView('patients')} />}
+        {view === 'clinicians' && <CliniciansView clinicians={clinicians} onViewCaseload={openCaseload} />}
+        {view === 'patients' && (
+          <PatientsView
+            patients={realPatients}
+            clinicians={clinicians}
+            onOpenPatient={openPatient}
+            caseloadFilter={caseloadFilter}
+            onClearCaseloadFilter={() => setCaseloadFilter(null)}
+          />
+        )}
+        {view === 'patientDetail' &&
+          (patient ? (
+            <PatientDetailView
+              patient={patient}
+              clinicians={clinicians}
+              onBack={() => setView('patients')}
+              onReassigned={refreshPatients}
+            />
+          ) : (
+            <div className="text-sm text-organic-neutral-600">Loading…</div>
+          ))}
         {view === 'assessments' && <AssessmentsView />}
         {view === 'content' && <ContentView />}
         {view === 'access' && <AccessView />}
@@ -250,7 +360,16 @@ function DashboardView({ dash, setDash, onOpenPatient }: { dash: DashLayout; set
 }
 
 function DashboardAnalytics({ onOpenPatient }: { onOpenPatient: (id: string) => void }) {
+  const [hideSampleData] = useSampleDataHidden()
   return (
+    <SampleGate
+      hidden={hideSampleData}
+      placeholder={
+        <div className="text-sm text-organic-neutral-600 py-8">
+          Practice analytics will appear here once there is enough session and assessment activity to report on.
+        </div>
+      }
+    >
     <div>
       <div className="grid grid-cols-4 gap-4 mb-4">
         {STATS.map((st) => (
@@ -299,11 +418,21 @@ function DashboardAnalytics({ onOpenPatient }: { onOpenPatient: (id: string) => 
         <PatientsTable patients={PATIENTS.slice(0, 4)} onOpenPatient={onOpenPatient} showNext />
       </div>
     </div>
+    </SampleGate>
   )
 }
 
 function DashboardWelcome({ onOpenPatient }: { onOpenPatient: (id: string) => void }) {
+  const [hideSampleData] = useSampleDataHidden()
   return (
+    <SampleGate
+      hidden={hideSampleData}
+      placeholder={
+        <div className="text-sm text-organic-neutral-600 py-8">
+          Your practice overview will appear here once there is enough activity to summarize.
+        </div>
+      }
+    >
     <div>
       <div className="bg-gradient-to-br from-organic-accent-600 to-organic-accent-800 rounded-[28px] p-9 text-organic-accent-100 flex justify-between items-center gap-6 flex-wrap mb-[18px]">
         <div className="max-w-[520px]">
@@ -348,11 +477,21 @@ function DashboardWelcome({ onOpenPatient }: { onOpenPatient: (id: string) => vo
         </div>
       </div>
     </div>
+    </SampleGate>
   )
 }
 
 function DashboardBento() {
+  const [hideSampleData] = useSampleDataHidden()
   return (
+    <SampleGate
+      hidden={hideSampleData}
+      placeholder={
+        <div className="text-sm text-organic-neutral-600 py-8">
+          Practice health metrics will appear here once there is enough activity to report on.
+        </div>
+      }
+    >
     <div className="grid grid-cols-4 gap-3.5" style={{ gridAutoRows: 'minmax(120px, auto)' }}>
       <div className="col-span-2 row-span-2 bg-gradient-to-br from-organic-accent-2-600 to-organic-accent-2-800 rounded-organic-card p-6 text-organic-accent-2-100 flex flex-col justify-between">
         <div>
@@ -387,6 +526,7 @@ function DashboardBento() {
         </div>
       </div>
     </div>
+    </SampleGate>
   )
 }
 
@@ -443,15 +583,7 @@ function PatientsTable({ patients, onOpenPatient, showNext }: { patients: Patien
 
 // ─── Clinicians ─────────────────────────────────────────────────────────────
 
-const CLINICIANS = [
-  { name: 'Dr. Heba Moustafa', initials: 'HM', role: 'Director · Supervisor', specialty: 'Trauma · CBT', patients: 34, status: 'Active' },
-  { name: 'Dr. Omar Nasser', initials: 'ON', role: 'Clinician', specialty: 'Anxiety · ACT', patients: 41, status: 'Active' },
-  { name: 'Dr. Amina Saleh', initials: 'AS', role: 'Clinician', specialty: 'Mood · DBT', patients: 28, status: 'Active' },
-  { name: 'Dr. Youssef Adel', initials: 'YA', role: 'Clinician', specialty: 'Adolescent · IFS', patients: 25, status: 'On leave' },
-  { name: 'Nadia Halim', initials: 'NH', role: 'Intern (supervised)', specialty: 'Intake', patients: 0, status: 'Pending' },
-]
-
-function CliniciansView() {
+function CliniciansView({ clinicians, onViewCaseload }: { clinicians: ClinicianRow[]; onViewCaseload: (id: string) => void }) {
   return (
     <div>
       <div className="flex justify-end mb-4">
@@ -459,28 +591,31 @@ function CliniciansView() {
           <Plus size={16} /> Invite clinician
         </button>
       </div>
+      {clinicians.length === 0 && <div className="text-sm text-organic-neutral-600">Loading…</div>}
       <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
-        {CLINICIANS.map((c) => (
-          <div key={c.name} className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm">
+        {clinicians.map((c) => (
+          <div key={c.id} className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm">
             <div className="flex items-center gap-3.5 mb-3.5">
               <div className="w-12 h-12 rounded-full bg-organic-accent-2-200 grid place-items-center font-bold text-organic-accent-2-800">{c.initials}</div>
               <div className="flex-1 min-w-0">
-                <div className="font-bold text-[15px]">{c.name}</div>
-                <div className="text-xs text-organic-neutral-600">{c.role}</div>
+                <div className="font-bold text-[15px] truncate">{c.fullName}</div>
+                <div className="text-xs text-organic-neutral-600 capitalize">{c.role}</div>
               </div>
-              <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill ${c.status === 'Active' ? 'bg-organic-accent-2-100 text-organic-accent-2-800' : c.status === 'Pending' ? 'bg-organic-accent-100 text-organic-accent-800' : 'bg-organic-neutral-200 text-organic-neutral-700'}`}>
-                {c.status}
+              <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill ${c.active ? 'bg-organic-accent-2-100 text-organic-accent-2-800' : 'bg-organic-neutral-200 text-organic-neutral-700'}`}>
+                {c.active ? 'Active' : 'Inactive'}
               </span>
             </div>
-            <div className="flex justify-between pt-3 border-t border-organic-neutral-300/50 text-sm">
+            <div className="flex items-center justify-between pt-3 border-t border-organic-neutral-300/50 text-sm">
               <div>
-                <div className="text-organic-neutral-500 text-[11px]">Specialty</div>
-                <div className="font-semibold">{c.specialty}</div>
-              </div>
-              <div className="text-right">
                 <div className="text-organic-neutral-500 text-[11px]">Patients</div>
-                <div className="font-semibold">{c.patients}</div>
+                <div className="font-semibold">{c.patientCount}</div>
               </div>
+              <button
+                onClick={() => onViewCaseload(c.id)}
+                className="text-xs font-semibold text-organic-accent-700 rounded-organic-pill border border-organic-accent-300 px-3 py-1.5 hover:bg-organic-accent-100"
+              >
+                View caseload
+              </button>
             </div>
           </div>
         ))}
@@ -491,12 +626,34 @@ function CliniciansView() {
 
 // ─── Patients ───────────────────────────────────────────────────────────────
 
-function PatientsView({ onOpenPatient }: { onOpenPatient: (id: string) => void }) {
+function PatientsView({
+  patients,
+  clinicians,
+  onOpenPatient,
+  caseloadFilter,
+  onClearCaseloadFilter,
+}: {
+  patients: Patient[]
+  clinicians: ClinicianRow[]
+  onOpenPatient: (id: string) => void
+  caseloadFilter: string | null
+  onClearCaseloadFilter: () => void
+}) {
   const [filter, setFilter] = useState<'All' | 'High risk' | 'Intake'>('All')
-  const filtered = PATIENTS.filter((p) => (filter === 'All' ? true : filter === 'High risk' ? p.risk === 'High' : p.status === 'Intake'))
+  const byRiskOrStatus = patients.filter((p) => (filter === 'All' ? true : filter === 'High risk' ? p.risk === 'High' : p.status === 'Intake'))
+  const filtered = caseloadFilter ? byRiskOrStatus.filter((p) => p.therapistId === caseloadFilter) : byRiskOrStatus
+  const caseloadClinician = caseloadFilter ? clinicians.find((c) => c.id === caseloadFilter) : null
 
   return (
     <div>
+      {caseloadFilter && (
+        <div className="flex items-center gap-2 bg-organic-accent-100 text-organic-accent-800 text-sm rounded-organic-tile px-3.5 py-2 mb-3.5">
+          Showing {caseloadClinician?.fullName || 'this clinician'}&apos;s patients
+          <button onClick={onClearCaseloadFilter} className="ml-auto text-xs underline">
+            Clear
+          </button>
+        </div>
+      )}
       <div className="flex justify-between items-center gap-3 flex-wrap mb-4">
         <div className="inline-flex gap-2">
           {(['All', 'High risk', 'Intake'] as const).map((f) => (
@@ -514,7 +671,11 @@ function PatientsView({ onOpenPatient }: { onOpenPatient: (id: string) => void }
         </button>
       </div>
       <div className="bg-organic-surface rounded-organic-card p-[22px] pt-2 shadow-organic-sm">
-        <PatientsTable patients={filtered} onOpenPatient={onOpenPatient} />
+        {patients.length === 0 ? (
+          <div className="text-sm text-organic-neutral-600 py-3">Loading…</div>
+        ) : (
+          <PatientsTable patients={filtered} onOpenPatient={onOpenPatient} />
+        )}
       </div>
     </div>
   )
@@ -536,8 +697,31 @@ const FOLDER_FILES: Record<string, { n: string; d: string }[]> = {
   reports: [{ n: 'Progress report Q2.pdf', d: '5 days ago' }],
 }
 
-function PatientDetailView({ patient, onBack }: { patient: Patient; onBack: () => void }) {
+function PatientDetailView({
+  patient,
+  clinicians,
+  onBack,
+  onReassigned,
+}: {
+  patient: Patient
+  clinicians: ClinicianRow[]
+  onBack: () => void
+  onReassigned: () => void
+}) {
   const [folder, setFolder] = useState<string>('input')
+  const [reassigning, setReassigning] = useState(false)
+  const [hideSampleData] = useSampleDataHidden()
+
+  const handleReassign = async (newClinicianId: string) => {
+    if (!newClinicianId || newClinicianId === patient.therapistId) return
+    setReassigning(true)
+    try {
+      await apiClient.updatePatient(patient.id, { therapist_id: newClinicianId })
+      onReassigned()
+    } finally {
+      setReassigning(false)
+    }
+  }
 
   return (
     <div>
@@ -545,40 +729,58 @@ function PatientDetailView({ patient, onBack }: { patient: Patient; onBack: () =
         <button onClick={onBack} className="w-[38px] h-[38px] rounded-full border border-organic-neutral-300/60 bg-organic-surface grid place-items-center">
           <ArrowLeft size={18} />
         </button>
-        <div className="flex items-center gap-3.5">
+        <div className="flex items-center gap-3.5 flex-1">
           <div className="w-[52px] h-[52px] rounded-full bg-organic-accent-200 grid place-items-center font-bold text-base text-organic-accent-800">{patient.initials}</div>
           <div>
             <div className="flex items-center gap-2.5">
               <span className="font-heading text-[22px]">{patient.name}</span>
               <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill ${RISK_STYLE[patient.risk].bg} ${RISK_STYLE[patient.risk].color}`}>{patient.risk} risk</span>
             </div>
-            <div className="text-sm text-organic-neutral-600">Primary: {patient.clinician} · Last session {patient.last}</div>
+            <div className="text-sm text-organic-neutral-600">Last session {patient.last}</div>
           </div>
+        </div>
+        <div className="text-right">
+          <label className="block text-[11px] text-organic-neutral-500 mb-1">Assigned clinician</label>
+          <select
+            value={patient.therapistId || ''}
+            onChange={(e) => handleReassign(e.target.value)}
+            disabled={reassigning || clinicians.length === 0}
+            className="text-sm font-semibold bg-organic-surface border border-organic-neutral-300/60 rounded-organic-pill px-3 py-1.5 disabled:opacity-50"
+          >
+            {!patient.therapistId && <option value="">Unassigned</option>}
+            {clinicians.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.fullName}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
       <div className="grid grid-cols-[2fr_1fr] gap-4">
         <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
-          <div className="flex gap-2.5 mb-[18px] flex-wrap">
-            {FOLDERS.map((f) => (
-              <button
-                key={f.key}
-                onClick={() => setFolder(f.key)}
-                className={`text-xs font-semibold px-3.5 py-2 rounded-organic-pill inline-flex items-center gap-1.5 ${folder === f.key ? 'bg-organic-accent-100 text-organic-accent-800' : 'text-organic-neutral-800'}`}
-              >
-                <f.icon size={15} /> {f.label}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-col gap-2">
-            {(FOLDER_FILES[folder] || []).map((file) => (
-              <div key={file.n} className="flex items-center gap-3 py-3.5 px-3.5 bg-organic-neutral-100 rounded-organic-tile">
-                <FileText size={18} className="text-organic-accent-600" />
-                <span className="flex-1 font-semibold text-[13.5px]">{file.n}</span>
-                <span className="text-[11.5px] text-organic-neutral-500">{file.d}</span>
-                <Lock size={14} className="text-organic-neutral-400" />
-              </div>
-            ))}
-          </div>
+          <SampleGate hidden={hideSampleData} placeholder={<p className="text-[13px] text-organic-neutral-600">No documents uploaded yet.</p>}>
+            <div className="flex gap-2.5 mb-[18px] flex-wrap">
+              {FOLDERS.map((f) => (
+                <button
+                  key={f.key}
+                  onClick={() => setFolder(f.key)}
+                  className={`text-xs font-semibold px-3.5 py-2 rounded-organic-pill inline-flex items-center gap-1.5 ${folder === f.key ? 'bg-organic-accent-100 text-organic-accent-800' : 'text-organic-neutral-800'}`}
+                >
+                  <f.icon size={15} /> {f.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-col gap-2">
+              {(FOLDER_FILES[folder] || []).map((file) => (
+                <div key={file.n} className="flex items-center gap-3 py-3.5 px-3.5 bg-organic-neutral-100 rounded-organic-tile">
+                  <FileText size={18} className="text-organic-accent-600" />
+                  <span className="flex-1 font-semibold text-[13.5px]">{file.n}</span>
+                  <span className="text-[11.5px] text-organic-neutral-500">{file.d}</span>
+                  <Lock size={14} className="text-organic-neutral-400" />
+                </div>
+              ))}
+            </div>
+          </SampleGate>
         </div>
         <aside className="flex flex-col gap-3.5">
           <div className="bg-gradient-to-br from-organic-accent-100 to-organic-surface rounded-organic-tile p-5 shadow-organic-sm">
@@ -586,21 +788,13 @@ function PatientDetailView({ patient, onBack }: { patient: Patient; onBack: () =
               <Sparkles size={17} className="text-organic-accent-700" />
               <h4 className="text-base font-heading">AI clinical insights</h4>
             </div>
-            <p className="text-[13px] text-organic-neutral-800 leading-relaxed mb-3">
-              PHQ-9 trending down over 4 sessions (18 → 14). Sleep and appetite items improving; item 9 remains elevated — continue weekly safety check-ins.
+            <p className="text-[13px] text-organic-neutral-600 leading-relaxed">
+              Generated after enough session and assessment history accumulates for this patient.
             </p>
-            <div className="flex gap-2 flex-wrap">
-              <span className="text-[11px] px-2.5 py-1 rounded-organic-pill bg-organic-accent-200 text-organic-accent-800">CBT recommended</span>
-              <span className="text-[11px] px-2.5 py-1 rounded-organic-pill bg-organic-accent-2-200 text-organic-accent-2-800">Safety plan active</span>
-            </div>
           </div>
           <div className="bg-organic-surface rounded-organic-tile p-5 shadow-organic-sm">
             <h4 className="text-base font-heading mb-3">Latest scores</h4>
-            <div className="flex flex-col gap-2.5">
-              <div className="flex justify-between"><span className="text-sm text-organic-neutral-700">PHQ-9</span><span className="font-bold text-organic-accent-700">14 · Mod. severe</span></div>
-              <div className="flex justify-between"><span className="text-sm text-organic-neutral-700">GAD-7</span><span className="font-bold text-organic-accent-2-700">11 · Moderate</span></div>
-              <div className="flex justify-between"><span className="text-sm text-organic-neutral-700">ACE</span><span className="font-bold text-organic-neutral-700">4</span></div>
-            </div>
+            <p className="text-[13px] text-organic-neutral-600">No assessments recorded yet.</p>
           </div>
         </aside>
       </div>
@@ -614,8 +808,10 @@ type CatalogEntry = {
   id: string
   template_key: string
   name: string
+  name_ar: string | null
   template_type: string | null
   category: string | null
+  category_ar: string | null
   license_status: string | null
   description: string | null
   is_active: boolean
@@ -636,8 +832,11 @@ function AssessmentsView() {
   const [error, setError] = useState<string | null>(null)
   const [uploadStatus, setUploadStatus] = useState<string | null>(null)
   const [selected, setSelected] = useState<CatalogEntry | null>(null)
+  const [lang, setLang] = useState<'en' | 'ar'>('en')
   const jsonInputRef = useRef<HTMLInputElement>(null)
   const pdfInputRef = useRef<HTMLInputElement>(null)
+
+  const displayName = (t: CatalogEntry) => (lang === 'ar' && t.name_ar ? t.name_ar : t.name)
 
   const reload = () => {
     setLoading(true)
@@ -694,7 +893,18 @@ function AssessmentsView() {
       <div>
         <div className="flex justify-between items-center mb-3.5">
           <h3 className="text-lg font-heading">Catalog</h3>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <div className="inline-flex bg-organic-neutral-100 border border-organic-neutral-300/60 rounded-organic-pill p-0.5 mr-1">
+              {(['en', 'ar'] as const).map((l) => (
+                <button
+                  key={l}
+                  onClick={() => setLang(l)}
+                  className={`text-[12px] font-heading px-3 py-1.5 rounded-organic-pill ${lang === l ? 'bg-organic-accent text-organic-neutral-100' : 'text-organic-neutral-700'}`}
+                >
+                  {l === 'en' ? 'EN' : 'عربي'}
+                </button>
+              ))}
+            </div>
             <input ref={jsonInputRef} type="file" accept="application/json,.json" className="hidden" onChange={handleJsonFile} />
             <input ref={pdfInputRef} type="file" accept="application/pdf,image/png,image/jpeg" className="hidden" onChange={handlePdfFile} />
             <button
@@ -717,7 +927,12 @@ function AssessmentsView() {
 
         {Object.entries(byCategory).map(([category, items]) => (
           <div key={category} className="mb-5">
-            <h4 className="text-[12px] font-heading uppercase tracking-wide text-organic-neutral-500 mb-2 px-1">{category}</h4>
+            <h4
+              className="text-[12px] font-heading uppercase tracking-wide text-organic-neutral-500 mb-2 px-1"
+              dir={lang === 'ar' ? 'rtl' : 'ltr'}
+            >
+              {lang === 'ar' ? items[0]?.category_ar || category : category}
+            </h4>
             <div className="flex flex-col gap-3">
               {items.map((t) => (
                 <div
@@ -728,8 +943,8 @@ function AssessmentsView() {
                   <div className="w-12 h-12 rounded-organic-tile bg-organic-accent-100 grid place-items-center flex-none">
                     <ClipboardList size={22} className="text-organic-accent-700" />
                   </div>
-                  <div className="flex-1">
-                    <div className="font-bold text-[15px]">{t.name}</div>
+                  <div className="flex-1" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+                    <div className="font-bold text-[15px]">{displayName(t)}</div>
                     <div className="text-xs text-organic-neutral-600">{t.description || t.template_type || 'Assessment'}</div>
                   </div>
                   <span className="text-[11px] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-200 text-organic-neutral-700">{t.template_type || 'FREE'}</span>
@@ -754,8 +969,8 @@ function AssessmentsView() {
                   <div className="w-12 h-12 rounded-organic-tile bg-organic-accent-200 grid place-items-center flex-none">
                     <FileEdit size={20} className="text-organic-accent-700" />
                   </div>
-                  <div className="flex-1">
-                    <div className="font-bold text-[15px]">{t.name}</div>
+                  <div className="flex-1" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+                    <div className="font-bold text-[15px]">{displayName(t)}</div>
                     <div className="text-xs text-organic-neutral-600">{t.description}</div>
                   </div>
                   <span className="text-[11px] px-2.5 py-0.5 rounded-organic-pill bg-organic-accent-300/60 text-organic-accent-800 font-semibold flex-none">
@@ -778,8 +993,8 @@ function AssessmentsView() {
                   <div className="w-12 h-12 rounded-organic-tile bg-organic-neutral-200 grid place-items-center flex-none">
                     <Lock size={20} className="text-organic-neutral-500" />
                   </div>
-                  <div className="flex-1">
-                    <div className="font-bold text-[15px] text-organic-neutral-700">{t.name}</div>
+                  <div className="flex-1" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+                    <div className="font-bold text-[15px] text-organic-neutral-700">{displayName(t)}</div>
                     <div className="text-xs text-organic-neutral-500">{t.description}</div>
                   </div>
                   <span className="text-[11px] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-300/60 text-organic-neutral-700 font-semibold flex-none">
@@ -988,8 +1203,14 @@ function AssessmentReviewPanel({
       >
         <div className="flex justify-between items-start mb-1.5">
           <div>
-            <h2 className="text-[24px] font-heading text-organic-text">{catalogEntry.name}</h2>
-            <p className="text-sm text-organic-neutral-600">{catalogEntry.category || catalogEntry.template_type}</p>
+            <h2 className="text-[24px] font-heading text-organic-text">
+              {lang === 'ar' && catalogEntry.name_ar ? catalogEntry.name_ar : catalogEntry.name}
+            </h2>
+            <p className="text-sm text-organic-neutral-600">
+              {lang === 'ar'
+                ? catalogEntry.category_ar || catalogEntry.category || catalogEntry.template_type
+                : catalogEntry.category || catalogEntry.template_type}
+            </p>
           </div>
           <button onClick={onClose} className="text-organic-neutral-500 hover:text-organic-neutral-800 text-2xl leading-none">
             &times;
@@ -1116,7 +1337,12 @@ const CONTENT = [
 ]
 
 function ContentView() {
+  const [hideSampleData] = useSampleDataHidden()
   return (
+    <SampleGate
+      hidden={hideSampleData}
+      placeholder={<div className="text-sm text-organic-neutral-600 py-8">No content has been uploaded to the library yet.</div>}
+    >
     <div>
       <div className="flex justify-between items-center gap-3 flex-wrap mb-4">
         <div className="inline-flex gap-2 flex-wrap">
@@ -1150,6 +1376,7 @@ function ContentView() {
         ))}
       </div>
     </div>
+    </SampleGate>
   )
 }
 
@@ -1171,7 +1398,16 @@ const OVERRIDES = [
 ]
 
 function AccessView() {
+  const [hideSampleData] = useSampleDataHidden()
   return (
+    <SampleGate
+      hidden={hideSampleData}
+      placeholder={
+        <div className="text-sm text-organic-neutral-600 py-8">
+          Role and permission details will appear here once access control is configured.
+        </div>
+      }
+    >
     <div className="flex flex-col gap-[18px]">
       <div className="bg-organic-surface rounded-organic-card p-6 shadow-organic-sm">
         <h3 className="text-lg font-heading mb-1">Role permissions</h3>
@@ -1216,6 +1452,7 @@ function AccessView() {
         </div>
       </div>
     </div>
+    </SampleGate>
   )
 }
 
@@ -1234,7 +1471,12 @@ const PLANS = [
 ]
 
 function BillingView() {
+  const [hideSampleData] = useSampleDataHidden()
   return (
+    <SampleGate
+      hidden={hideSampleData}
+      placeholder={<div className="text-sm text-organic-neutral-600 py-8">Billing and plan details are not available yet.</div>}
+    >
     <div className="flex flex-col gap-[18px]">
       <div className="grid grid-cols-3 gap-3.5">
         {USAGE.map((u) => (
@@ -1285,6 +1527,7 @@ function BillingView() {
         <button className="rounded-organic-pill border border-organic-neutral-300/60 font-heading text-[13px] px-[18px] py-2.5">Update payment</button>
       </div>
     </div>
+    </SampleGate>
   )
 }
 
@@ -1305,7 +1548,12 @@ function ToggleRow({ label, meta, on }: { label: string; meta: string; on: boole
 }
 
 function SettingsView() {
+  const [hideSampleData] = useSampleDataHidden()
   return (
+    <SampleGate
+      hidden={hideSampleData}
+      placeholder={<div className="text-sm text-organic-neutral-600 py-8">Practice settings will appear here once they are configured.</div>}
+    >
     <div className="grid grid-cols-2 gap-4">
       <div className="bg-organic-surface rounded-organic-card p-6 shadow-organic-sm">
         <h3 className="text-lg font-heading mb-[18px]">Practice profile</h3>
@@ -1357,5 +1605,6 @@ function SettingsView() {
         </div>
       </div>
     </div>
+    </SampleGate>
   )
 }

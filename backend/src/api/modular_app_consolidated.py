@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.src.api.routes.auth_db_wired import router as auth_router
 from backend.src.api.routes.patients_db_wired import router as patients_router
+from backend.src.api.routes.clinicians_db_wired import router as clinicians_router
 from backend.src.api.routes.assessments_db_wired import router as assessments_router
 from backend.src.api.routes.sessions_db_wired import router as sessions_router
 from backend.src.api.routes.appointments_db_wired import router as appointments_router
@@ -114,6 +115,7 @@ async def structured_logging_middleware(request: Request, call_next):
 
 app.include_router(auth_router)
 app.include_router(patients_router)
+app.include_router(clinicians_router)
 app.include_router(assessments_router)
 app.include_router(sessions_router)
 app.include_router(appointments_router)

@@ -120,8 +120,13 @@ class ApiClient {
   }
 
   // Patient endpoints
-  async getPatients() {
-    const response = await this.client.get('/patients')
+  async getPatients(opts?: { mine?: boolean }) {
+    const response = await this.client.get('/patients', { params: opts?.mine ? { mine: true } : undefined })
+    return response.data
+  }
+
+  async getCurrentAppointment() {
+    const response = await this.client.get('/appointments/current')
     return response.data
   }
 
@@ -132,6 +137,16 @@ class ApiClient {
 
   async createPatient(data: any) {
     const response = await this.client.post('/patients', data)
+    return response.data
+  }
+
+  async getClinicians() {
+    const response = await this.client.get('/clinicians')
+    return response.data
+  }
+
+  async getClinicianDashboard() {
+    const response = await this.client.get('/dashboard/clinician-summary')
     return response.data
   }
 

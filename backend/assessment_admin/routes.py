@@ -37,8 +37,10 @@ async def _get_catalog_or_404(db: DB, *, org_id: str, catalog_id: str):
             ac.template_key,
             ac.legacy_template_id,
             ac.name,
+            ac.name_ar,
             ac.template_type,
             ac.category,
+            ac.category_ar,
             ac.license_status,
             ac.description,
             ac.is_active,
@@ -101,8 +103,10 @@ async def list_assessment_catalog(user: CatalogViewer, db: DB):
             ac.template_key,
             ac.legacy_template_id,
             ac.name,
+            ac.name_ar,
             ac.template_type,
             ac.category,
+            ac.category_ar,
             ac.license_status,
             ac.description,
             ac.is_active,
@@ -155,22 +159,31 @@ async def upload_assessment_json(
     if not isinstance(definition_json, dict) or not definition_json.get("questions"):
         raise HTTPException(status_code=400, detail="JSON must include a 'definition_json' object with a non-empty 'questions' list.")
 
+    name_ar = payload.get("name_ar")
+    if name_ar is not None and not isinstance(name_ar, str):
+        raise HTTPException(status_code=400, detail="'name_ar' must be a string when provided.")
+    category_ar = payload.get("category_ar")
+    if category_ar is not None and not isinstance(category_ar, str):
+        raise HTTPException(status_code=400, detail="'category_ar' must be a string when provided.")
+
     template_key = f"custom_{uuid.uuid4().hex[:8]}"
     now = datetime.now(timezone.utc)
     catalog_id = uuid.uuid4()
     await db.execute(
         """
         INSERT INTO assessment_catalog (
-            id, org_id, template_key, name, template_type, category,
+            id, org_id, template_key, name, name_ar, template_type, category, category_ar,
             license_status, description, owner_user_id, created_by, created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, 'SCREENING', $5, 'VERIFY', $6, $7, $7, $8, $8)
+        VALUES ($1, $2, $3, $4, $5, 'SCREENING', $6, $7, 'VERIFY', $8, $9, $9, $10, $10)
         """,
         catalog_id,
         uuid.UUID(user.org_id),
         template_key,
         name,
+        name_ar,
         payload.get("category"),
+        category_ar,
         payload.get("description") or "Uploaded directly by the clinician as a ready-made JSON file.",
         uuid.UUID(user.sub),
         now,
@@ -256,23 +269,27 @@ async def create_assessment_catalog_item(
             template_key,
             legacy_template_id,
             name,
+            name_ar,
             template_type,
             category,
+            category_ar,
             license_status,
             description,
             created_by,
             created_at,
             updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)
         """,
         catalog_id,
         uuid.UUID(user.org_id),
         body.template_key,
         legacy_template_id if legacy_template else None,
         name,
+        body.name_ar,
         body.template_type or (legacy_template["template_type"] if legacy_template else None),
         body.category,
+        body.category_ar,
         body.license_status or (legacy_template["license_status"] if legacy_template else "VERIFY"),
         body.description,
         uuid.UUID(user.sub),
@@ -327,7 +344,10 @@ async def update_assessment_catalog_item(
             template_key,
             legacy_template_id,
             name,
+            name_ar,
             template_type,
+            category,
+            category_ar,
             license_status,
             description,
             is_active,

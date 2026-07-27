@@ -11,6 +11,9 @@ class AppointmentServiceDb:
     async def list_appointments(self, org_id: str) -> list[dict]:
         return await self.repository.list_appointments(org_id=org_id)
 
+    async def get_current_appointment(self, org_id: str, therapist_id: str) -> dict | None:
+        return await self.repository.get_current_appointment(org_id=org_id, therapist_id=therapist_id)
+
     async def create_appointment(
         self,
         body: AppointmentIn,

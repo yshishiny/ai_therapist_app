@@ -14,6 +14,7 @@ class SessionCreateIn(BaseModel):
 class SessionAssessmentOut(BaseModel):
     template_key: str
     name: str
+    name_ar: str | None = None
     definition_json: dict[str, Any] | None = None
     delivery: str | None = None
     completed: bool = False

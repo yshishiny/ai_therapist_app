@@ -9,8 +9,10 @@ from pydantic import BaseModel
 class AssessmentCatalogCreateIn(BaseModel):
     template_key: str
     name: str | None = None
+    name_ar: str | None = None
     template_type: str | None = None
     category: str | None = None
+    category_ar: str | None = None
     license_status: str = "VERIFY"
     description: str | None = None
     legacy_template_id: str | None = None
@@ -29,8 +31,10 @@ class AssessmentCatalogOut(BaseModel):
     template_key: str
     legacy_template_id: str | None = None
     name: str
+    name_ar: str | None = None
     template_type: str | None = None
     category: str | None = None
+    category_ar: str | None = None
     license_status: str | None = None
     description: str | None = None
     is_active: bool

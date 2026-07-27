@@ -13,6 +13,7 @@ from backend.src.repositories.appointment_repository_db_real import AppointmentR
 from backend.src.repositories.assessment_repository_db_real import AssessmentRepositoryDbReal
 from backend.src.repositories.auth_repository_db_real import AuthRepositoryDbReal
 from backend.src.repositories.careplan_repository_db_real import CarePlanRepositoryDbReal
+from backend.src.repositories.clinician_repository_db_real import ClinicianRepositoryDbReal
 from backend.src.repositories.dashboard_repository_db_real import DashboardRepositoryDbReal
 from backend.src.repositories.homework_repository_db_real import HomeworkRepositoryDbReal
 from backend.src.repositories.patient_portal_repository_db_real import PatientPortalRepositoryDbReal
@@ -24,6 +25,7 @@ from backend.src.services.appointment_service_db import AppointmentServiceDb
 from backend.src.services.assessment_service_db import AssessmentServiceDb
 from backend.src.services.auth_service_db import AuthServiceDb
 from backend.src.services.careplan_service_db import CarePlanServiceDb
+from backend.src.services.clinician_service_db import ClinicianServiceDb
 from backend.src.services.dashboard_service_db import DashboardServiceDb
 from backend.src.services.homework_service_db import HomeworkServiceDb
 from backend.src.services.patient_portal_service_db import PatientPortalServiceDb
@@ -87,6 +89,10 @@ def get_auth_service(db: DB) -> AuthServiceDb:
 
 def get_patient_service(db: DB) -> PatientServiceDb:
     return PatientServiceDb(repository=PatientRepositoryDbReal(db=db))
+
+
+def get_clinician_service(db: DB) -> ClinicianServiceDb:
+    return ClinicianServiceDb(repository=ClinicianRepositoryDbReal(db=db))
 
 
 def get_assessment_service(db: DB) -> AssessmentServiceDb:

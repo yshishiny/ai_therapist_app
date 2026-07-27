@@ -21,6 +21,16 @@ async def list_appointments(
     return await service.list_appointments(org_id=context.org_id)
 
 
+@router.get('/current', response_model=AppointmentOut | None)
+async def get_current_appointment(
+    context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('appointments.view'),
+    service: AppointmentServiceDb = Depends(get_appointment_service),
+):
+    """The logged-in clinician's ongoing (or about-to-start) appointment, if any."""
+    return await service.get_current_appointment(org_id=context.org_id, therapist_id=context.user_id)
+
+
 @router.post('', response_model=AppointmentOut, status_code=status.HTTP_201_CREATED)
 async def create_appointment(
     body: AppointmentIn,
