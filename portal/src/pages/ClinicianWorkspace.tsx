@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { Fragment, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import apiClient from '../services/api'
 import { useSampleDataHidden } from '../hooks/useSampleDataHidden'
 import { SampleGate } from '../components/SampleGate'
+import { SegmentedControl } from '../components/OrganicUI'
 import { TextSizeControl } from '../components/TextSizeControl'
 import {
   Brain,
@@ -15,6 +16,10 @@ import {
   Plus,
   AlertTriangle,
   Calendar,
+  CalendarDays,
+  CalendarClock,
+  CalendarPlus,
+  UserX,
   UsersRound,
   FileEdit,
   Sparkles,
@@ -33,19 +38,20 @@ import {
   EyeOff,
 } from 'lucide-react'
 
-type WorkspaceView = 'caseload' | 'chart' | 'scribe' | 'plan'
+type WorkspaceView = 'caseload' | 'scheduler' | 'chart' | 'scribe' | 'plan'
 
 // `ready: false` = design mockup only, no real data behind it yet. Those rail
 // entries render dimmed and non-clickable rather than opening a screen of
 // invented clinical content. Flip to true as each view gets wired up.
 const NAV_ITEMS: { view: WorkspaceView; label: string; short: string; icon: typeof LayoutGrid; ready: boolean }[] = [
   { view: 'caseload', label: 'Caseload', short: 'Home', icon: LayoutGrid, ready: true },
+  { view: 'scheduler', label: 'Scheduler', short: 'Week', icon: CalendarDays, ready: true },
   { view: 'chart', label: 'Patient chart', short: 'Chart', icon: FolderOpen, ready: true },
   { view: 'scribe', label: 'AI Scribe', short: 'Scribe', icon: Mic, ready: false },
   { view: 'plan', label: 'Care plan', short: 'Plan', icon: ListChecks, ready: false },
 ]
 
-const SUBTITLES: Record<Exclude<WorkspaceView, 'caseload' | 'chart'>, string> = {
+const SUBTITLES: Record<Exclude<WorkspaceView, 'caseload' | 'chart' | 'scheduler'>, string> = {
   scribe: 'Live documentation assistant',
   plan: 'Phased treatment & homework',
 }
@@ -84,6 +90,9 @@ export default function ClinicianWorkspace() {
   const [dashboard, setDashboard] = useState<ClinicianDashboard | null>(null)
   const [myName, setMyName] = useState<string | null>(null)
   const [chartPatient, setChartPatient] = useState<ChartPatientRef | null>(null)
+  // The Scheduler owns its own week state; it reports the week label back up so
+  // the page header subtitle can show it (design §1.2).
+  const [schedulerLabel, setSchedulerLabel] = useState<string | null>(null)
 
   const openPatient = (p: ChartPatientRef) => {
     setChartPatient(p)
@@ -110,6 +119,8 @@ export default function ClinicianWorkspace() {
       ? `Good morning, ${myName || '…'}`
       : view === 'chart'
       ? chartPatient?.name || 'Patient chart'
+      : view === 'scheduler'
+      ? 'Scheduler'
       : { scribe: 'AI Scribe', plan: 'Care plan' }[view]
   const subtitle =
     view === 'caseload'
@@ -118,6 +129,8 @@ export default function ClinicianWorkspace() {
       ? chartPatient
         ? 'Clinical record'
         : 'Choose a patient to open their record'
+      : view === 'scheduler'
+      ? schedulerLabel || 'Week at a glance'
       : SUBTITLES[view]
 
   return (
@@ -146,6 +159,7 @@ export default function ClinicianWorkspace() {
         </header>
 
         {view === 'caseload' && <CaseloadView dashboard={dashboard} onOpenPatient={openPatient} />}
+        {view === 'scheduler' && <SchedulerView onOpenPatient={openPatient} onWeekLabel={setSchedulerLabel} />}
         {view === 'chart' && <ChartView patient={chartPatient} onPickPatient={setChartPatient} />}
         {view === 'scribe' && <ScribeView />}
         {view === 'plan' && <PlanView />}
@@ -182,13 +196,21 @@ export default function ClinicianWorkspace() {
 // ─── New session: pick patient + assessments ───────────────────────────────
 
 type SimplePatient = { id: string; name: string; status: string; risk: string }
-type TemplateOption = { id: string; name: string; name_ar?: string | null; template_type: string | null }
+type TemplateOption = {
+  id: string
+  name: string
+  name_ar?: string | null
+  template_type: string | null
+  definition_json?: { questions?: any[] } | null
+}
 type SessionAssessment = {
   template_key: string
   name: string
   name_ar?: string | null
   definition_json: { instructions?: string; instructions_ar?: string; questions: any[] } | null
   completed: boolean
+  unavailable?: boolean
+  unavailable_reason?: string | null
 }
 type SessionData = {
   id: string
@@ -205,7 +227,10 @@ function NewSessionModal({ onClose, onStarted }: { onClose: () => void; onStarte
   const [search, setSearch] = useState('')
   const [selectedPatient, setSelectedPatient] = useState<SimplePatient | null>(null)
   const [autoDetected, setAutoDetected] = useState(false)
-  const [currentAppointment, setCurrentAppointment] = useState<{ patient_id: string } | null>(null)
+  // patient_id is nullable in the widened AppointmentOut (a documentation/admin
+  // block has no patient), so /appointments/current can legitimately hand back a
+  // row with no patient to pre-fill from.
+  const [currentAppointment, setCurrentAppointment] = useState<{ patient_id: string | null } | null>(null)
   const [selectedKeys, setSelectedKeys] = useState<string[]>([])
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -223,12 +248,12 @@ function NewSessionModal({ onClose, onStarted }: { onClose: () => void; onStarte
     // the modal or falls back to anything but the manual picker below.
     apiClient
       .getCurrentAppointment()
-      .then((appt: { patient_id: string } | null) => setCurrentAppointment(appt))
+      .then((appt: { patient_id: string | null } | null) => setCurrentAppointment(appt))
       .catch(() => {})
   }, [])
 
   useEffect(() => {
-    if (loading || selectedPatient || !currentAppointment) return
+    if (loading || selectedPatient || !currentAppointment?.patient_id) return
     const match = patients.find((p) => p.id === currentAppointment.patient_id)
     if (match) {
       setSelectedPatient(match)
@@ -322,20 +347,42 @@ function NewSessionModal({ onClose, onStarted }: { onClose: () => void; onStarte
               Which assessments will you administer this session? (optional)
             </label>
             <div className="flex flex-col gap-1.5 max-h-[260px] overflow-y-auto mb-5">
-              {templates.map((t) => (
-                <label
-                  key={t.id}
-                  className="flex items-center gap-2.5 bg-organic-surface rounded-organic-tile px-3.5 py-2.5 text-sm cursor-pointer"
-                >
-                  <input type="checkbox" checked={selectedKeys.includes(t.id)} onChange={() => toggleKey(t.id)} />
-                  <span className="flex-1">{t.name}</span>
-                  {t.name_ar && (
-                    <span dir="rtl" className="text-xs text-organic-neutral-500">
-                      {t.name_ar}
+              {templates.map((t) => {
+                // Some instruments are published but carry no items. Selecting
+                // one used to produce a step with nothing to answer, so the
+                // session recorded nothing while appearing to have run.
+                const itemCount = t.definition_json?.questions?.length ?? 0
+                const administrable = itemCount > 0
+                return (
+                  <label
+                    key={t.id}
+                    title={administrable ? undefined : 'This assessment has no questions yet'}
+                    className={`flex items-center gap-2.5 rounded-organic-tile px-3.5 py-2.5 text-sm ${
+                      administrable
+                        ? 'bg-organic-surface cursor-pointer'
+                        : 'bg-organic-neutral-200/60 opacity-60 cursor-not-allowed'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      disabled={!administrable}
+                      checked={selectedKeys.includes(t.id)}
+                      onChange={() => administrable && toggleKey(t.id)}
+                    />
+                    <span className="flex-1">
+                      {t.name}
+                      {!administrable && (
+                        <span className="block text-xs text-organic-neutral-600">No questions yet</span>
+                      )}
                     </span>
-                  )}
-                </label>
-              ))}
+                    {t.name_ar && (
+                      <span dir="rtl" className="text-xs text-organic-neutral-500">
+                        {t.name_ar}
+                      </span>
+                    )}
+                  </label>
+                )
+              })}
             </div>
 
             <button
@@ -439,7 +486,34 @@ function SessionRunner({
           </div>
         )}
 
-        {!done && current && (
+        {/* An instrument that cannot be resolved for this clinician used to
+            render as a step with zero questions -- nothing to answer, nothing
+            saved, and no indication anything was wrong. Say so, and let them
+            move past it rather than stranding the whole session. */}
+        {!done && current?.unavailable && (
+          <div className="mt-5 bg-organic-accent-100 rounded-organic-card p-5">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle size={18} className="text-organic-accent-700 flex-none mt-0.5" />
+              <div>
+                <h3 className="font-heading text-[1.0625rem] text-organic-accent-800 mb-1">
+                  {current.name} is unavailable
+                </h3>
+                <p className="text-sm text-organic-neutral-700 mb-3">
+                  {current.unavailable_reason ||
+                    'This instrument can no longer be opened. Nothing has been recorded for it.'}
+                </p>
+                <button
+                  onClick={() => setIndex((i) => i + 1)}
+                  className="rounded-organic-pill border border-organic-neutral-300/60 text-organic-neutral-700 font-heading text-sm px-4 py-2"
+                >
+                  Skip and continue
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!done && current && !current.unavailable && (
           <div className="mt-5">
             {current.definition_json?.instructions && (
               <p className="text-sm text-organic-neutral-600 mb-5">
@@ -725,6 +799,436 @@ function CaseloadView({
         </div>
       </div>
     </div>
+  )
+}
+
+// ─── Scheduler ──────────────────────────────────────────────────────────────
+
+// Widened /appointments row. `patient_id` is null for non-patient blocks
+// (documentation / admin time), and `appointment_type` carries the real type —
+// those two fields are what decide the chip treatment below. The design
+// prototype had neither and string-matched its own sample labels instead.
+type Appointment = {
+  id: string
+  patient_id: string | null
+  patient_name: string | null
+  patient_risk: string | null
+  therapist_id: string | null
+  appointment_type: string | null
+  title: string | null
+  start_time: string
+  end_time: string
+  location: string
+  status: string
+  meeting_link: string | null
+}
+
+type WeekKey = 'prev' | 'this' | 'next'
+
+const WEEK_OPTIONS = [
+  { value: 'prev', label: 'Last week' },
+  { value: 'this', label: 'This week' },
+  { value: 'next', label: 'Next week' },
+]
+
+const WEEK_OFFSET: Record<WeekKey, number> = { prev: -1, this: 0, next: 1 }
+
+const WEEKDAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+
+// Rows are normally derived from the real start times in the fetched week. This
+// ladder only fills an otherwise empty grid so the empty state still has shape;
+// the design's six irregular rows (09:00 / 10:00 / 11:30 / 14:00 / 15:30 /
+// 17:00) were hand-picked to fit its sample data and are not reused.
+const FALLBACK_SLOTS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00']
+
+const APPOINTMENT_TYPE_LABEL: Record<string, string> = {
+  INTAKE: 'Intake',
+  FOLLOW_UP: 'Follow-up',
+  CBT: 'CBT',
+  GROUP: 'Group',
+  ASSESSMENT: 'Assessment',
+  DOCUMENTATION: 'Documentation',
+  ADMIN: 'Admin',
+}
+
+// Contract rule: a cell is an admin/documentation block when the type says so,
+// or when there is no patient behind it. Never inferred from display text.
+function isAdminBlock(a: Appointment) {
+  return a.appointment_type === 'DOCUMENTATION' || a.appointment_type === 'ADMIN' || !a.patient_id
+}
+
+function typeLabel(type: string | null) {
+  if (!type) return null
+  return APPOINTMENT_TYPE_LABEL[type] || type
+}
+
+function appointmentTitle(a: Appointment) {
+  if (!isAdminBlock(a)) return a.patient_name || a.title || 'Appointment'
+  return a.title || typeLabel(a.appointment_type) || 'Blocked time'
+}
+
+function appointmentMeta(a: Appointment) {
+  const bits: string[] = []
+  const type = typeLabel(a.appointment_type)
+  if (type) bits.push(type)
+  if (a.location) bits.push(a.location === 'ONLINE' ? 'Video' : 'In person')
+  if (a.status === 'CANCELLED') bits.push('Cancelled')
+  if (a.status === 'NO_SHOW') bits.push('No-show')
+  return bits.join(' · ')
+}
+
+// Monday of the week `offsetWeeks` away from the real current date, at local
+// midnight. Everything downstream (day columns, the today marker, the request
+// range) hangs off this — nothing about the current week is hardcoded.
+function mondayOf(offsetWeeks: number) {
+  const d = new Date()
+  const dow = (d.getDay() + 6) % 7 // Mon = 0
+  d.setDate(d.getDate() - dow + offsetWeeks * 7)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function addDays(d: Date, n: number) {
+  const next = new Date(d)
+  next.setDate(next.getDate() + n)
+  return next
+}
+
+// Local plain calendar date. Sent to the API as `from`/`to` and used as the
+// day-column key, so an appointment lands in the column the clinician sees it
+// in rather than the one UTC would put it in.
+function localDateKey(d: Date) {
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${month}-${day}`
+}
+
+function slotKeyOf(iso: string) {
+  const d = new Date(iso)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+function weekRangeLabel(start: Date, end: Date) {
+  const startMonth = start.toLocaleDateString(undefined, { month: 'short' })
+  const endMonth = end.toLocaleDateString(undefined, { month: 'short' })
+  const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()
+  return sameMonth
+    ? `${startMonth} ${start.getDate()} – ${end.getDate()}, ${end.getFullYear()}`
+    : `${startMonth} ${start.getDate()} – ${endMonth} ${end.getDate()}, ${end.getFullYear()}`
+}
+
+function SchedulerView({
+  onOpenPatient,
+  onWeekLabel,
+}: {
+  onOpenPatient: (p: ChartPatientRef) => void
+  onWeekLabel: (label: string) => void
+}) {
+  const [weekKey, setWeekKey] = useState<WeekKey>('this')
+  const [appointments, setAppointments] = useState<Appointment[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [retryToken, setRetryToken] = useState(0)
+
+  useEffect(() => {
+    let dropped = false
+    const start = mondayOf(WEEK_OFFSET[weekKey])
+    setAppointments(null)
+    setError(null)
+    // The window is Sun–Mon (one padding day either side of the Mon–Sun week)
+    // for two reasons:
+    //   1. The grid is Mon–Fri but weekend rows are disclosed below, so Sat/Sun
+    //      must come back rather than vanish.
+    //   2. `from`/`to` are plain calendar dates; the backend resolves them
+    //      against the DATABASE session timezone (no tz is set on the pool, so
+    //      that is UTC), while every column/slot bucket here is resolved in the
+    //      BROWSER's timezone. Without padding, a clinic east of UTC loses the
+    //      start of Monday (a UTC+12 clinic loses every appointment before
+    //      12:00 on Monday) and a clinic west of UTC loses the end of Sunday.
+    //      One extra day either side covers the maximum ±14h offset; the local
+    //      date filters below then decide what actually belongs to this week,
+    //      so the padding rows are discarded, not displayed.
+    apiClient
+      .getAppointments({ from: localDateKey(addDays(start, -1)), to: localDateKey(addDays(start, 7)), mine: true })
+      .then((rows: Appointment[]) => {
+        if (!dropped) setAppointments(Array.isArray(rows) ? rows : [])
+      })
+      .catch(() => {
+        if (!dropped) setError('Could not load your schedule.')
+      })
+    return () => {
+      dropped = true
+    }
+  }, [weekKey, retryToken])
+
+  const monday = mondayOf(WEEK_OFFSET[weekKey])
+  const days = [0, 1, 2, 3, 4].map((i) => addDays(monday, i))
+  const dayIndexByDate: Record<string, number> = {}
+  days.forEach((d, i) => {
+    dayIndexByDate[localDateKey(d)] = i
+  })
+
+  const weekendKeys = [localDateKey(addDays(monday, 5)), localDateKey(addDays(monday, 6))]
+
+  const rows = appointments || []
+  const inGrid = rows.filter((a) => localDateKey(new Date(a.start_time)) in dayIndexByDate)
+  // Mon–Fri is all the design ever draws. A weekend appointment in the same week
+  // is counted and called out rather than dropped on the floor. Matching the two
+  // real Sat/Sun dates — rather than "everything that isn't a weekday" — is what
+  // keeps the notice honest now that the request deliberately spans one padding
+  // day either side of the week: those padding rows belong to the adjacent weeks
+  // and must not be counted here.
+  const offGrid = rows.filter((a) => weekendKeys.includes(localDateKey(new Date(a.start_time))))
+
+  const derivedSlots = Array.from(new Set(inGrid.map((a) => slotKeyOf(a.start_time)))).sort()
+  const slots = derivedSlots.length ? derivedSlots : FALLBACK_SLOTS
+
+  const cells = new Map<string, Appointment[]>()
+  inGrid.forEach((a) => {
+    const key = `${slotKeyOf(a.start_time)}|${dayIndexByDate[localDateKey(new Date(a.start_time))]}`
+    const existing = cells.get(key)
+    if (existing) existing.push(a)
+    else cells.set(key, [a])
+  })
+
+  const todayKey = localDateKey(new Date())
+  const todayIndex = days.findIndex((d) => localDateKey(d) === todayKey)
+
+  // Stats are computed from the rows actually fetched. The design's 24 / 6 / 4%
+  // were hand-typed literals that matched nothing on its own grid.
+  const sessions = inGrid.filter((a) => !isAdminBlock(a))
+  const booked = sessions.filter((a) => a.status !== 'CANCELLED').length
+  const completed = sessions.filter((a) => a.status === 'COMPLETED').length
+  const noShow = sessions.filter((a) => a.status === 'NO_SHOW').length
+  const outcomes = completed + noShow
+  const loaded = appointments !== null && !error
+
+  const range = weekRangeLabel(monday, days[4])
+  // "recorded as held", not "held": the figure counts rows marked COMPLETED, and
+  // a week that was only partly marked up would otherwise understate itself.
+  const countText = !loaded
+    ? null
+    : weekKey === 'prev'
+    ? outcomes > 0
+      ? `${completed} sessions recorded as held`
+      : `${booked} sessions on the calendar`
+    : `${booked} sessions booked`
+  const weekLabel = countText ? `${range} · ${countText}` : range
+
+  useEffect(() => {
+    onWeekLabel(weekLabel)
+  }, [weekLabel])
+
+  // A failed fetch is not a pending one. Showing "Loading…" under a stat card
+  // while the grid says the load failed would claim a number is on its way when
+  // nothing is in flight.
+  const failed = error !== null
+
+  const stats: { label: string; value: string; note: string; icon: typeof Calendar }[] = [
+    {
+      label: weekKey === 'prev' ? 'Sessions held' : 'Sessions booked',
+      value: failed
+        ? '—'
+        : !loaded
+        ? '…'
+        : weekKey === 'prev' && outcomes === 0
+        ? '—'
+        : String(weekKey === 'prev' ? completed : booked),
+      // "Held" needs an outcome to have been recorded; without one, 0 would read
+      // as "nobody came" rather than "nothing was marked". When only some of the
+      // week was marked up, the denominator is spelled out for the same reason —
+      // "3" under "Sessions held" must not be read as "only 3 happened".
+      note: failed
+        ? 'Unavailable — schedule did not load'
+        : !loaded
+        ? 'Loading…'
+        : weekKey === 'prev'
+        ? outcomes === 0
+          ? 'No session outcomes recorded'
+          : `${outcomes} of ${sessions.length} sessions have a recorded outcome`
+        : 'Across 5 days, Mon–Fri',
+      icon: CalendarDays,
+    },
+    {
+      // Needs a working-hours / availability model to have a denominator. There
+      // isn't one, so this stays a placeholder rather than a made-up number.
+      label: 'Free slots',
+      value: '—',
+      note: 'Set your working hours to enable this',
+      icon: CalendarClock,
+    },
+    {
+      label: 'No-show rate',
+      value: failed ? '—' : !loaded ? '…' : outcomes === 0 ? '—' : `${Math.round((noShow / outcomes) * 100)}%`,
+      // No prior-period figure is fetched, so there is no trend line to show.
+      note: failed
+        ? 'Unavailable — schedule did not load'
+        : !loaded
+        ? 'Loading…'
+        : outcomes === 0
+        ? 'No outcomes recorded yet'
+        : `${noShow} no-show${noShow === 1 ? '' : 's'} of ${outcomes} with a recorded outcome`,
+      icon: UserX,
+    },
+  ]
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-3 flex-wrap">
+        <SegmentedControl options={WEEK_OPTIONS} value={weekKey} onChange={(v) => setWeekKey(v as WeekKey)} />
+        <span className="text-sm text-organic-neutral-600">{weekLabel}</span>
+        <button
+          disabled
+          title="Coming soon"
+          className="ml-auto rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm px-5 py-2.5 inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <CalendarPlus size={16} /> Add appointment
+        </button>
+      </div>
+
+      <div className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm overflow-x-auto">
+        {!appointments && !error && <div className="text-sm text-organic-neutral-600 py-2">Loading…</div>}
+
+        {error && (
+          <div className="flex items-center gap-3 py-2">
+            <span className="text-sm text-organic-accent-800">{error}</span>
+            <button onClick={() => setRetryToken((t) => t + 1)} className="text-sm text-organic-accent-700 underline">
+              Retry
+            </button>
+          </div>
+        )}
+
+        {loaded && (
+          <>
+            <div className="grid grid-cols-[74px_repeat(5,minmax(150px,1fr))] gap-2.5 min-w-[820px]">
+              <div />
+              {days.map((d, i) => {
+                const isToday = i === todayIndex
+                return (
+                  <div
+                    key={localDateKey(d)}
+                    className={`text-center pb-2.5 border-b-2 ${
+                      isToday ? 'border-organic-accent-500' : 'border-organic-text/[0.16]'
+                    }`}
+                  >
+                    <div className="text-xs tracking-[0.05em] uppercase font-bold text-organic-neutral-600">
+                      {WEEKDAY_NAMES[i]}
+                    </div>
+                    <div className={`font-heading text-[1.1875rem] ${isToday ? 'text-organic-accent-700' : 'text-organic-text'}`}>
+                      {d.getDate()}
+                    </div>
+                  </div>
+                )
+              })}
+
+              {slots.map((slot) => (
+                <Fragment key={slot}>
+                  <div className="min-h-[58px] pt-2.5 pr-1.5 text-xs font-bold text-organic-accent-700">{slot}</div>
+                  {days.map((d, i) => {
+                    const entries = cells.get(`${slot}|${i}`) || []
+                    return (
+                      <div
+                        key={`${slot}|${localDateKey(d)}`}
+                        className="min-h-[58px] border-t border-organic-text/[0.16] flex flex-col gap-1"
+                      >
+                        {/* Real data can double-book a slot; every entry is rendered. */}
+                        {entries.map((a) => (
+                          <SchedulerCell
+                            key={a.id}
+                            appointment={a}
+                            slot={slot}
+                            dayLabel={`${WEEKDAY_NAMES[i]} ${d.getDate()}`}
+                            compact={entries.length > 1}
+                            onOpenPatient={onOpenPatient}
+                          />
+                        ))}
+                      </div>
+                    )
+                  })}
+                </Fragment>
+              ))}
+            </div>
+
+            {/* "…for this week" would contradict the weekend notice directly
+                below it when the only bookings in the week are Sat/Sun. */}
+            {inGrid.length === 0 && (
+              <div className="text-center text-sm text-organic-neutral-600 pt-4">
+                {offGrid.length > 0
+                  ? 'No appointments Monday to Friday this week.'
+                  : 'No appointments booked for this week.'}
+              </div>
+            )}
+
+            {offGrid.length > 0 && (
+              <div className="mt-3 text-xs text-organic-neutral-700 bg-organic-neutral-200 rounded-organic-tile px-3 py-2">
+                {offGrid.length === 1
+                  ? '1 appointment this week falls on Saturday or Sunday and is not shown in this Mon–Fri grid.'
+                  : `${offGrid.length} appointments this week fall on Saturday or Sunday and are not shown in this Mon–Fri grid.`}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="grid grid-cols-3 gap-3.5">
+        {stats.map((st) => (
+          <div key={st.label} className="bg-organic-surface rounded-organic-card p-4 shadow-organic-sm">
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-organic-neutral-600">{st.label}</span>
+              <st.icon size={16} className="text-organic-accent-500" />
+            </div>
+            <div className="font-heading text-[1.75rem] mt-1.5 text-organic-text">{st.value}</div>
+            <div className="text-xs text-organic-neutral-600">{st.note}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SchedulerCell({
+  appointment,
+  slot,
+  dayLabel,
+  compact,
+  onOpenPatient,
+}: {
+  appointment: Appointment
+  slot: string
+  dayLabel: string
+  compact: boolean
+  onOpenPatient: (p: ChartPatientRef) => void
+}) {
+  const admin = isAdminBlock(appointment)
+  const patientId = appointment.patient_id
+  const title = appointmentTitle(appointment)
+  const meta = appointmentMeta(appointment)
+  const chip = `px-2.5 py-2 rounded-[14px] border-l-4 ${
+    admin ? 'bg-organic-neutral-200 border-organic-neutral-400' : 'bg-organic-accent-100 border-organic-accent-500'
+  } ${appointment.status === 'CANCELLED' ? 'opacity-60' : ''}`
+  const body = (
+    <>
+      <div
+        className={`font-bold ${compact ? 'text-xs' : 'text-sm'} truncate ${
+          admin ? 'text-organic-neutral-800' : 'text-organic-accent-900'
+        }`}
+      >
+        {title}
+      </div>
+      {meta && <div className="text-xs text-organic-neutral-600 truncate">{meta}</div>}
+    </>
+  )
+
+  // Blocked time has no chart to open, so it stays a plain div.
+  if (admin || !patientId) return <div className={chip}>{body}</div>
+
+  return (
+    <button
+      onClick={() => onOpenPatient({ id: patientId, name: title })}
+      aria-label={`${title}, ${slot}, ${dayLabel}`}
+      className={`w-full text-left hover:bg-organic-accent-200 transition-colors ${chip}`}
+    >
+      {body}
+    </button>
   )
 }
 

@@ -130,6 +130,20 @@ class ApiClient {
     return response.data
   }
 
+  // `from`/`to` are inclusive plain calendar dates (YYYY-MM-DD), `mine` scopes
+  // the list to the signed-in clinician. Called with no params the request is
+  // identical to the original no-parameter route.
+  async getAppointments(params?: { from?: string; to?: string; mine?: boolean }) {
+    const query: Record<string, string | boolean> = {}
+    if (params?.from) query.from = params.from
+    if (params?.to) query.to = params.to
+    if (params?.mine) query.mine = true
+    const response = await this.client.get('/appointments', {
+      params: Object.keys(query).length ? query : undefined,
+    })
+    return response.data
+  }
+
   async getPatient(id: string) {
     const response = await this.client.get(`/patients/${id}`)
     return response.data

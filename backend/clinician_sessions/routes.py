@@ -16,6 +16,17 @@ SessionUser = Annotated[TokenPayload, require_role(Role.ADMIN, Role.SUPERVISOR, 
 router = APIRouter(tags=["clinician-sessions"])
 
 
+def _question_count(tmpl: dict) -> int:
+    """How many items an instrument actually has.
+
+    `definition_json` is `{}` on several legacy templates, so "the template
+    exists" is not the same as "the template can be administered".
+    """
+    definition = tmpl.get("definition_json") or {}
+    questions = definition.get("questions") or []
+    return len(questions)
+
+
 async def _build_session_out(db, session_row, user: TokenPayload) -> dict:
     patient = await db.fetchrow(
         "SELECT id, name FROM patients WHERE id = $1 AND org_id = $2",
@@ -40,13 +51,48 @@ async def _build_session_out(db, session_row, user: TokenPayload) -> dict:
         if not key:
             continue
         tmpl = by_key.get(key)
+        if tmpl is None:
+            # Say so instead of returning an assessment with no questions. A
+            # blank step that silently saves nothing is worse than an error:
+            # the clinician believes the assessment was administered.
+            assessments.append(
+                {
+                    "template_key": key,
+                    "name": key,
+                    "completed": key in completed_keys,
+                    "unavailable": True,
+                    "unavailable_reason": (
+                        "This instrument is no longer available to you. It may have been "
+                        "unpublished, or it belongs to another clinician's private library."
+                    ),
+                }
+            )
+            continue
+        if not _question_count(tmpl) and key not in completed_keys:
+            # Existing sessions created before the guard above can still carry
+            # a contentless instrument. Surface it rather than showing a step
+            # with nothing in it.
+            assessments.append(
+                {
+                    "template_key": key,
+                    "name": tmpl["name"],
+                    "name_ar": tmpl.get("name_ar"),
+                    "completed": False,
+                    "unavailable": True,
+                    "unavailable_reason": (
+                        "This instrument has no questions yet, so it cannot be administered. "
+                        "Nothing has been recorded for it."
+                    ),
+                }
+            )
+            continue
         assessments.append(
             {
                 "template_key": key,
-                "name": tmpl["name"] if tmpl else key,
-                "name_ar": tmpl.get("name_ar") if tmpl else None,
-                "definition_json": tmpl["definition_json"] if tmpl else None,
-                "delivery": tmpl["delivery"] if tmpl else None,
+                "name": tmpl["name"],
+                "name_ar": tmpl.get("name_ar"),
+                "definition_json": tmpl["definition_json"],
+                "delivery": tmpl["delivery"],
                 "completed": key in completed_keys,
             }
         )
@@ -71,6 +117,50 @@ async def create_session(body: SessionCreateIn, user: SessionUser, db: DB):
     )
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found.")
+
+    # Validate the requested instruments up front. Without this an unknown key
+    # (a typo, an unpublished draft, or an instrument private to another
+    # clinician) was accepted silently, then rendered as a step with no
+    # questions -- so the clinician could answer nothing and nothing was saved.
+    if body.template_keys:
+        available = await list_available_templates(
+            db,
+            org_id=user.org_id,
+            requesting_user_id=user.sub,
+            requesting_user_role=user.role.value,
+        )
+        by_key = {t["id"]: t for t in available}
+
+        unknown = [k for k in body.template_keys if k and k not in by_key]
+        if unknown:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "These assessments are not available to you: "
+                    + ", ".join(unknown)
+                    + ". They may be unpublished drafts, or private to another clinician."
+                ),
+            )
+
+        # An instrument can exist, be published and still carry no items --
+        # several legacy templates have an empty definition_json. Selecting one
+        # produced a step with nothing to answer, so nothing was ever submitted
+        # and the clinician had no idea the assessment had not been recorded.
+        # Refuse it at the door rather than failing silently later.
+        empty = [
+            k
+            for k in body.template_keys
+            if k in by_key and not _question_count(by_key[k])
+        ]
+        if empty:
+            names = ", ".join(by_key[k]["name"] for k in empty)
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"These assessments have no questions yet and cannot be administered: {names}. "
+                    "Add their items in the assessment library first."
+                ),
+            )
 
     session_id = uuid.uuid4()
     now = datetime.now(timezone.utc)

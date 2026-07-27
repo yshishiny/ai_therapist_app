@@ -18,6 +18,13 @@ class SessionAssessmentOut(BaseModel):
     definition_json: dict[str, Any] | None = None
     delivery: str | None = None
     completed: bool = False
+    # True when the key cannot be resolved for THIS clinician -- the instrument
+    # was unpublished, deleted, or is owner-scoped to someone else since the
+    # session was created. Previously such a key silently produced an
+    # assessment with no questions: the clinician saw a blank step, could
+    # answer nothing, and nothing was ever saved, with no explanation.
+    unavailable: bool = False
+    unavailable_reason: str | None = None
 
 
 class SessionOut(BaseModel):
