@@ -49,6 +49,7 @@ def version_row_to_dict(row: asyncpg.Record | dict[str, Any]) -> dict[str, Any]:
         "definition_json": _decode_json(data.get("definition_json")),
         "scoring_rules": _decode_json(data.get("scoring_rules")),
         "interpretation_rules": _decode_json(data.get("interpretation_rules")),
+        "risk_rules": _decode_json(data.get("risk_rules")),
         "delivery": data.get("delivery"),
         "google_form_url": data.get("google_form_url"),
         "notes": data.get("notes"),

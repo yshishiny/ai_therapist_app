@@ -45,6 +45,7 @@ class AssessmentVersionCreateIn(BaseModel):
     definition_json: dict[str, Any] | list[Any] | None = None
     scoring_rules: dict[str, Any] | list[Any] | None = None
     interpretation_rules: dict[str, Any] | list[Any] | None = None
+    risk_rules: dict[str, Any] | list[Any] | None = None
     delivery: str = "IN_APP"
     google_form_url: str | None = None
     notes: str | None = None
@@ -61,6 +62,7 @@ class AssessmentVersionOut(BaseModel):
     definition_json: dict[str, Any] | list[Any] | None = None
     scoring_rules: dict[str, Any] | list[Any] | None = None
     interpretation_rules: dict[str, Any] | list[Any] | None = None
+    risk_rules: dict[str, Any] | list[Any] | None = None
     delivery: str | None = None
     google_form_url: str | None = None
     notes: str | None = None

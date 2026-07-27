@@ -71,6 +71,7 @@ async def _get_version_or_404(db: DB, *, catalog_id: str, version_id: str):
             definition_json,
             scoring_rules,
             interpretation_rules,
+            risk_rules,
             delivery,
             google_form_url,
             notes,
@@ -284,6 +285,7 @@ async def list_assessment_versions(
             definition_json,
             scoring_rules,
             interpretation_rules,
+            risk_rules,
             delivery,
             google_form_url,
             notes,
@@ -338,6 +340,7 @@ async def create_assessment_version(
             definition_json,
             scoring_rules,
             interpretation_rules,
+            risk_rules,
             delivery,
             google_form_url,
             notes,
@@ -346,7 +349,7 @@ async def create_assessment_version(
         )
         VALUES (
             $1, $2, $3, 'draft', $4, $5, $6, $7::jsonb, $8::jsonb,
-            $9::jsonb, $10, $11, $12, $13, $14
+            $9::jsonb, $10::jsonb, $11, $12, $13, $14, $15
         )
         """,
         version_id,
@@ -358,6 +361,7 @@ async def create_assessment_version(
         json.dumps(body.definition_json) if body.definition_json is not None else None,
         json.dumps(body.scoring_rules) if body.scoring_rules is not None else None,
         json.dumps(body.interpretation_rules) if body.interpretation_rules is not None else None,
+        json.dumps(body.risk_rules) if body.risk_rules is not None else None,
         body.delivery,
         body.google_form_url,
         body.notes,
@@ -405,6 +409,7 @@ async def publish_assessment_version(
             av.definition_json,
             av.scoring_rules,
             av.interpretation_rules,
+            av.risk_rules,
             av.delivery,
             av.google_form_url,
             av.notes,
