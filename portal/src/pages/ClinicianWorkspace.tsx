@@ -34,11 +34,14 @@ import {
 
 type WorkspaceView = 'caseload' | 'chart' | 'scribe' | 'plan'
 
-const NAV_ITEMS: { view: WorkspaceView; label: string; short: string; icon: typeof LayoutGrid }[] = [
-  { view: 'caseload', label: 'Caseload', short: 'Home', icon: LayoutGrid },
-  { view: 'chart', label: 'Patient chart', short: 'Chart', icon: FolderOpen },
-  { view: 'scribe', label: 'AI Scribe', short: 'Scribe', icon: Mic },
-  { view: 'plan', label: 'Care plan', short: 'Plan', icon: ListChecks },
+// `ready: false` = design mockup only, no real data behind it yet. Those rail
+// entries render dimmed and non-clickable rather than opening a screen of
+// invented clinical content. Flip to true as each view gets wired up.
+const NAV_ITEMS: { view: WorkspaceView; label: string; short: string; icon: typeof LayoutGrid; ready: boolean }[] = [
+  { view: 'caseload', label: 'Caseload', short: 'Home', icon: LayoutGrid, ready: true },
+  { view: 'chart', label: 'Patient chart', short: 'Chart', icon: FolderOpen, ready: true },
+  { view: 'scribe', label: 'AI Scribe', short: 'Scribe', icon: Mic, ready: false },
+  { view: 'plan', label: 'Care plan', short: 'Plan', icon: ListChecks, ready: false },
 ]
 
 const SUBTITLES: Record<Exclude<WorkspaceView, 'caseload' | 'chart'>, string> = {
@@ -535,8 +538,21 @@ function IconRail({
       <div className="w-11 h-11 rounded-organic-tile bg-organic-accent grid place-items-center text-organic-accent-100 mb-3.5">
         <Brain size={22} />
       </div>
-      {NAV_ITEMS.map(({ view: v, label, short, icon: Icon }) => {
+      {NAV_ITEMS.map(({ view: v, label, short, icon: Icon, ready }) => {
         const active = v === view
+        if (!ready) {
+          return (
+            <div
+              key={v}
+              title={`${label} — not built yet`}
+              aria-disabled="true"
+              className="w-[54px] h-[54px] rounded-2xl flex flex-col items-center justify-center gap-0.5 text-organic-neutral-500 opacity-40 cursor-not-allowed select-none"
+            >
+              <Icon size={21} />
+              <span className="text-[9px] font-semibold">{short}</span>
+            </div>
+          )
+        }
         return (
           <button
             key={v}
@@ -719,8 +735,15 @@ type PatientDetail = {
   risk: string
   diagnosis: string
   last_seen: string | null
+  therapist_id: string | null
   dob: string | null
   gender: string | null
+  phone: string | null
+  email: string | null
+  emergency_contact_name: string | null
+  emergency_contact_phone: string | null
+  consent_ai_analysis: boolean
+  wellbeing_status: string | null
 }
 type SessionNote = {
   id: string
@@ -748,11 +771,427 @@ function notePreview(n: SessionNote): string {
   return text ? (text.length > 160 ? text.slice(0, 160) + '…' : text) : '(empty note)'
 }
 
+// dob arrives as a plain calendar date ("1998-04-12"). Parsing it with the Date
+// constructor would read it as UTC midnight and shift it a day back for viewers
+// west of Greenwich, so the parts are pulled out by hand instead.
+function parseDateOnly(value: string | null): { year: number; month: number; day: number } | null {
+  const parts = value ? /^(\d{4})-(\d{2})-(\d{2})/.exec(value) : null
+  if (!parts) return null
+  const year = Number(parts[1])
+  const month = Number(parts[2])
+  const day = Number(parts[3])
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null
+  return { year, month, day }
+}
+
+// Value shape the native <input type="date"> expects, and the shape the PATCH sends back.
+function toDateInputValue(dob: string | null): string {
+  const p = parseDateOnly(dob)
+  return p ? `${String(p.year).padStart(4, '0')}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}` : ''
+}
+
+function formatDob(dob: string | null): string | null {
+  const p = parseDateOnly(dob)
+  if (!p) return null
+  return new Date(p.year, p.month - 1, p.day).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
 function ageFrom(dob: string | null): string | null {
-  if (!dob) return null
-  const diff = Date.now() - new Date(dob).getTime()
-  const years = Math.floor(diff / (365.25 * 24 * 3600 * 1000))
-  return Number.isFinite(years) && years > 0 ? `${years}` : null
+  const p = parseDateOnly(dob)
+  if (!p) return null
+  const now = new Date()
+  let years = now.getFullYear() - p.year
+  const month = now.getMonth() + 1
+  if (month < p.month || (month === p.month && now.getDate() < p.day)) years -= 1
+  return years >= 0 && years < 130 ? `${years}` : null
+}
+
+// ─── Patient profile card ───────────────────────────────────────────────────
+
+const GENDER_OPTIONS = ['Female', 'Male', 'Non-binary', 'Prefer not to say']
+const STATUS_OPTIONS = ['Active', 'Intake', 'Maintenance', 'Discharged']
+const RISK_OPTIONS = ['Low', 'Med', 'High', 'Crisis']
+const WELLBEING_OPTIONS = ['GREEN', 'AMBER', 'RED']
+
+const WELLBEING_STYLE: Record<string, { label: string; color: string; bg: string }> = {
+  GREEN: { label: 'Green · stable', color: 'text-organic-neutral-700', bg: 'bg-organic-neutral-200' },
+  AMBER: { label: 'Amber · watch', color: 'text-organic-accent-2-800', bg: 'bg-organic-accent-2-200' },
+  RED: { label: 'Red · concern', color: 'text-organic-accent-800', bg: 'bg-organic-accent-200' },
+}
+
+// Never silently rewrite a stored value the dropdown doesn't know about.
+function withCurrent(options: string[], current: string): string[] {
+  return current && !options.includes(current) ? [current, ...options] : options
+}
+
+type ProfileDraft = {
+  name: string
+  dob: string
+  gender: string
+  diagnosis: string
+  phone: string
+  email: string
+  emergency_contact_name: string
+  emergency_contact_phone: string
+  status: string
+  risk: string
+  wellbeing_status: string
+  consent_ai_analysis: boolean
+}
+
+// Every text-ish key that PatientUpdateIn accepts; dob and the consent flag are
+// handled separately because they are not strings on the wire.
+const PROFILE_TEXT_FIELDS = [
+  'name',
+  'gender',
+  'diagnosis',
+  'phone',
+  'email',
+  'emergency_contact_name',
+  'emergency_contact_phone',
+  'status',
+  'risk',
+  'wellbeing_status',
+] as const
+
+function draftFrom(d: PatientDetail): ProfileDraft {
+  return {
+    name: d.name || '',
+    dob: toDateInputValue(d.dob),
+    gender: d.gender || '',
+    diagnosis: d.diagnosis || '',
+    phone: d.phone || '',
+    email: d.email || '',
+    emergency_contact_name: d.emergency_contact_name || '',
+    emergency_contact_phone: d.emergency_contact_phone || '',
+    status: d.status || '',
+    risk: d.risk || '',
+    wellbeing_status: d.wellbeing_status || '',
+    consent_ai_analysis: !!d.consent_ai_analysis,
+  }
+}
+
+// PatientOut declares name/status/risk as non-nullable strings. PATCHing one of
+// them to null still commits the UPDATE and only then fails response validation,
+// which leaves a NULL in the row that makes every later GET /patients and
+// GET /patients/{id} fail too. So these are never sent empty; save() rejects the
+// empty case up front instead.
+const PROFILE_REQUIRED_FIELDS: readonly string[] = ['name', 'status', 'risk']
+
+// Only the fields that actually changed, and only fields PatientUpdateIn allows.
+function profilePatch(detail: PatientDetail, draft: ProfileDraft): Record<string, string | boolean | null> {
+  const patch: Record<string, string | boolean | null> = {}
+  for (const key of PROFILE_TEXT_FIELDS) {
+    const trimmed = draft[key].trim()
+    if (!trimmed && PROFILE_REQUIRED_FIELDS.includes(key)) continue
+    const next = trimmed || null
+    if (next !== (detail[key] || null)) patch[key] = next
+  }
+  const nextDob = draft.dob || null
+  if (nextDob !== (toDateInputValue(detail.dob) || null)) patch.dob = nextDob
+  if (draft.consent_ai_analysis !== !!detail.consent_ai_analysis) {
+    patch.consent_ai_analysis = draft.consent_ai_analysis
+  }
+  return patch
+}
+
+const DT_CLASS = 'text-[11px] font-semibold tracking-wide uppercase text-organic-neutral-600 mb-0.5'
+const INPUT_CLASS = 'w-full bg-organic-bg border border-organic-neutral-300/60 rounded-organic-tile px-3 py-2 text-sm'
+const FORM_LABEL_CLASS = 'block text-xs font-semibold text-organic-neutral-600 mb-1.5'
+
+function ProfileField({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div>
+      <dt className={DT_CLASS}>{label}</dt>
+      <dd className={`text-[13.5px] ${value ? 'text-organic-text' : 'text-organic-neutral-500 italic'}`}>
+        {value || 'Not recorded'}
+      </dd>
+    </div>
+  )
+}
+
+function PatientProfileCard({
+  detail,
+  onUpdated,
+}: {
+  detail: PatientDetail | null
+  onUpdated: (next: PatientDetail) => void
+}) {
+  const [draft, setDraft] = useState<ProfileDraft | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const startEdit = () => {
+    if (!detail) return
+    setDraft(draftFrom(detail))
+    setError(null)
+  }
+
+  // Dropping the draft restores the pre-edit values, which live on `detail`.
+  const cancelEdit = () => {
+    setDraft(null)
+    setError(null)
+  }
+
+  const set = <K extends keyof ProfileDraft>(key: K, value: ProfileDraft[K]) =>
+    setDraft((prev) => (prev ? { ...prev, [key]: value } : prev))
+
+  const save = async () => {
+    if (!detail || !draft) return
+    if (!draft.name.trim()) {
+      setError('Full name cannot be empty.')
+      return
+    }
+    if (!draft.status.trim() || !draft.risk.trim()) {
+      setError('Status and risk are required — choose a value for both.')
+      return
+    }
+    const patch = profilePatch(detail, draft)
+    if (Object.keys(patch).length === 0) {
+      cancelEdit()
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      const updated = (await apiClient.updatePatient(detail.id, patch)) as Partial<PatientDetail> | null
+      const next: PatientDetail = { ...detail, ...(updated || {}) }
+      next.consent_ai_analysis = !!next.consent_ai_analysis
+      onUpdated(next)
+      setDraft(null)
+    } catch {
+      setError('Could not save the profile — please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
+      <div className="flex justify-between items-center gap-3 mb-3.5">
+        <h3 className="text-lg font-heading text-organic-text">Patient profile</h3>
+        {detail && !draft && (
+          <button
+            onClick={startEdit}
+            className="rounded-organic-pill border border-organic-neutral-300/70 bg-transparent font-heading text-[12.5px] px-3.5 py-1.5 text-organic-text hover:bg-organic-neutral-100 transition-colors"
+          >
+            Edit
+          </button>
+        )}
+      </div>
+
+      {error && <div className="text-sm text-organic-accent-800 mb-3">{error}</div>}
+
+      {!detail && <div className="text-sm text-organic-neutral-600">Loading…</div>}
+
+      {detail && !draft && (
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-3.5">
+          <ProfileField label="Full name" value={detail.name} />
+          <ProfileField
+            label="Date of birth"
+            value={(() => {
+              const formatted = formatDob(detail.dob)
+              const age = ageFrom(detail.dob)
+              if (!formatted) return null
+              return age ? `${formatted} · ${age} yrs` : formatted
+            })()}
+          />
+          <ProfileField label="Gender" value={detail.gender} />
+          <ProfileField label="Diagnosis" value={detail.diagnosis} />
+          <ProfileField label="Contact phone" value={detail.phone} />
+          <ProfileField label="Contact email" value={detail.email} />
+          <ProfileField label="Emergency contact" value={detail.emergency_contact_name} />
+          <ProfileField label="Emergency phone" value={detail.emergency_contact_phone} />
+          <ProfileField label="Status" value={detail.status} />
+          <div>
+            <dt className={DT_CLASS}>Risk</dt>
+            <dd>
+              {detail.risk ? (
+                <span
+                  className={`inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill ${riskStyle(detail.risk).bg} ${riskStyle(detail.risk).color}`}
+                >
+                  {detail.risk}
+                </span>
+              ) : (
+                <span className="text-[13.5px] text-organic-neutral-500 italic">Not recorded</span>
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt className={DT_CLASS}>Wellbeing</dt>
+            <dd>
+              {detail.wellbeing_status ? (
+                <span
+                  className={`inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill ${
+                    (WELLBEING_STYLE[detail.wellbeing_status] || WELLBEING_STYLE.GREEN).bg
+                  } ${(WELLBEING_STYLE[detail.wellbeing_status] || WELLBEING_STYLE.GREEN).color}`}
+                >
+                  {(WELLBEING_STYLE[detail.wellbeing_status] || { label: detail.wellbeing_status }).label}
+                </span>
+              ) : (
+                <span className="text-[13.5px] text-organic-neutral-500 italic">Not recorded</span>
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt className={DT_CLASS}>AI analysis consent</dt>
+            <dd>
+              <span
+                className={`inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill ${
+                  detail.consent_ai_analysis
+                    ? 'bg-organic-accent-2-200 text-organic-accent-2-800'
+                    : 'bg-organic-neutral-200 text-organic-neutral-700'
+                }`}
+              >
+                {detail.consent_ai_analysis ? 'Granted' : 'Not granted'}
+              </span>
+            </dd>
+          </div>
+        </dl>
+      )}
+
+      {detail && draft && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+            <div>
+              <label className={FORM_LABEL_CLASS}>Full name</label>
+              <input value={draft.name} onChange={(e) => set('name', e.target.value)} className={INPUT_CLASS} />
+            </div>
+            <div>
+              <label className={FORM_LABEL_CLASS}>Date of birth</label>
+              <input type="date" value={draft.dob} onChange={(e) => set('dob', e.target.value)} className={INPUT_CLASS} />
+            </div>
+            <div>
+              <label className={FORM_LABEL_CLASS}>Gender</label>
+              <select value={draft.gender} onChange={(e) => set('gender', e.target.value)} className={INPUT_CLASS}>
+                <option value="">Not recorded</option>
+                {withCurrent(GENDER_OPTIONS, draft.gender).map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={FORM_LABEL_CLASS}>Diagnosis</label>
+              <input
+                value={draft.diagnosis}
+                onChange={(e) => set('diagnosis', e.target.value)}
+                className={INPUT_CLASS}
+              />
+            </div>
+            <div>
+              <label className={FORM_LABEL_CLASS}>Contact phone</label>
+              <input
+                type="tel"
+                value={draft.phone}
+                onChange={(e) => set('phone', e.target.value)}
+                className={INPUT_CLASS}
+              />
+            </div>
+            <div>
+              <label className={FORM_LABEL_CLASS}>Contact email</label>
+              <input
+                type="email"
+                value={draft.email}
+                onChange={(e) => set('email', e.target.value)}
+                className={INPUT_CLASS}
+              />
+            </div>
+            <div>
+              <label className={FORM_LABEL_CLASS}>Emergency contact</label>
+              <input
+                value={draft.emergency_contact_name}
+                onChange={(e) => set('emergency_contact_name', e.target.value)}
+                className={INPUT_CLASS}
+              />
+            </div>
+            <div>
+              <label className={FORM_LABEL_CLASS}>Emergency phone</label>
+              <input
+                type="tel"
+                value={draft.emergency_contact_phone}
+                onChange={(e) => set('emergency_contact_phone', e.target.value)}
+                className={INPUT_CLASS}
+              />
+            </div>
+            <div>
+              <label className={FORM_LABEL_CLASS}>Status</label>
+              <select value={draft.status} onChange={(e) => set('status', e.target.value)} className={INPUT_CLASS}>
+                {/* Required by PatientOut — selectable only as a placeholder for an already-empty row. */}
+                <option value="" disabled>
+                  Choose a status
+                </option>
+                {withCurrent(STATUS_OPTIONS, draft.status).map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={FORM_LABEL_CLASS}>Risk</label>
+              <select value={draft.risk} onChange={(e) => set('risk', e.target.value)} className={INPUT_CLASS}>
+                {/* Required by PatientOut — selectable only as a placeholder for an already-empty row. */}
+                <option value="" disabled>
+                  Choose a risk level
+                </option>
+                {withCurrent(RISK_OPTIONS, draft.risk).map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={FORM_LABEL_CLASS}>Wellbeing</label>
+              <select
+                value={draft.wellbeing_status}
+                onChange={(e) => set('wellbeing_status', e.target.value)}
+                className={INPUT_CLASS}
+              >
+                <option value="">Not recorded</option>
+                {withCurrent(WELLBEING_OPTIONS, draft.wellbeing_status).map((w) => (
+                  <option key={w} value={w}>
+                    {(WELLBEING_STYLE[w] || { label: w }).label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <label className="flex items-center gap-2.5 bg-organic-bg rounded-organic-tile px-3.5 py-2.5 text-sm cursor-pointer sm:col-span-2 self-end">
+              <input
+                type="checkbox"
+                checked={draft.consent_ai_analysis}
+                onChange={(e) => set('consent_ai_analysis', e.target.checked)}
+              />
+              <span className="flex-1">Patient consents to AI analysis of their clinical data</span>
+            </label>
+          </div>
+
+          <div className="flex gap-2.5 mt-4">
+            <button
+              onClick={save}
+              disabled={saving}
+              className="rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm px-5 py-2 disabled:opacity-50"
+            >
+              {saving ? 'Saving…' : 'Save profile'}
+            </button>
+            <button
+              onClick={cancelEdit}
+              disabled={saving}
+              className="rounded-organic-pill border border-organic-neutral-300/70 bg-transparent font-heading text-sm px-4 py-2 text-organic-text hover:bg-organic-neutral-100 transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
 }
 
 function ChartView({
@@ -830,6 +1269,13 @@ function ChartView({
   }
 
   const age = ageFrom(detail?.dob || null)
+  const openRef = patient
+
+  const handleProfileUpdated = (next: PatientDetail) => {
+    setDetail(next)
+    // Keep the chart header and page title in step with a renamed patient.
+    if (next.name && next.name !== openRef.name) onPickPatient({ id: openRef.id, name: next.name })
+  }
 
   return (
     <div>
@@ -859,6 +1305,8 @@ function ChartView({
 
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
         <div className="flex flex-col gap-4">
+          <PatientProfileCard detail={detail} onUpdated={handleProfileUpdated} />
+
           <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
             <h3 className="text-lg font-heading text-organic-text mb-3">Add session note</h3>
             <textarea

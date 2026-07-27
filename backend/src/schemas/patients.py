@@ -13,6 +13,12 @@ class PatientOut(BaseModel):
     therapist_id: str | None = None
     dob: date | None = None
     gender: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    emergency_contact_name: str | None = None
+    emergency_contact_phone: str | None = None
+    consent_ai_analysis: bool = False
+    wellbeing_status: str | None = None
 
 
 class PatientCreateIn(BaseModel):
@@ -30,6 +36,18 @@ class PatientUpdateIn(BaseModel):
     therapist_id: str | None = None
     status: str | None = None
     risk: str | None = None
+    name: str | None = None
+    # dob must stay a `date` (not `str`): update_patient passes these values
+    # straight to asyncpg, which rejects a string for a DATE column.
+    dob: date | None = None
+    gender: str | None = None
+    diagnosis: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    emergency_contact_name: str | None = None
+    emergency_contact_phone: str | None = None
+    consent_ai_analysis: bool | None = None
+    wellbeing_status: str | None = None
 
 
 class PatientBulkRowError(BaseModel):

@@ -18,6 +18,7 @@ from backend.src.api.routes.ai_reporting_db_wired import router as ai_router
 from backend.src.core.db import db_lifespan
 from backend.access_control.routes import router as access_control_router
 from backend.assessment_admin.routes import router as assessment_admin_router
+from backend.assessment_trials.routes import router as assessment_trials_router
 from backend.material_upload.routes import router as material_upload_router
 from backend.clinician_sessions.routes import router as clinician_sessions_router
 
@@ -127,6 +128,7 @@ app.include_router(portal_router)
 app.include_router(ai_router)
 app.include_router(access_control_router)
 app.include_router(assessment_admin_router)
+app.include_router(assessment_trials_router)
 app.include_router(material_upload_router)
 app.include_router(clinician_sessions_router)
 

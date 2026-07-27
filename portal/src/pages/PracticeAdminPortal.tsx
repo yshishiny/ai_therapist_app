@@ -41,15 +41,19 @@ import {
 type View = 'dashboard' | 'clinicians' | 'patients' | 'patientDetail' | 'assessments' | 'content' | 'access' | 'billing' | 'settings'
 type DashLayout = 'a' | 'b' | 'c'
 
-const NAV_ITEMS: { view: View; label: string; icon: typeof LayoutDashboard }[] = [
-  { view: 'dashboard', label: 'Overview', icon: LayoutDashboard },
-  { view: 'clinicians', label: 'Clinicians', icon: Stethoscope },
-  { view: 'patients', label: 'Patients', icon: UsersRound },
-  { view: 'assessments', label: 'Assessments', icon: ClipboardList },
-  { view: 'content', label: 'Content Library', icon: LibraryBig },
-  { view: 'access', label: 'Access Control', icon: ShieldCheck },
-  { view: 'billing', label: 'Billing & Plan', icon: CreditCard },
-  { view: 'settings', label: 'Settings', icon: SettingsIcon },
+// `ready: false` marks a view that is still design-mockup only -- no real
+// data behind it yet. Those nav entries render dimmed and non-clickable so
+// nobody walks into a screen of invented numbers. Flip to true as each one
+// gets wired to the API.
+const NAV_ITEMS: { view: View; label: string; icon: typeof LayoutDashboard; ready?: boolean }[] = [
+  { view: 'dashboard', label: 'Overview', icon: LayoutDashboard, ready: true },
+  { view: 'clinicians', label: 'Clinicians', icon: Stethoscope, ready: true },
+  { view: 'patients', label: 'Patients', icon: UsersRound, ready: true },
+  { view: 'assessments', label: 'Assessments', icon: ClipboardList, ready: true },
+  { view: 'content', label: 'Content Library', icon: LibraryBig, ready: false },
+  { view: 'access', label: 'Access Control', icon: ShieldCheck, ready: false },
+  { view: 'billing', label: 'Billing & Plan', icon: CreditCard, ready: false },
+  { view: 'settings', label: 'Settings', icon: SettingsIcon, ready: false },
 ]
 
 const TITLES: Record<View, string> = {
@@ -212,8 +216,24 @@ export default function PracticeAdminPortal() {
           </div>
         </div>
 
-        {NAV_ITEMS.map(({ view: v, label, icon: Icon }) => {
+        {NAV_ITEMS.map(({ view: v, label, icon: Icon, ready }) => {
           const active = v === view || (v === 'patients' && view === 'patientDetail')
+          if (!ready) {
+            return (
+              <div
+                key={v}
+                title={`${label} — not built yet`}
+                aria-disabled="true"
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-organic-pill text-[14.5px] text-left text-organic-neutral-500 font-semibold opacity-50 cursor-not-allowed select-none"
+              >
+                <Icon size={19} />
+                <span className="flex-1">{label}</span>
+                <span className="text-[10px] uppercase tracking-wide bg-organic-neutral-200 text-organic-neutral-600 rounded-organic-pill px-1.5 py-0.5">
+                  Soon
+                </span>
+              </div>
+            )
+          }
           return (
             <button
               key={v}

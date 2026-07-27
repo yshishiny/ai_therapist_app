@@ -1,0 +1,459 @@
+{
+  "topic": "Addiction",
+  "generated_note": "Collected via web research; verify before clinical use.",
+  "books": [
+    {
+      "id": 1,
+      "title": "Motivational Interviewing: Fourth Edition: Helping People Change and Grow",
+      "author": "William R. Miller and Stephen Rollnick",
+      "year": "2023",
+      "topics": ["Addiction"],
+      "summary": "The authoritative presentation of motivational interviewing (MI) by its originators, published by The Guilford Press. The fourth edition structures MI around four tasks - engaging, focusing, evoking, and planning - and demonstrates each through interview vignettes and case examples. It reviews the evidence base for the approach, covers ways to assess MI quality, and extends coverage beyond counselling and psychotherapy into health care, education, coaching, and management. New material addresses remote delivery, ethical considerations, and MI's application across the whole change process rather than only its early stages.",
+      "key_concepts": [
+        "Four tasks of MI: engaging, focusing, evoking, planning",
+        "Change talk and sustain talk",
+        "MI spirit and partnership",
+        "Fidelity/quality assessment of MI delivery",
+        "Remote and telehealth delivery of MI",
+        "Ethical considerations in evoking change"
+      ],
+      "clinical_usage": "Core training text for building the conversational engine used in substance use treatment. Use to structure ambivalence-focused sessions, to evoke and strengthen client change talk before action planning, and as a supervision reference for rating and improving MI fidelity."
+    },
+    {
+      "id": 2,
+      "title": "Cognitive-Behavioral Therapy of Addictive Disorders",
+      "author": "Bruce S. Liese and Aaron T. Beck",
+      "year": "2022",
+      "topics": ["Addiction"],
+      "summary": "Guilford Press volume that replaces the earlier classic 'Cognitive Therapy of Substance Abuse', grounded by the authors in decades of CBT research and clinical practice alongside contemporary cognitive science. It supplies tools for understanding and treating the full range of addictive behaviours, covering systematic case conceptualization, support for client-defined recovery goals, cognitive-behavioral techniques, session structure, psychoeducation, motivational interviewing, group treatment, and relapse prevention. Case examples illustrate application, and reproducible assessment forms and worksheets are provided.",
+      "key_concepts": [
+        "Cognitive case conceptualization of addictive behaviour",
+        "Addictive beliefs and permission-giving thoughts",
+        "Session structure and agenda setting",
+        "Integration of motivational interviewing within CBT",
+        "Group treatment formats",
+        "Relapse prevention skills"
+      ],
+      "clinical_usage": "Primary CBT manual for individual and group addiction work. Use the conceptualization framework to map triggers, beliefs, and behaviours for a specific client, and draw on the reproducible worksheets for between-session practice."
+    },
+    {
+      "id": 3,
+      "title": "Relapse Prevention: Second Edition: Maintenance Strategies in the Treatment of Addictive Behaviors",
+      "author": "G. Alan Marlatt and Dennis M. Donovan (Editors)",
+      "year": "2005",
+      "topics": ["Addiction"],
+      "summary": "Foundational Guilford Press edited volume presenting an empirically supported framework for helping people with addictive behaviour problems develop skills to maintain treatment goals, including in high-risk situations. Contributors examine obstacles specific to treating particular problem behaviours, identify factors that may trigger relapse at different stages of recovery, and set out procedures for teaching cognitive and behavioral coping strategies.",
+      "key_concepts": [
+        "High-risk situations",
+        "Lapse versus relapse and the abstinence violation effect",
+        "Coping skills training",
+        "Stage-specific relapse triggers",
+        "Maintenance strategies after initial change"
+      ],
+      "clinical_usage": "Retained as a foundational text despite its date. Use to build relapse prevention plans: map each client's high-risk situations, rehearse coping responses, and pre-empt the abstinence violation effect so a lapse does not escalate into full relapse."
+    },
+    {
+      "id": 4,
+      "title": "Mindfulness-Based Relapse Prevention for Addictive Behaviors: Second Edition: A Clinician's Guide",
+      "author": "Sarah Bowen, Neha Chawla, Joel Grow, and G. Alan Marlatt",
+      "year": "2021",
+      "topics": ["Addiction"],
+      "summary": "Guilford Press clinician's guide integrating mindfulness meditation with cognitive and behavioral interventions as a structured group programme for people meeting the day-to-day challenges of recovery from addiction. It provides session-by-session guidelines, facilitation scripts, and 27 reproducible handouts. The revised edition adds material on culturally responsive adaptations, alternative group formats, dual diagnosis, behavioural addictions, and technology integration, with audio recordings of guided practices for use in session and for client home practice.",
+      "key_concepts": [
+        "Mindfulness-Based Relapse Prevention (MBRP) protocol",
+        "Urge surfing",
+        "Session-by-session group facilitation",
+        "Culturally responsive adaptation",
+        "Dual diagnosis and behavioural addictions",
+        "Guided practice recordings for home use"
+      ],
+      "clinical_usage": "Run as a manualized group programme following initial stabilization, or borrow individual practices (urge surfing, breathing space) into individual therapy for clients whose relapses are driven by craving and automatic reactivity."
+    },
+    {
+      "id": 5,
+      "title": "Addiction and Change: Second Edition: How Addictions Develop and Addicted People Recover",
+      "author": "Carlo C. DiClemente",
+      "year": "2018",
+      "topics": ["Addiction"],
+      "summary": "Second edition of DiClemente's Guilford Press work on the processes by which addictions develop and by which people recover, from the co-developer of the transtheoretical (stages of change) model. Verified via the publisher's catalogue listing; the full publisher description was not retrievable in this session, so the summary above is limited to what the verified title and subtitle assert.",
+      "key_concepts": [
+        "Transtheoretical model / stages of change",
+        "Processes of change",
+        "Development of addictive behaviour over time",
+        "Recovery as a change process"
+      ],
+      "clinical_usage": "Use to stage a client's readiness and match intervention intensity to stage, avoiding action-oriented techniques with clients still in precontemplation or contemplation."
+    },
+    {
+      "id": 6,
+      "title": "Clinical Textbook of Addictive Disorders: Fourth Edition",
+      "author": "Avram H. Mack, Kathleen T. Brady, Sheldon I. Miller, and Richard J. Frances (Editors)",
+      "year": "2016",
+      "topics": ["Addiction"],
+      "summary": "Guilford Press edited clinical textbook covering addictive disorders, now in its fourth edition. Title, editors, and publication year were verified from the publisher's own catalogue and product pages; Guilford's detailed content description was not retrievable in this session, so no chapter-level claims are made here.",
+      "key_concepts": [
+        "Comprehensive clinical reference on addictive disorders",
+        "Multi-editor academic textbook format"
+      ],
+      "clinical_usage": "General desk reference for clinicians who need broad coverage of addictive disorders across substances and populations. Confirm chapter contents against the current edition before relying on it for a specific clinical question."
+    },
+    {
+      "id": 7,
+      "title": "Assessment of Addictive Behaviors: Second Edition",
+      "author": "Dennis M. Donovan and G. Alan Marlatt (Editors)",
+      "year": "2007",
+      "topics": ["Addiction"],
+      "summary": "Guilford Press edited volume on the assessment of addictive behaviours, retained as a foundational assessment reference in the Marlatt/Donovan tradition. Title, editors, and year verified from the publisher's addictions catalogue; the full description was not retrievable in this session.",
+      "key_concepts": [
+        "Assessment of addictive behaviour",
+        "Measurement across substance classes",
+        "Treatment matching based on assessment"
+      ],
+      "clinical_usage": "Reference for selecting and interpreting addiction assessment instruments at intake. Given the 2007 date, cross-check any specific instrument against current validation literature and DSM-5-TR criteria before clinical use."
+    },
+    {
+      "id": 8,
+      "title": "Contingency Management in Substance Abuse Treatment",
+      "author": "Stephen T. Higgins, Kenneth Silverman, and Sarah H. Heil (Editors)",
+      "year": "2007",
+      "topics": ["Addiction"],
+      "summary": "Guilford Press edited volume on contingency management in substance use treatment, with a foreword by Joseph V. Brady. Title, editors, year, and foreword verified from the publisher's product page; no further descriptive text was available. Included because contingency management has the strongest meta-analytic support of any psychosocial intervention for stimulant use disorder (see papers 4 and 11 in this library).",
+      "key_concepts": [
+        "Contingency management",
+        "Incentive-based reinforcement of abstinence",
+        "Objective verification of abstinence (e.g. urine toxicology)"
+      ],
+      "clinical_usage": "Design reference for implementing incentive schedules that reinforce verified abstinence and treatment attendance, particularly for stimulant use disorder where pharmacotherapy options are limited."
+    },
+    {
+      "id": 9,
+      "title": "The CRAFT Treatment Manual for Substance Use Problems: Working with Family Members",
+      "author": "Jane Ellen Smith and Robert J. Meyers",
+      "year": "2023",
+      "topics": ["Addiction"],
+      "summary": "Guilford Press treatment manual for Community Reinforcement and Family Training (CRAFT), focused on working with family members affected by a relative's substance use problems, with a foreword by William R. Miller. Reproducible materials are available as a separate PDF resource.",
+      "key_concepts": [
+        "Community Reinforcement and Family Training (CRAFT)",
+        "Working through concerned significant others",
+        "Engaging treatment-refusing relatives",
+        "Family communication and self-care"
+      ],
+      "clinical_usage": "Use when the person with the substance use problem will not attend treatment but a family member will. CRAFT gives the concerned significant other structured strategies to improve their own functioning and to increase the likelihood the relative enters treatment."
+    },
+    {
+      "id": 10,
+      "title": "Behavioral Couples Therapy for Alcoholism and Drug Abuse",
+      "author": "Timothy J. O'Farrell and William Fals-Stewart",
+      "year": "2006",
+      "topics": ["Addiction"],
+      "summary": "Guilford Press volume on behavioral couples therapy applied to alcoholism and drug abuse. Title, authors, and year verified from the publisher's addictions catalogue; the full publisher description was not retrievable in this session.",
+      "key_concepts": [
+        "Behavioral couples therapy (BCT) for substance use",
+        "Recovery contracts with a partner",
+        "Relationship functioning as a treatment target"
+      ],
+      "clinical_usage": "Applicable where a partnered client's substance use and relationship distress are mutually maintaining. Use to structure recovery contracts and joint sessions alongside individual treatment."
+    },
+    {
+      "id": 11,
+      "title": "Building Motivational Interviewing Skills: Second Edition",
+      "author": "David B. Rosengren",
+      "year": "2017",
+      "topics": ["Addiction"],
+      "summary": "Guilford Press practitioner workbook in the Applications of Motivational Interviewing series, designed for skills practice rather than as a conceptual text. Title, author, year, and series membership verified from the publisher's catalogue.",
+      "key_concepts": [
+        "Structured MI skills practice exercises",
+        "Self-assessment of MI component skills",
+        "Practitioner workbook format"
+      ],
+      "clinical_usage": "Pair with Miller and Rollnick (book 1) for deliberate practice. Suited to individual skill-building between supervision sessions or as the exercise component of an MI training group."
+    },
+    {
+      "id": 12,
+      "title": "Drug Misuse: Opioid Detoxification (NICE Clinical Guideline 52)",
+      "author": "National Collaborating Centre for Mental Health (UK), for the National Institute for Health and Clinical Excellence",
+      "year": "2008",
+      "topics": ["Addiction"],
+      "summary": "Full NICE national clinical practice guideline on opioid detoxification, providing evidence-based recommendations for healthcare staff working with people who misuse opioids, with the aim of improving treatment outcomes and ensuring detoxification is carried out safely. It covers assessment, pharmacological and physical interventions used in detoxification, psychosocial interventions supporting detoxification, and the settings in which treatment takes place - community, residential, inpatient, and prison. It also incorporates first-hand accounts from people with opioid dependence and guidance for families and carers.",
+      "key_concepts": [
+        "Opioid detoxification protocols",
+        "Choice of detoxification setting (community, residential, inpatient, prison)",
+        "Psychosocial support during detoxification",
+        "Assessment and testing prior to detoxification",
+        "Guidance for families and carers"
+      ],
+      "clinical_usage": "Use as the reference standard for detoxification planning and for the psychosocial support that must accompany it. Note the 2008 publication date: NICE has issued subsequent surveillance reviews and related guidance (quality standard QS23; technology appraisal TA114 on methadone and buprenorphine), so check current NICE guidance before applying pharmacological recommendations."
+    }
+  ],
+  "papers": [
+    {
+      "id": 1,
+      "title": "Neurobiologic Advances from the Brain Disease Model of Addiction",
+      "authors": "Volkow ND, Koob GF, McLellan AT",
+      "year": "2016",
+      "source": "New England Journal of Medicine via Europe PMC / PubMed (PMID 26816013; DOI 10.1056/NEJMra1511480)",
+      "summary": "Review article by the directors of NIDA and NIAAA and a former deputy director of the US Office of National Drug Control Policy, surveying scientific advances in the prevention and treatment of substance use disorder. The article's framing is that over the preceding two decades research has increasingly supported the view that addiction is a disease of the brain. The full abstract text was not retrievable in this session; the bibliographic record (title, authors, journal, year, DOI, PMID) was verified via Europe PMC.",
+      "key_findings": [
+        "Positions addiction within a brain disease model informed by neurobiologic research",
+        "Reviews implications of that model for prevention and for treatment of substance use disorder"
+      ],
+      "clinical_relevance": "The standard citation for explaining to clients and families why addiction is treated as a chronic medical condition rather than a failure of will. Useful for psychoeducation and for reducing shame-based resistance to treatment; note the brain disease model is contested in parts of the literature, so present it as a dominant framework rather than settled fact."
+    },
+    {
+      "id": 2,
+      "title": "Pharmacotherapy for Alcohol Use Disorder: A Systematic Review and Meta-Analysis",
+      "authors": "McPheeters M, O'Connor EA, Riley S, Kennedy SM, Voisin C, Kuznacic K, Coffey CP, Edlund MD, Bobashev G, Jonas DE",
+      "year": "2023",
+      "source": "JAMA via PubMed (PMID 37934220; DOI 10.1001/jama.2023.19761)",
+      "summary": "Systematic review and meta-analysis of 118 clinical trials involving 20,976 participants, examining medication efficacy for alcohol use disorder. It identifies oral naltrexone and acamprosate as the two first-line pharmacotherapies, quantifies their effect on return to drinking, and documents their adverse effect profiles.",
+      "key_findings": [
+        "Oral naltrexone 50 mg/day was effective at preventing return to any drinking, number needed to treat 11, and reduced heavy drinking episodes",
+        "Acamprosate was similarly effective at preventing relapse to drinking, number needed to treat 11",
+        "Injectable naltrexone was associated with fewer drinking days during treatment",
+        "Adverse effects were predominantly gastrointestinal: diarrhoea with acamprosate, nausea and vomiting with naltrexone, both higher than placebo",
+        "The authors frame these medications as evidence-based options used in conjunction with psychosocial interventions"
+      ],
+      "clinical_relevance": "Gives the therapist concrete numbers to use when discussing medication referral with a client who has alcohol use disorder. The 'in conjunction with psychosocial interventions' framing supports collaborative care: medication does not replace therapy, and the NNT of 11 sets realistic expectations."
+    },
+    {
+      "id": 3,
+      "title": "Alcoholics Anonymous and other 12-step programs for alcohol use disorder",
+      "authors": "Kelly JF, Humphreys K, Ferri M",
+      "year": "2020",
+      "source": "Cochrane Database of Systematic Reviews via PubMed (PMID 32159228; DOI 10.1002/14651858.CD012880.pub2)",
+      "summary": "Cochrane review of 27 studies with 10,565 participants examining the effectiveness of Alcoholics Anonymous and Twelve-Step Facilitation (TSF) interventions. It found high quality evidence that manualized AA/TSF interventions are more effective than other established treatments, such as CBT, for increasing abstinence.",
+      "key_findings": [
+        "High quality evidence that manualized AA/TSF is more effective than other established treatments including CBT for increasing abstinence",
+        "Manualized AA/TSF improved continuous abstinence at 12 months versus other clinical interventions (RR 1.21, 95% CI 1.03-1.42)",
+        "On other outcomes - drinking intensity and alcohol-related consequences - AA/TSF performed comparably to CBT and motivational enhancement therapy",
+        "AA/TSF interventions probably produce substantial healthcare cost savings"
+      ],
+      "clinical_relevance": "Justifies actively facilitating mutual-help involvement rather than merely mentioning it. The distinction matters clinically: it is manualized Twelve-Step Facilitation delivered by a clinician - not a passive referral - that carries the abstinence advantage."
+    },
+    {
+      "id": 4,
+      "title": "Long-term efficacy of contingency management treatment based on objective indicators of abstinence from illicit substance use up to 1 year following treatment: A meta-analysis",
+      "authors": "Ginley MK, Pfund RA, Rash CJ, Zajac K",
+      "year": "2021",
+      "source": "Journal of Consulting and Clinical Psychology via PubMed (PMID 33507776; DOI 10.1037/ccp0000552)",
+      "summary": "Meta-analysis of 23 randomized trials of contingency management (CM) for stimulant, opioid, or polysubstance use disorders, restricted to objective drug-use measures such as urine toxicology and following outcomes up to one year post-treatment. It addresses the common criticism that CM's benefits disappear once incentives stop.",
+      "key_findings": [
+        "CM participants showed significantly higher abstinence rates than comparison treatments (OR = 1.22, 95% CI [1.01, 1.44])",
+        "Of 18 treatment parameters examined, longer length of active treatment significantly improved long-term abstinence",
+        "CM showed long-term benefit in reducing objective indices of drug use above and beyond other active, evidence-based treatments",
+        "Authors recommend that policymakers and insurers support coverage of CM"
+      ],
+      "clinical_relevance": "Counters the assumption that contingency management only works while incentives are being paid. The treatment-length moderator is directly actionable: if CM is used, run it long enough, since truncated programmes forfeit the durable benefit."
+    },
+    {
+      "id": 5,
+      "title": "Meta-review on the efficacy of psychological therapies for the treatment of substance use disorders",
+      "authors": "Dellazizzo L, Potvin S, Giguère S, Landry C, Léveillé N, Dumais A",
+      "year": "2023",
+      "source": "Psychiatry Research via Europe PMC / PubMed (PMID 37356250; DOI 10.1016/j.psychres.2023.115318)",
+      "summary": "Meta-review synthesising evidence from meta-analyses on psychotherapy effectiveness for substance use disorders. Researchers screened 6,866 articles and included 23 meta-analyses covering 78 effect sizes across between 2 and 156 studies each, spanning alcohol, cannabis, stimulants, opioids, and benzodiazepines, and covering brief intervention, CBT, contingency management, and motivational interviewing.",
+      "key_findings": [
+        "Small benefits observed for involving significant others in treatment and for motivational interviewing in alcohol use disorder",
+        "Cannabis use disorder responded to motivational approaches and cognitive-behavioral therapy",
+        "Moderate effects for contingency management in opioid use disorder",
+        "Overall, psychosocial treatments showed at best moderate effectiveness compared with inactive controls in the short term",
+        "Authors note the need for additional research"
+      ],
+      "clinical_relevance": "The single best top-level orientation to what psychotherapy can and cannot deliver in addiction. The honest headline - at best moderate short-term effects - should inform how outcomes are framed with clients and how combination and maintenance strategies are planned."
+    },
+    {
+      "id": 6,
+      "title": "Comparative effectiveness of psychosocial interventions in adults with harmful use of alcohol: a systematic review and network meta-analysis",
+      "authors": "Tan CJ, Shufelt T, Behan E, Chantara J, Koomsri C, Gordon AJ, Chaiyakunapruk N, Dhippayom T",
+      "year": "2023",
+      "source": "Addiction, 118(8):1414-1429, via PubMed (PMID 36905310; DOI 10.1111/add.16187)",
+      "summary": "Systematic review and network meta-analysis of 19 randomized controlled trials with 7,149 participants, ranking psychosocial approaches for harmful alcohol consumption against each other rather than only against usual care.",
+      "key_findings": [
+        "Combined motivational interviewing plus CBT delivered in multiple face-to-face sessions (MI-CBT) showed the strongest effect, with an AUDIT score reduction of -4.98 versus usual care",
+        "MI-CBT ranked highest across sensitivity analyses",
+        "Combined psychosocial intervention with a more intensive approach may provide greater effect in reducing harmful alcohol consumption",
+        "Most treatment comparisons had low certainty of evidence, limiting confidence in comparative effectiveness claims"
+      ],
+      "clinical_relevance": "Direct support for the common clinical practice of combining MI with CBT rather than choosing between them, and for delivering it across multiple face-to-face sessions rather than as a single brief contact. Uses AUDIT as the outcome metric, which maps onto routine screening already in use."
+    },
+    {
+      "id": 7,
+      "title": "Combined pharmacological and psychosocial interventions for alcohol use disorder",
+      "authors": "Minozzi S, La Rosa GRM, Salis F, Camposeragna A, Saulle R, Leggio L, Agabio R",
+      "year": "2025",
+      "source": "Cochrane Database of Systematic Reviews via PubMed (PMID 40110869; DOI 10.1002/14651858.CD015673.pub2)",
+      "summary": "Cochrane meta-analysis of 21 randomized controlled trials with 4,746 participants examining whether combining pharmacological and psychosocial treatment for alcohol use disorder outperforms either alone.",
+      "key_findings": [
+        "Versus psychosocial treatment alone, combined interventions probably reduce the number of heavy drinkers (10% absolute difference) and may increase continuous abstinent participants (5% difference)",
+        "Little to no effect of combination on abstinent days, serious adverse events, or treatment dropout compared with psychosocial treatment alone",
+        "Versus pharmacological treatment alone, combined approaches showed little to no effect on abstinent days and dropout, with uncertain effects on other outcomes",
+        "Authors conclude adding pharmacological to psychosocial interventions is safe and helps people with AUD recover, on low- to moderate-certainty evidence"
+      ],
+      "clinical_relevance": "Supports recommending a medication assessment for clients already in psychotherapy for alcohol use disorder, with realistic effect sizes (roughly 10% absolute reduction in heavy drinkers). The safety finding is the reassuring part to convey; the modest magnitude is the part to be honest about."
+    },
+    {
+      "id": 8,
+      "title": "Mortality risk during and after opioid substitution treatment: systematic review and meta-analysis of cohort studies",
+      "authors": "Sordo L, Barrio G, Bravo MJ, Indave BI, Degenhardt L, Wiessing L, Ferri M, Pastor-Barriuso R",
+      "year": "2017",
+      "source": "BMJ via PubMed (PMID 28446428; DOI 10.1136/bmj.j1550)",
+      "summary": "Meta-analysis of 19 cohorts covering 122,885 methadone patients and 15,831 buprenorphine patients, quantifying all-cause and overdose mortality both during and after opioid substitution treatment.",
+      "key_findings": [
+        "Methadone: all-cause mortality 11.3 per 1,000 person-years in treatment versus 36.1 out of treatment",
+        "Buprenorphine: all-cause mortality 4.3 per 1,000 person-years in treatment versus 9.5 out of treatment",
+        "Retention in methadone and buprenorphine treatment is associated with substantial reductions in risk for all-cause and overdose mortality",
+        "The induction phase onto methadone and the time immediately after leaving treatment with either drug are periods of particularly increased mortality risk"
+      ],
+      "clinical_relevance": "The mortality figures make retention a life-safety issue, not just an adherence metric. The two identified high-risk windows - methadone induction and the period immediately after treatment exit - are exactly when a therapist should intensify contact, and they justify overdose-prevention planning around any disengagement or discharge."
+    },
+    {
+      "id": 9,
+      "title": "Medication for Opioid Use Disorder After Nonfatal Opioid Overdose and Association With Mortality: A Cohort Study",
+      "authors": "Larochelle MR, Bernson D, Land T, Stopka TJ, Wang N, Xuan Z, Bagley SM, Liebschutz JM, Walley AY",
+      "year": "2018",
+      "source": "Annals of Internal Medicine via PubMed (PMID 29913516; DOI 10.7326/M17-3107)",
+      "summary": "Retrospective cohort study of 17,568 Massachusetts adults who survived an opioid overdose between 2012 and 2014, examining medication receipt and subsequent mortality over 12 months of follow-up.",
+      "key_findings": [
+        "In the 12 months after overdose, 11% received methadone maintenance treatment, 17% buprenorphine, and 6% naltrexone",
+        "All-cause mortality was 4.7 deaths per 100 person-years; opioid-related mortality 2.1 per 100 person-years",
+        "Both methadone maintenance and buprenorphine were associated with decreased all-cause and opioid-related mortality",
+        "No significant mortality reduction was observed with naltrexone, though there were few events among naltrexone recipients"
+      ],
+      "clinical_relevance": "Documents a large treatment gap: most overdose survivors received no medication at all. For therapists, a nonfatal overdose is a high-leverage moment to actively facilitate a medication referral, and this study supplies the mortality argument for doing so."
+    },
+    {
+      "id": 10,
+      "title": "Buprenorphine/Naloxone vs Methadone for the Treatment of Opioid Use Disorder",
+      "authors": "Nosyk B, Min JE, Homayra F, Kurz M, Guerra-Alejos BC, Yan R, Piske M, Seaman SR, Bach P, Greenland S, Karim ME, Siebert U, Bruneau J, Gustafson P, Kampman K, Korthuis PT, Loughin T, McCandless LC, Platt RW, Schnepel KT, Socías ME",
+      "year": "2024",
+      "source": "JAMA via PubMed (PMID 39418046; DOI 10.1001/jama.2024.16954)",
+      "summary": "Comparative effectiveness study of 30,891 incident users of opioid use disorder treatment, comparing buprenorphine/naloxone with methadone on treatment discontinuation and mortality.",
+      "key_findings": [
+        "Methadone was associated with a lower risk of treatment discontinuation compared with buprenorphine/naloxone",
+        "Discontinuation at 24 months was 81.5% for methadone versus 88.8% for buprenorphine/naloxone in initiator analyses",
+        "Risk of mortality while receiving treatment was similar for the two medications, although the confidence interval for the hazard ratio was wide",
+        "Mortality comparison was therefore inconclusive"
+      ],
+      "clinical_relevance": "Useful when a client is weighing the two medications. The striking clinical fact is the absolute discontinuation rate - over 80% by 24 months on either drug - which reframes retention support as a central therapy task rather than a pharmacology problem."
+    },
+    {
+      "id": 11,
+      "title": "A systematic review and meta-analysis of psychological interventions for comorbid post-traumatic stress disorder and substance use disorder",
+      "authors": "Roberts NP, Lotzin A, Schäfer I",
+      "year": "2022",
+      "source": "European Journal of Psychotraumatology via PubMed (PMID 35558682; DOI 10.1080/20008198.2022.2041831)",
+      "summary": "Meta-analysis of 27 studies of psychological treatments for people with both PTSD and substance use disorder, comparing trauma-focused approaches, integrated CBT, and present-focused coping skills interventions.",
+      "key_findings": [
+        "Trauma-focused intervention plus SUD intervention yielded modest improvements in PTSD severity post-treatment and at 6-13 month follow-up",
+        "Integrated cognitive behavioral therapy (ICBT) also showed modest benefits specifically for PTSD outcomes",
+        "Present-focused coping skills interventions showed no advantage over standard substance use treatment alone",
+        "A relatively high level of dropout was identified across studies, limiting treatment effectiveness",
+        "Authors conclude many patients do not fully engage with treatment and average treatment effects are modest"
+      ],
+      "clinical_relevance": "Addresses one of the most common comorbidities in addiction caseloads. It supports offering trauma-focused work concurrently rather than requiring abstinence first, while flagging dropout as the main threat - so engagement strategy matters as much as protocol choice."
+    }
+  ],
+  "videos": [
+    {
+      "id": 1,
+      "title": "AMGR - Sep 2023 - \"Challenging Buprenorphine Inductions and New Approaches for the Fentanyl Era\"",
+      "url": "https://www.youtube.com/watch?v=Pb7vGI6XG5U",
+      "duration_type": "long",
+      "topic": "Addiction",
+      "source": "UW - Department of Family Medicine and Community Health (University of Wisconsin), Addiction Medicine Grand Rounds",
+      "description": "Addiction Medicine Grand Rounds session on difficult buprenorphine inductions and newer induction approaches developed in response to high-potency synthetic opioids. Title and channel verified via YouTube oEmbed.",
+      "clinical_usage": "Background for therapists supporting clients starting buprenorphine, so that withdrawal difficulty during induction is understood as a known pharmacological problem rather than client non-compliance."
+    },
+    {
+      "id": 2,
+      "title": "AMGR - Feb 2022 - \"Bup Initiation in the Age of Fentanyl\" - Elizabeth Salisbury-Afshar, MD, MPH",
+      "url": "https://www.youtube.com/watch?v=hmCkfSRfH58",
+      "duration_type": "long",
+      "topic": "Addiction",
+      "source": "UW - Department of Family Medicine and Community Health (University of Wisconsin), Addiction Medicine Grand Rounds",
+      "description": "Grand rounds presentation by Elizabeth Salisbury-Afshar, MD, MPH on initiating buprenorphine treatment in the context of widespread fentanyl exposure. Title, presenter, and channel verified via YouTube oEmbed.",
+      "clinical_usage": "Orientation to why fentanyl has changed opioid use disorder treatment initiation. Useful before coordinating care with a prescriber on a client's medication start."
+    },
+    {
+      "id": 3,
+      "title": "AMGR - Oct 2022 - \"Stimulant Use Disorder\" - David Leinweber, MD, MS",
+      "url": "https://www.youtube.com/watch?v=FM_Ss4JLVIg",
+      "duration_type": "long",
+      "topic": "Addiction",
+      "source": "UW - Department of Family Medicine and Community Health (University of Wisconsin), Addiction Medicine Grand Rounds",
+      "description": "Grand rounds session on stimulant use disorder presented by David Leinweber, MD, MS. Title, presenter, and channel verified via YouTube oEmbed.",
+      "clinical_usage": "Relevant where no first-line pharmacotherapy exists, so psychosocial treatment - particularly contingency management - carries the clinical load. Pair with papers 4 and 5 in this library."
+    },
+    {
+      "id": 4,
+      "title": "AMGR - Nov 2022 - \"Expanding on Alcohol Harm Reduction\" - Devora Keller and Megan Kennel",
+      "url": "https://www.youtube.com/watch?v=-c-P-cezoI0",
+      "duration_type": "long",
+      "topic": "Addiction",
+      "source": "UW - Department of Family Medicine and Community Health (University of Wisconsin), Addiction Medicine Grand Rounds",
+      "description": "Grand rounds session on harm reduction approaches to alcohol use, presented by Devora Keller and Megan Kennel. Title, presenters, and channel verified via YouTube oEmbed.",
+      "clinical_usage": "Framework for working with clients who will not pursue abstinence. Supports setting reduction rather than cessation goals without treating that as therapeutic failure."
+    },
+    {
+      "id": 5,
+      "title": "AMGR - April 2022 - \"Overdose Prevention Opportunities and Tools\" - Rachel Gicquelais, PhD, MPH",
+      "url": "https://www.youtube.com/watch?v=DjZtblgWi7o",
+      "duration_type": "long",
+      "topic": "Addiction",
+      "source": "UW - Department of Family Medicine and Community Health (University of Wisconsin), Addiction Medicine Grand Rounds",
+      "description": "Grand rounds presentation by Rachel Gicquelais, PhD, MPH on overdose prevention opportunities and available tools. Title, presenter, and channel verified via YouTube oEmbed.",
+      "clinical_usage": "Directly supports safety planning. Pairs with papers 8 and 9, which identify treatment exit and post-overdose periods as the highest-risk windows for mortality."
+    },
+    {
+      "id": 6,
+      "title": "AMGR - Jan 2023 - \"Pathways to Recovery\" - Madison Area Addiction Recovery Initiative",
+      "url": "https://www.youtube.com/watch?v=jNFNVpZBUL0",
+      "duration_type": "long",
+      "topic": "Addiction",
+      "source": "UW - Department of Family Medicine and Community Health (University of Wisconsin), Addiction Medicine Grand Rounds",
+      "description": "Grand rounds session on recovery pathways presented by the Madison Area Addiction Recovery Initiative. Title, presenter organisation, and channel verified via YouTube oEmbed.",
+      "clinical_usage": "Useful for understanding recovery as multiple legitimate pathways rather than a single route, which supports client-led goal setting and mutual-help facilitation."
+    },
+    {
+      "id": 7,
+      "title": "AMGR - Feb 2023 - \"Kratom: What you need to know\" - David Galbis-Reig, MD, DFASAM",
+      "url": "https://www.youtube.com/watch?v=2Aps3mQaab4",
+      "duration_type": "long",
+      "topic": "Addiction",
+      "source": "UW - Department of Family Medicine and Community Health (University of Wisconsin), Addiction Medicine Grand Rounds",
+      "description": "Grand rounds session on kratom presented by David Galbis-Reig, MD, DFASAM. Title, presenter, and channel verified via YouTube oEmbed.",
+      "clinical_usage": "Background on a substance clients increasingly self-report but that is poorly covered in standard training materials. Helps a therapist take an accurate substance history."
+    },
+    {
+      "id": 8,
+      "title": "AMGR - March 2022 - \"Perinatal Alcohol Use\" - Alyssa Bruehlman, MD",
+      "url": "https://www.youtube.com/watch?v=16tqwAmsaJU",
+      "duration_type": "long",
+      "topic": "Addiction",
+      "source": "UW - Department of Family Medicine and Community Health (University of Wisconsin), Addiction Medicine Grand Rounds",
+      "description": "Grand rounds session on perinatal alcohol use presented by Alyssa Bruehlman, MD. Title, presenter, and channel verified via YouTube oEmbed.",
+      "clinical_usage": "Relevant to pregnant and postpartum clients, where stigma and fear of child protection involvement are major barriers to disclosure and engagement."
+    },
+    {
+      "id": 9,
+      "title": "AMGR - May 2022 - \"WI Integrated Recovery Support Services\" - Dean Krahn, MD",
+      "url": "https://www.youtube.com/watch?v=rTzyw4Wugp8",
+      "duration_type": "long",
+      "topic": "Addiction",
+      "source": "UW - Department of Family Medicine and Community Health (University of Wisconsin), Addiction Medicine Grand Rounds",
+      "description": "Grand rounds session on integrated recovery support services presented by Dean Krahn, MD. Title, presenter, and channel verified via YouTube oEmbed.",
+      "clinical_usage": "Model for how psychotherapy fits within a wider system of recovery supports, useful when planning wraparound referrals rather than delivering therapy in isolation."
+    },
+    {
+      "id": 10,
+      "title": "AMGR - April 2023 - \"The Legal Nuts and Bolts of Involuntary Commitments\" - Matthew Giesfeldt",
+      "url": "https://www.youtube.com/watch?v=r4k8P_T3g1Q",
+      "duration_type": "long",
+      "topic": "Addiction",
+      "source": "UW - Department of Family Medicine and Community Health (University of Wisconsin), Addiction Medicine Grand Rounds",
+      "description": "Grand rounds session on the legal mechanics of involuntary commitment presented by Matthew Giesfeldt. Title, presenter, and channel verified via YouTube oEmbed. Content is oriented to Wisconsin/US law.",
+      "clinical_usage": "Reference for the boundary between voluntary treatment and involuntary intervention in high-risk cases. Jurisdiction-specific - verify against local law before applying."
+    }
+  ],
+  "collection_notes": "VERIFICATION METHOD. Every entry below was obtained from a live WebSearch or WebFetch result in this session; nothing was written from memory. Papers were verified against PubMed or Europe PMC records (title, authors, journal, year, DOI, PMID) and their key_findings are drawn from the abstracts actually retrieved. Books were verified against publisher pages (Guilford Press) or the NCBI Bookshelf record for the NICE guideline. Video URLs came from the YouTube playlist RSS feed for the Addiction Medicine Grand Rounds playlist (PLlW4zgq_2b07N4eF93MadtrNjgJXmPL4a) and each was then independently confirmed via the YouTube oEmbed endpoint, which returned a matching title and channel name.\n\nSHORTFALLS AND CAVEATS.\n1. VIDEO SOURCE CONCENTRATION. All 10 videos come from a single channel - the University of Wisconsin Department of Family Medicine and Community Health Addiction Medicine Grand Rounds series. This is a legitimate university medical school department source, but the library lacks institutional variety. The session's WebSearch budget was exhausted before other institutional channels (Yale, Stanford, professional bodies) could be enumerated, and YouTube search pages are JavaScript-rendered and could not be read via WebFetch. Attempts to reach Yale Psychiatry's channel feed and Yale's grand rounds media pages did not yield verifiable YouTube URLs.\n2. VIDEO DURATIONS NOT MACHINE-VERIFIED. The YouTube oEmbed and noembed endpoints do not return a duration field, and the watch pages are JavaScript-rendered. Every video is marked duration_type 'long' on the basis that grand rounds sessions are conventionally 45-60 minutes, but no individual runtime was confirmed. Confirm the 20-90 minute window before using any of these in a curriculum.\n3. BOOK SUMMARIES OF UNEVEN DEPTH. Books 1, 2, 3, 4, 9, and 12 have summaries drawn from full publisher or Bookshelf descriptions that were successfully fetched. Books 5, 6, 7, 8, 10, and 11 had only title, subtitle, author, and year confirmed from the Guilford Press catalogue and search pages; their detailed publisher descriptions were not retrievable, so their summaries are deliberately limited to what the verified bibliographic record asserts and are marked as such in the text. Do not treat those summaries as descriptions of chapter-level content.\n4. FOUNDATIONAL ITEMS OLDER THAN 10 YEARS. Books 3 (Marlatt & Donovan, 2005), 7 (Donovan & Marlatt, 2007), 8 (Higgins et al., 2007), 10 (O'Farrell & Fals-Stewart, 2006), and 12 (NICE CG52, 2008) exceed the 10-year filter and are retained on foundational grounds. NICE CG52 in particular has been subject to later surveillance review and related guidance (quality standard QS23, technology appraisal TA114); check current NICE guidance before applying its pharmacological recommendations.\n5. ONE INCOMPLETE ABSTRACT. Paper 1 (Volkow, Koob & McLellan, NEJM 2016) has a fully verified bibliographic record via Europe PMC, but the abstract text was not returned by Europe PMC and the NEJM page returned HTTP 403. Its summary is therefore restricted to the article's framing as reported in retrieved search results, and no specific numerical findings are attributed to it.\n6. COUNTS. Books 12 of 10 target (exceeded). Papers 11 of 10 target (exceeded). Videos 10 of 10 target (met, but see caveats 1 and 2).\n7. GEOGRAPHIC SKEW. The evidence base assembled here is predominantly US and UK. Pharmacological availability, legal frameworks (notably video 10 on involuntary commitment), and service structures differ by jurisdiction."
+}

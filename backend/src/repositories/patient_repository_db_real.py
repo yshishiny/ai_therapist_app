@@ -15,7 +15,9 @@ class PatientRepositoryDbReal:
         if therapist_id is not None:
             rows = await self.db.fetch(
                 """
-                SELECT id, name, status, risk, diagnosis, last_seen, therapist_id, dob, gender
+                SELECT id, name, status, risk, diagnosis, last_seen, therapist_id, dob, gender,
+                       phone, email, emergency_contact_name, emergency_contact_phone,
+                       consent_ai_analysis, wellbeing_status
                 FROM patients
                 WHERE org_id = $1 AND therapist_id = $2
                 ORDER BY last_seen DESC NULLS LAST
@@ -29,7 +31,9 @@ class PatientRepositoryDbReal:
         else:
             rows = await self.db.fetch(
                 """
-                SELECT id, name, status, risk, diagnosis, last_seen, therapist_id, dob, gender
+                SELECT id, name, status, risk, diagnosis, last_seen, therapist_id, dob, gender,
+                       phone, email, emergency_contact_name, emergency_contact_phone,
+                       consent_ai_analysis, wellbeing_status
                 FROM patients
                 WHERE org_id = $1
                 ORDER BY last_seen DESC NULLS LAST
@@ -46,7 +50,9 @@ class PatientRepositoryDbReal:
             return None
         row = await self.db.fetchrow(
             """
-            SELECT id, name, status, risk, diagnosis, last_seen, therapist_id, dob, gender
+            SELECT id, name, status, risk, diagnosis, last_seen, therapist_id, dob, gender,
+                   phone, email, emergency_contact_name, emergency_contact_phone,
+                   consent_ai_analysis, wellbeing_status
             FROM patients
             WHERE id = $1 AND org_id = $2
             """,
@@ -72,7 +78,9 @@ class PatientRepositoryDbReal:
             UPDATE patients
             SET {', '.join(set_clauses)}, updated_at = NOW()
             WHERE id = ${len(values) - 1} AND org_id = ${len(values)}
-            RETURNING id, name, status, risk, diagnosis, last_seen, therapist_id
+            RETURNING id, name, status, risk, diagnosis, last_seen, therapist_id, dob, gender,
+                      phone, email, emergency_contact_name, emergency_contact_phone,
+                      consent_ai_analysis, wellbeing_status
             """,
             *values,
         )
@@ -83,6 +91,7 @@ class PatientRepositoryDbReal:
         data = dict(row)
         data["id"] = str(data["id"])
         data["diagnosis"] = data.get("diagnosis") or ""
+        data["consent_ai_analysis"] = bool(data.get("consent_ai_analysis"))
         return data
 
     async def find_clinician_id_by_email(self, email: str, org_id: str) -> str | None:

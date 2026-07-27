@@ -1,0 +1,311 @@
+{
+  "topic": "Anxiety",
+  "generated_note": "Collected via web research; verify before clinical use.",
+  "books": [
+    {
+      "id": 1,
+      "title": "Anxiety and Its Disorders: The Nature and Treatment of Anxiety and Panic (2nd Edition)",
+      "author": "David H. Barlow",
+      "year": "2002",
+      "topics": ["Anxiety"],
+      "summary": "Foundational scholarly text comprehensively examining the phenomena of anxiety and panic. Chapters coauthored by Barlow and leading experts cover the classification, presentation, etiology, assessment, and treatment of each of the anxiety disorders, grounded in Barlow's triple-vulnerability model of emotional disorders.",
+      "key_concepts": ["Triple vulnerability model", "Nature of anxious apprehension and panic", "Classification of anxiety disorders", "Etiology and assessment", "Emotion theory of anxiety"],
+      "clinical_usage": "Core theoretical reference for understanding the science behind anxiety and panic; informs case conceptualization and rationale for exposure-based and cognitive-behavioral treatment."
+    },
+    {
+      "id": 2,
+      "title": "Clinical Handbook of Psychological Disorders: A Step-by-Step Treatment Manual (6th Edition)",
+      "author": "David H. Barlow (Editor)",
+      "year": "2021",
+      "topics": ["Anxiety"],
+      "summary": "The leading text on evidence-based treatments for frequently encountered mental health problems. Includes detailed step-by-step, session-by-session treatment chapters for panic disorder and agoraphobia, social anxiety disorder, generalized anxiety disorder, and PTSD, written by treatment developers.",
+      "key_concepts": ["Evidence-based practice", "Session-by-session protocols", "Panic control treatment", "CBT for GAD and social anxiety", "Case illustration and troubleshooting"],
+      "clinical_usage": "Practical treatment-manual reference for delivering empirically supported therapy protocols for the major anxiety disorders."
+    },
+    {
+      "id": 3,
+      "title": "Mastery of Your Anxiety and Panic: Therapist Guide (5th Edition, Treatments That Work)",
+      "author": "Michelle G. Craske; David H. Barlow",
+      "year": "2022",
+      "topics": ["Anxiety"],
+      "summary": "Gold-standard CBT protocol for panic disorder and agoraphobia. Provides step-by-step instructions for teaching clients skills to overcome fear of panic and panic attacks, case vignettes, and techniques for addressing atypical and problematic responses; the 5th edition is organized by skill and incorporates inhibitory learning principles.",
+      "key_concepts": ["Panic control treatment", "Interoceptive exposure", "In vivo exposure", "Inhibitory learning", "Cognitive restructuring of catastrophic misappraisals"],
+      "clinical_usage": "Direct session-by-session therapist protocol for treating panic disorder and agoraphobia; pairs with the companion patient workbook."
+    },
+    {
+      "id": 4,
+      "title": "Cognitive Therapy of Anxiety Disorders: Science and Practice",
+      "author": "David A. Clark; Aaron T. Beck",
+      "year": "2010",
+      "topics": ["Anxiety"],
+      "summary": "Updates and reformulates Aaron T. Beck's pioneering cognitive model of anxiety disorders. Synthesizes empirical data on anxiety treatment and offers step-by-step instruction in cognitive assessment, case formulation, cognitive restructuring, and behavioral intervention, with evidence-based mini-manuals for panic disorder, social phobia, GAD, OCD, and PTSD.",
+      "key_concepts": ["Beck's cognitive model of anxiety", "Threat appraisal", "Cognitive case formulation", "Cognitive restructuring", "Disorder-specific mini-manuals"],
+      "clinical_usage": "Comprehensive guide for cognitive therapy of the five most common anxiety disorders; supports assessment, formulation, and intervention planning."
+    },
+    {
+      "id": 5,
+      "title": "Exposure Therapy for Anxiety: Principles and Practice (2nd Edition)",
+      "author": "Jonathan S. Abramowitz; Brett J. Deacon; Stephen P. H. Whiteside",
+      "year": "2019",
+      "topics": ["Anxiety"],
+      "summary": "The leading clinical guide to therapeutic exposure, a crucial element of evidence-based psychological treatments for anxiety. Revised and expanded to include acceptance-based techniques and a new focus on inhibitory learning, it helps clinicians implement exposure successfully and tailor interventions to each client's needs regardless of diagnosis.",
+      "key_concepts": ["Graded exposure", "Interoceptive and imaginal exposure", "Inhibitory learning framework", "Safety behavior elimination", "Transdiagnostic application of exposure"],
+      "clinical_usage": "Practical how-to manual for planning and delivering exposure therapy across anxiety presentations, including troubleshooting difficult cases."
+    },
+    {
+      "id": 6,
+      "title": "Unified Protocol for Transdiagnostic Treatment of Emotional Disorders: Therapist Guide (2nd Edition, Treatments That Work)",
+      "author": "David H. Barlow; Todd J. Farchione; Shannon Sauer-Zavala; et al.",
+      "year": "2017",
+      "topics": ["Anxiety"],
+      "summary": "Therapist guide for the Unified Protocol (UP), a transdiagnostic emotion-focused CBT. Guides therapists through core treatment modules: mindful emotion awareness, cognitive flexibility, countering emotional behaviors, understanding and confronting physical sensations, and emotion exposures; applicable to anxiety, depression, and related emotional disorders.",
+      "key_concepts": ["Transdiagnostic treatment", "Neuroticism and emotion regulation", "Mindful emotion awareness", "Cognitive flexibility", "Emotion exposures"],
+      "clinical_usage": "Single protocol usable across comorbid anxiety and mood presentations; useful when patients present with mixed anxiety-depression or multiple anxiety diagnoses."
+    },
+    {
+      "id": 7,
+      "title": "Cognitive Therapy of Anxiety Disorders: A Practice Manual and Conceptual Guide",
+      "author": "Adrian Wells",
+      "year": "1997",
+      "topics": ["Anxiety"],
+      "summary": "Foundational conceptual and practical guide to cognitive therapy of the major anxiety disorders, bringing together work by David Clark, Paul Salkovskis, and Adrian Wells. Provides detailed, disorder-specific cognitive conceptualizations that inform the choice of therapeutic interventions.",
+      "key_concepts": ["Disorder-specific cognitive models", "Case conceptualization", "Behavioral experiments", "Metacognition and worry", "Safety-seeking behaviors"],
+      "clinical_usage": "Classic manual for disorder-specific cognitive formulations (panic, social phobia, GAD, health anxiety, OCD); still widely used in CBT training."
+    },
+    {
+      "id": 8,
+      "title": "Oxford Handbook of Anxiety and Related Disorders",
+      "author": "Martin M. Antony; Murray B. Stein (Editors)",
+      "year": "2009",
+      "topics": ["Anxiety"],
+      "summary": "Scholarly, exhaustive reference reviewing research and clinical developments in anxiety and related disorders. Covers diagnostic criteria, prevalence, comorbidity, neurobiological and psychological approaches (genetics, neuroanatomical models, learning theories), classification, assessment, traditional and alternative treatments, and cultural issues.",
+      "key_concepts": ["Epidemiology and comorbidity", "Neurobiology of anxiety", "Learning theories of fear", "Assessment and classification", "Cultural considerations"],
+      "clinical_usage": "Academic reference handbook for deep background on any anxiety disorder; supports evidence-grounded psychoeducation and differential diagnosis."
+    },
+    {
+      "id": 9,
+      "title": "Acceptance and Commitment Therapy for Anxiety Disorders: A Practitioner's Treatment Guide to Using Mindfulness, Acceptance, and Values-Based Behavior Change Strategies",
+      "author": "Georg H. Eifert; John P. Forsyth",
+      "year": "2005",
+      "topics": ["Anxiety"],
+      "summary": "The first how-to guide offering a detailed and practical application of acceptance and commitment therapy (ACT) to the treatment of the broad class of anxiety disorders, presenting the ACT approach to alleviating human suffering in a lucid, readable style.",
+      "key_concepts": ["Experiential avoidance", "Acceptance and willingness", "Cognitive defusion", "Values-based action", "Mindfulness in anxiety treatment"],
+      "clinical_usage": "Practitioner guide for delivering ACT with anxious clients, particularly when control-based strategies have failed or acceptance-based methods are preferred."
+    },
+    {
+      "id": 10,
+      "title": "Cognitive Behavioral Therapy for Social Anxiety Disorder: Evidence-Based and Disorder-Specific Treatment Techniques (2nd Edition)",
+      "author": "Stefan G. Hofmann; Michael W. Otto",
+      "year": "2017",
+      "topics": ["Anxiety"],
+      "summary": "Disorder-specific CBT approach for social anxiety disorder that builds on empirical research to address the psychopathology and heterogeneity of the condition. The revised edition includes chapters on working with patients on medication, cultural factors, individual therapy, and monitoring outcomes, with numerous case examples.",
+      "key_concepts": ["Cognitive model of social anxiety", "Exposure to social threat", "Attention and safety behaviors", "Combined treatment with medication", "Outcome monitoring"],
+      "clinical_usage": "Targeted treatment guide for social anxiety disorder; strengthens standard CBT strategies with disorder-specific interventions."
+    }
+  ],
+  "papers": [
+    {
+      "id": 1,
+      "title": "Anxiety",
+      "authors": "Michelle G. Craske; Murray B. Stein",
+      "year": "2016",
+      "source": "The Lancet via PubMed (PMID 27349358)",
+      "summary": "Seminar reviewing the clinical presentation, diagnosis, epidemiology, risk factors, and pathophysiology of anxiety disorders, plus evidence-based psychological and pharmacological therapies. Covers separation anxiety disorder, selective mutism, specific phobias, social anxiety disorder, panic disorder, agoraphobia, and generalised anxiety disorder.",
+      "key_findings": ["Anxiety disorders are common and disabling, mostly beginning in childhood, adolescence, or early adulthood", "They differ from developmentally normative anxiety by being marked, persistent, and impairing", "Most anxiety disorders affect almost twice as many women as men", "CBT and pharmacotherapy are the principal evidence-based treatments"],
+      "clinical_relevance": "Authoritative concise overview for clinicians covering diagnosis through treatment selection across all major anxiety disorders."
+    },
+    {
+      "id": 2,
+      "title": "Anxiety disorders",
+      "authors": "Michelle G. Craske; Murray B. Stein; et al.",
+      "year": "2017",
+      "source": "Nature Reviews Disease Primers (nrdp2017.24)",
+      "summary": "Disease primer synthesizing epidemiology, mechanisms (genetic, neurobiological, psychological), diagnosis, screening, prevention, management, and quality-of-life impact of anxiety disorders.",
+      "key_findings": ["Anxiety disorders arise from interacting genetic, neurobiological, and environmental risk factors", "Fear circuitry dysfunction (amygdala-prefrontal) is implicated in pathophysiology", "Evidence-based management includes CBT (especially exposure) and SSRI/SNRI pharmacotherapy"],
+      "clinical_relevance": "Comprehensive mechanistic and clinical reference bridging neuroscience and practice for anxiety disorders."
+    },
+    {
+      "id": 3,
+      "title": "Anxiety disorders",
+      "authors": "Brenda W. J. H. Penninx; Daniel S. Pine; Emily A. Holmes; Andreas Reif",
+      "year": "2021",
+      "source": "The Lancet via PubMed (PMID 33581801; DOI 10.1016/S0140-6736(21)00359-7)",
+      "summary": "Review describing anxiety disorders as the most common group of mental disorders, generally starting before or in early adulthood. Core features include excessive fear and anxiety or avoidance of perceived threats that are persistent and impairing; anxiety disorders involve dysfunction in brain circuits that respond to danger, with risk influenced by genetic and environmental factors and their epigenetic relations.",
+      "key_findings": ["Anxiety disorders are the most common group of mental disorders", "Onset is typically before or in early adulthood", "Danger-response brain circuit dysfunction underlies symptoms", "Risk reflects genetic, environmental, and epigenetic influences"],
+      "clinical_relevance": "Up-to-date Lancet review for evidence-based assessment and stepped treatment of anxiety disorders in adults."
+    },
+    {
+      "id": 4,
+      "title": "Maximizing exposure therapy: An inhibitory learning approach",
+      "authors": "Michelle G. Craske; Michael Treanor; Christopher C. Conway; Tomislav Zbozinek; Bram Vervliet",
+      "year": "2014",
+      "source": "Behaviour Research and Therapy, vol. 58, pp. 10-23",
+      "summary": "Proposes inhibitory learning as the most useful model for understanding exposure therapy. Anxious individuals show deficits in mechanisms believed to underlie exposure (such as inhibitory learning), and targeting these processes may improve the efficacy of exposure-based procedures.",
+      "key_findings": ["Inhibitory learning, not habituation, is framed as the key mechanism of exposure", "Nine strategies to maximize exposure: expectancy violation, deepened extinction, occasional reinforced extinction, removal of safety signals, variability, retrieval cues, multiple contexts, reconsolidation, and affect labeling"],
+      "clinical_relevance": "Directly reshapes how clinicians design exposure exercises; the basis of modern inhibitory-learning-informed exposure practice."
+    },
+    {
+      "id": 5,
+      "title": "Epidemiology of anxiety disorders in the 21st century",
+      "authors": "Borwin Bandelow; Sophie Michaelis",
+      "year": "2015",
+      "source": "Dialogues in Clinical Neuroscience, 17(3), 327-335 (PMID 26487813)",
+      "summary": "Epidemiological review of anxiety disorders reporting lifetime prevalence and patterns of recognition and treatment.",
+      "key_findings": ["Up to 33.7% of the population is affected by an anxiety disorder during their lifetime", "Substantial underrecognition and undertreatment of anxiety disorders is demonstrated", "No evidence that prevalence rates of anxiety disorders have changed in recent years"],
+      "clinical_relevance": "Key prevalence figures for psychoeducation, service planning, and framing anxiety as common and treatable."
+    },
+    {
+      "id": 6,
+      "title": "Cognitive behavioral therapy for anxiety and related disorders: A meta-analysis of randomized placebo-controlled trials",
+      "authors": "Joseph K. Carpenter; et al.",
+      "year": "2018",
+      "source": "Depression and Anxiety, 35, 502-514 (Wiley)",
+      "summary": "Meta-analysis of 41 randomized placebo-controlled trials (N = 2,843) of CBT for acute stress disorder, GAD, OCD, panic disorder, PTSD, and social anxiety disorder.",
+      "key_findings": ["Moderate placebo-controlled effects of CBT on target disorder symptoms (Hedges' g = 0.56)", "Small to moderate effects on other anxiety symptoms (g = 0.38), depression (g = 0.31), and quality of life (g = 0.30)"],
+      "clinical_relevance": "Quantifies the placebo-controlled efficacy of CBT across anxiety-related disorders, supporting it as first-line psychotherapy."
+    },
+    {
+      "id": 7,
+      "title": "Pharmacological treatments for generalised anxiety disorder: a systematic review and network meta-analysis",
+      "authors": "April Slee; Irwin Nazareth; Paulina Bondaronek; Yifeng Liu; Zhihang Cheng; Nick Freemantle",
+      "year": "2019",
+      "source": "The Lancet, 393, 768-777 (PMID 30712879)",
+      "summary": "Systematic review and network meta-analysis of randomized trials in adult outpatients with generalised anxiety disorder, drawing on MEDLINE, Web of Science, Cochrane Library, ClinicalTrials.gov, CNKI, Wanfang, Drugs@FDA, and pharmaceutical registries.",
+      "key_findings": ["Several effective pharmacological treatment choices exist for GAD across medication classes", "Failure of initial pharmacological therapy is not necessarily a reason to abandon a pharmacological strategy"],
+      "clinical_relevance": "Comparative efficacy and tolerability evidence to guide medication selection and sequencing in GAD."
+    },
+    {
+      "id": 8,
+      "title": "Generalised anxiety disorder and panic disorder in adults: management (Clinical Guideline CG113)",
+      "authors": "National Institute for Health and Care Excellence (NICE)",
+      "year": "2011 (last updated 2020)",
+      "source": "NICE (nice.org.uk/guidance/cg113)",
+      "summary": "UK national guideline covering care and treatment of adults with generalised anxiety disorder or panic disorder (with or without agoraphobia). Uses a stepped-care model aiming for full remission of symptoms.",
+      "key_findings": ["Recommends low-intensity psychological interventions (guided self-help, psychoeducational groups) at step 2 for GAD", "For step 3 CBT: on average 12-15 hourly weekly sessions with trained practitioners", "If SSRIs/SNRIs are not tolerated in GAD, consider pregabalin", "Antidepressants should be the only pharmacological intervention for longer-term management of panic disorder"],
+      "clinical_relevance": "Operational stepped-care algorithm for GAD and panic disorder; directly usable for treatment planning and referral decisions."
+    },
+    {
+      "id": 9,
+      "title": "Global, regional and national burden of anxiety disorders from 1990 to 2019: results from the Global Burden of Disease Study 2019",
+      "authors": "Xiaorong Yang; Yuan Fang; Hui Chen; Tongchao Zhang; Xiaolin Yin; Jinyu Man; Lejin Yang; Ming Lu",
+      "year": "2021",
+      "source": "Epidemiology and Psychiatric Sciences (Cambridge) via PubMed (PMID 33955350; DOI 10.1017/S2045796021000275)",
+      "summary": "GBD 2019 analysis of incidence, prevalence, and disability-adjusted life years (DALYs) for anxiety disorders in 204 countries and territories from 1990 to 2019.",
+      "key_findings": ["An estimated 45.82 million incident cases, 301.39 million prevalent cases, and 28.68 million DALYs globally in 2019", "Age-standardised burden rates remained stable over three decades, but the absolute number of cases increased by about 50% from 1990"],
+      "clinical_relevance": "Documents the global scale and disability burden of anxiety disorders; useful for population-level context and health-service justification."
+    },
+    {
+      "id": 10,
+      "title": "World Federation of Societies of Biological Psychiatry (WFSBP) guidelines for treatment of anxiety, obsessive-compulsive and posttraumatic stress disorders - Version 3. Part I: Anxiety disorders",
+      "authors": "Borwin Bandelow; et al. (WFSBP Task Force)",
+      "year": "2023",
+      "source": "The World Journal of Biological Psychiatry, 24(2), 79-117 (PMID 35900161)",
+      "summary": "Third version of the WFSBP treatment guidelines, developed by a consensus panel of 33 international experts from 22 countries. In total, 1,007 RCTs of medications, psychotherapy, and other non-pharmacological interventions in adults, adolescents, and children were evaluated.",
+      "key_findings": ["Evidence-graded recommendations for panic disorder/agoraphobia, GAD, social anxiety disorder, specific phobias, mixed anxiety disorders in children and adolescents, separation anxiety, and selective mutism", "Recommendations balance efficacy and acceptability of available treatments"],
+      "clinical_relevance": "International consensus reference for pharmacological and psychological treatment selection across the anxiety disorders."
+    }
+  ],
+  "videos": [
+    {
+      "id": 1,
+      "title": "Virtual Grand Rounds: Medication Treatments for Anxiety Disorders",
+      "url": "https://www.youtube.com/watch?v=-UGRMYZ0SJM",
+      "duration_type": "long",
+      "topic": "Anxiety",
+      "source": "Silver Hill Hospital (YouTube)",
+      "description": "Grand rounds presentation by Amir Garakani, M.D. (psychiatrist and Director of Education at Silver Hill Hospital, May 2021) reviewing medication treatments for anxiety disorders.",
+      "clinical_usage": "Pharmacotherapy update for clinicians: SSRIs/SNRIs, benzodiazepines, and adjunctive options for anxiety disorders."
+    },
+    {
+      "id": 2,
+      "title": "Johns Hopkins Psychiatry Grand Rounds | Joe Bienvenu, M.D., Ph.D.",
+      "url": "https://www.youtube.com/watch?v=z9l7Y3UWYp4",
+      "duration_type": "long",
+      "topic": "Anxiety",
+      "source": "Johns Hopkins Medicine (YouTube)",
+      "description": "Johns Hopkins Department of Psychiatry grand rounds in which Joe Bienvenu, M.D., Ph.D. presents on the classification of anxiety disorders.",
+      "clinical_usage": "Deepens diagnostic and nosological understanding of anxiety disorders for differential diagnosis."
+    },
+    {
+      "id": 3,
+      "title": "Mental Health Matters Webinar: Understanding and Treating Anxiety",
+      "url": "https://www.youtube.com/watch?v=K6RUEv2PFLI",
+      "duration_type": "long",
+      "topic": "Anxiety",
+      "source": "Johns Hopkins Medicine (YouTube)",
+      "description": "Johns Hopkins Medicine webinar (May 2022) explaining what anxiety is, when it becomes a disorder, and current evidence-based treatment options.",
+      "clinical_usage": "Clinician-reviewed psychoeducation on anxiety recognition and treatment; also suitable to share with trainees."
+    },
+    {
+      "id": 4,
+      "title": "CBT Therapies for Social Anxiety Disorder: Part 1 | Mental Health Professional Webinar",
+      "url": "https://www.youtube.com/watch?v=yfM59LIHfww",
+      "duration_type": "long",
+      "topic": "Anxiety",
+      "source": "ADAA (Anxiety and Depression Association of America) YouTube channel",
+      "description": "Professional webinar (2024) teaching evidence-based cognitive-behavioral strategies for treating social anxiety disorder, including behavioral experiments/exposure and cognitive restructuring.",
+      "clinical_usage": "Skills training for therapists delivering CBT for social anxiety disorder."
+    },
+    {
+      "id": 5,
+      "title": "CBT Therapies for Social Anxiety Disorder: Part 2 | Mental Health Professional Webinar",
+      "url": "https://www.youtube.com/watch?v=CU6BWqpLl20",
+      "duration_type": "long",
+      "topic": "Anxiety",
+      "source": "ADAA (Anxiety and Depression Association of America) YouTube channel",
+      "description": "Part two of the ADAA intensive workshop on evidence-based cognitive-behavioral strategies for social anxiety disorder, with a focus on behavioral exposure.",
+      "clinical_usage": "Continuation of therapist skills training in exposure-based CBT for social anxiety."
+    },
+    {
+      "id": 6,
+      "title": "Introduction to the Magic of CBT for Anxiety, OCD, and Depression Part I",
+      "url": "https://www.youtube.com/watch?v=qLEAhXAYUnQ",
+      "duration_type": "long",
+      "topic": "Anxiety",
+      "source": "ADAA (Anxiety and Depression Association of America) YouTube channel",
+      "description": "ADAA professional webinar (2024) covering the benefits of CBT for patients experiencing anxiety, OCD, or depression and how to implement it.",
+      "clinical_usage": "Introductory CBT implementation training for clinicians treating anxiety and comorbid conditions."
+    },
+    {
+      "id": 7,
+      "title": "Anxiously Aging: Understanding and Living Well With Anxiety in Late Life | Mental Health Webinar",
+      "url": "https://www.youtube.com/watch?v=Boo0OJ4agao",
+      "duration_type": "long",
+      "topic": "Anxiety",
+      "source": "ADAA (Anxiety and Depression Association of America) YouTube channel",
+      "description": "ADAA webinar (April 2024) on understanding and managing anxiety in late life, including presentation and treatment considerations in older adults.",
+      "clinical_usage": "Geriatric-specific anxiety assessment and treatment considerations for clinicians working with older adults."
+    },
+    {
+      "id": 8,
+      "title": "Bring on the Fear! Maximizing Exposure in the Treatment of Anxiety Disorders for Youth",
+      "url": "https://www.youtube.com/watch?v=f5reRXAn5uE",
+      "duration_type": "long",
+      "topic": "Anxiety",
+      "source": "South Southwest MHTTC (SAMHSA-funded Mental Health Technology Transfer Center) YouTube channel",
+      "description": "Workshop (2023) introducing the dominant theoretical model of anxiety disorders and the best-established treatment: exposure-based CBT, applied to children and adolescents.",
+      "clinical_usage": "Training in designing and delivering exposure-based CBT for pediatric anxiety."
+    },
+    {
+      "id": 9,
+      "title": "2018 Annual Conference Keynote - Michelle Craske",
+      "url": "https://www.youtube.com/watch?v=leMoA1wcAkA",
+      "duration_type": "long",
+      "topic": "Anxiety",
+      "source": "BABCPtv (British Association for Behavioural and Cognitive Psychotherapies) YouTube channel",
+      "description": "Conference keynote by Michelle Craske (UCLA) on neuroscience-informed approaches to psychological treatments for anxiety and depression.",
+      "clinical_usage": "Connects inhibitory learning and translational neuroscience to practical improvements in exposure therapy delivery."
+    },
+    {
+      "id": 10,
+      "title": "Reward Processing as a Target for Treatment of Depression & Anxiety with Michelle G. Craske, PhD, AO",
+      "url": "https://www.youtube.com/watch?v=1nO9X2h2Z18",
+      "duration_type": "long",
+      "topic": "Anxiety",
+      "source": "Department of Psychiatry, University of Toronto (YouTube)",
+      "description": "Academic lecture (2025) by Michelle Craske on reward processing (positive valence systems) as an emerging treatment target in anxiety and depression.",
+      "clinical_usage": "Advanced continuing education on anhedonia, positive-affect treatment, and next-generation interventions relevant to anxious-depressed patients."
+    }
+  ],
+  "collection_notes": "All 30 items were verified via live web search during collection (titles, authors/channels, publishers, and years confirmed against search results; video titles and channel names additionally confirmed via YouTube oEmbed metadata). Caveats: (1) Exact video runtimes could not be programmatically confirmed from YouTube metadata; all selected videos are grand rounds, professional webinars, workshops, or academic keynotes/lectures, formats that typically run 45-90 minutes, but durations should be spot-checked before assigning to therapists. (2) Wells (1997), Barlow (2002), Antony & Stein (2009), Clark & Beck (2010), and Eifert & Forsyth (2005) are older than 10 years but retained as foundational clinical texts. (3) Book/paper summaries are derived from publisher descriptions, abstracts, and search snippets read during this session, not full-text review. (4) NICE CG113 is a clinical guideline recorded under papers per collection rules."
+}

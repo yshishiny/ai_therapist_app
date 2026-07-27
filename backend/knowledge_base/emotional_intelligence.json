@@ -1,0 +1,349 @@
+{
+  "topic": "Emotional Intelligence",
+  "generated_note": "Collected via web research; verify before clinical use.",
+  "books": [
+    {
+      "id": 1,
+      "title": "The Handbook of Emotional Intelligence: The Theory and Practice of Development, Evaluation, Education, and Application - at Home, School, and in the Workplace",
+      "author": "Reuven Bar-On; James D. A. Parker (Eds.)",
+      "year": "2000",
+      "topics": ["Emotional Intelligence"],
+      "summary": "Comprehensive scholarly handbook (Jossey-Bass/Wiley, foreword by Daniel Goleman) covering the theory, measurement, development, and application of emotional intelligence across home, school, and workplace settings, including conceptual models and assessment methods such as the EQ-i.",
+      "key_concepts": ["EI theoretical models (ability, trait, mixed)", "EI assessment (EQ-i, performance measures)", "EI development across the lifespan", "Applications in education and workplace"],
+      "clinical_usage": "Reference text for clinicians who want a rigorous grounding in competing EI models and validated assessment options before integrating EI constructs into case formulation or psychoeducation."
+    },
+    {
+      "id": 2,
+      "title": "Emotional Development and Emotional Intelligence: Educational Implications",
+      "author": "Peter Salovey; David J. Sluyter (Eds.)",
+      "year": "1997",
+      "topics": ["Emotional Intelligence"],
+      "summary": "Foundational edited volume (Basic Books) in which Mayer and Salovey present the revised four-branch ability model of emotional intelligence - the ability to monitor one's own and others' feelings, discriminate among them, and use this information to guide thinking and action - alongside chapters on emotional development and its educational implications.",
+      "key_concepts": ["Four-branch ability model of EI", "Perceiving, using, understanding, and managing emotions", "Emotional development in children", "EI and education"],
+      "clinical_usage": "Primary-source grounding for the ability model that underlies the MSCEIT; useful when explaining to trainees or clients what EI formally is and is not."
+    },
+    {
+      "id": 3,
+      "title": "Emotional Intelligence: Science and Myth",
+      "author": "Gerald Matthews; Moshe Zeidner; Richard D. Roberts",
+      "year": "2002",
+      "topics": ["Emotional Intelligence"],
+      "summary": "Critical scientific appraisal (MIT Press) of the EI construct: the ability to identify, express, and understand emotions, assimilate emotions into thought, and regulate emotions. The authors examine evidence for and against EI as a distinct intelligence and scrutinize measurement, validity, and popular claims.",
+      "key_concepts": ["Construct validity of EI", "Measurement critique", "EI versus personality and IQ", "Separating science from popular myth"],
+      "clinical_usage": "Guards clinicians against over-claiming; supports evidence-based framing of EI in reports, supervision, and patient psychoeducation."
+    },
+    {
+      "id": 4,
+      "title": "Emotional Intelligence",
+      "author": "Daniel Goleman",
+      "year": "1995",
+      "topics": ["Emotional Intelligence"],
+      "summary": "The foundational best-seller that popularized emotional intelligence, arguing that self-awareness, self-regulation, motivation, empathy, and social skill can matter more than IQ for life outcomes, drawing on affective neuroscience and psychology of the era.",
+      "key_concepts": ["Self-awareness", "Self-regulation", "Empathy", "Social skills", "Amygdala 'hijack' and emotional brain"],
+      "clinical_usage": "Accessible psychoeducation resource for clients; historically foundational text for understanding how EI entered clinical and public discourse."
+    },
+    {
+      "id": 5,
+      "title": "Permission to Feel",
+      "author": "Marc Brackett",
+      "year": "2019",
+      "topics": ["Emotional Intelligence"],
+      "summary": "By the founding director of the Yale Center for Emotional Intelligence (professor, Yale Child Study Center, Yale School of Medicine). Presents the RULER framework - Recognizing, Understanding, Labeling, Expressing, and Regulating emotions - and the science of emotion skills for wellbeing at home, school, and work.",
+      "key_concepts": ["RULER framework", "Emotion labeling and granularity", "Emotion regulation strategies", "Emotional climate in schools and families"],
+      "clinical_usage": "Practical, evidence-informed framework clinicians can adapt for emotion-skills training with adolescents, families, and adult clients with low emotional awareness."
+    },
+    {
+      "id": 6,
+      "title": "Emotional Intelligence in Education",
+      "author": "Kateryna V. Keefer; James D. A. Parker; Donald H. Saklofske (Eds.)",
+      "year": "2018",
+      "topics": ["Emotional Intelligence"],
+      "summary": "Academic edited volume integrating EI research with educational practice, covering EI theory and measurement in young people, social-emotional learning programs, and applications for student wellbeing and achievement.",
+      "key_concepts": ["EI measurement in youth", "Social-emotional learning (SEL)", "EI and academic outcomes", "Implementation science in schools"],
+      "clinical_usage": "Supports child/adolescent clinicians collaborating with schools and designing SEL-informed interventions or recommendations."
+    },
+    {
+      "id": 7,
+      "title": "Emotion Regulation in Psychotherapy",
+      "author": "Robert L. Leahy; Dennis Tirch; Lisa A. Napolitano",
+      "year": "2011",
+      "topics": ["Emotional Intelligence"],
+      "summary": "Practitioner guide to assessing and treating emotion regulation difficulties in psychotherapy, offering cognitive-behavioral, schema-based, mindfulness, and acceptance-based techniques for helping clients identify, tolerate, and modify emotional responses.",
+      "key_concepts": ["Emotional schemas", "Emotion regulation strategies in CBT", "Mindfulness and acceptance techniques", "Distress tolerance"],
+      "clinical_usage": "Session-ready techniques for clients whose presenting problems involve poor emotion identification and regulation - the clinical core of low EI."
+    },
+    {
+      "id": 8,
+      "title": "Handbook of Emotion Regulation (Second Edition)",
+      "author": "James J. Gross (Ed.)",
+      "year": "2013",
+      "topics": ["Emotional Intelligence"],
+      "summary": "Definitive scholarly handbook on emotion regulation science, including the process model of emotion regulation (situation selection/modification, attentional deployment, cognitive change, response modulation), neural bases, development, and psychopathology links.",
+      "key_concepts": ["Process model of emotion regulation", "Reappraisal versus suppression", "Neuroscience of regulation", "Emotion dysregulation in psychopathology"],
+      "clinical_usage": "Scientific backbone for the 'managing emotions' branch of EI; informs mechanism-based treatment selection for mood, anxiety, and personality disorders."
+    },
+    {
+      "id": 9,
+      "title": "DBT Skills Training Manual, Second Edition",
+      "author": "Marsha M. Linehan",
+      "year": "2014",
+      "topics": ["Emotional Intelligence"],
+      "summary": "The standard clinical manual for teaching dialectical behavior therapy skills, including a full emotion regulation module (identifying and labeling emotions, checking the facts, opposite action, reducing vulnerability) plus mindfulness, distress tolerance, and interpersonal effectiveness modules.",
+      "key_concepts": ["Emotion regulation skills module", "Mindfulness of current emotion", "Opposite action", "Interpersonal effectiveness"],
+      "clinical_usage": "Manualized, evidence-based curriculum for directly building the emotional skills that constitute applied EI, especially for emotion dysregulation and borderline personality disorder."
+    },
+    {
+      "id": 10,
+      "title": "Emotion-Focused Therapy",
+      "author": "Leslie S. Greenberg",
+      "year": "2011",
+      "topics": ["Emotional Intelligence"],
+      "summary": "Overview of emotion-focused therapy (American Psychological Association) by its principal developer: theory of emotion as adaptive information, emotional awareness and expression, transforming maladaptive emotion with adaptive emotion, and the therapist's role in emotion coaching.",
+      "key_concepts": ["Emotion as adaptive information", "Emotional awareness and expression", "Transforming emotion with emotion", "Emotion coaching in therapy"],
+      "clinical_usage": "Core therapeutic modality for increasing clients' emotional awareness, labeling, and processing - directly operationalizing EI constructs in psychotherapy."
+    }
+  ],
+  "papers": [
+    {
+      "id": 1,
+      "title": "Robust associations of emotional intelligence with human flourishing: A second-order meta-analysis",
+      "authors": "Robinson TJ, Zell E",
+      "year": "2026",
+      "source": "Proceedings of the National Academy of Sciences (PNAS) via PubMed (PMID 42090251; DOI 10.1073/pnas.2532963123)",
+      "summary": "Second-order meta-analysis synthesizing 62 meta-analyses (over 3,000 studies, roughly 1 million participants) on emotional intelligence and flourishing outcomes.",
+      "key_findings": [
+        "Overall EI-flourishing correlation r = 0.28 (95% CI 0.25-0.31)",
+        "Favorable associations across cognitive ability, psychological adjustment, mental health, and work performance",
+        "Consistent across age groups and cultures; self-report EI showed larger effects than objective measures",
+        "Substantial heterogeneity; authors call for moderator research"
+      ],
+      "clinical_relevance": "Strongest current evidence that EI is a broad, robust correlate of mental health and adjustment - supports EI assessment and skill-building as transdiagnostic clinical targets."
+    },
+    {
+      "id": 2,
+      "title": "Emotional intelligence predicts academic performance: A meta-analysis",
+      "authors": "MacCann C, Jiang Y, Brown LER, Double KS, Bucich M, Minbashian A",
+      "year": "2020",
+      "source": "Psychological Bulletin via PubMed (PMID 31829667; DOI 10.1037/bul0000219)",
+      "summary": "Meta-analysis of 158 citations (42,529 participants) on EI and academic performance across measurement types.",
+      "key_findings": [
+        "Overall corrected correlation rho = .20; ability EI rho = .24, mixed EI rho = .19, self-rated EI rho = .12",
+        "EI added 1.7-3.9% incremental variance beyond intelligence and personality",
+        "EI was the third most important predictor after intelligence and conscientiousness",
+        "Proposed mechanisms: emotion regulation, social relationships, content overlap"
+      ],
+      "clinical_relevance": "Quantifies EI's independent contribution to functioning in youth; supports EI-focused intervention for students presenting with academic and emotional difficulties."
+    },
+    {
+      "id": 3,
+      "title": "Comprehensive meta-analysis of emotional intelligence",
+      "authors": "Chen YC, Chiang YC, Chu HC",
+      "year": "2025",
+      "source": "Work via PubMed (PMID 39240606; DOI 10.3233/WOR-230553)",
+      "summary": "Meta-analysis of relationships between emotional intelligence and workplace variables including support, satisfaction, and stressors.",
+      "key_findings": [
+        "EI correlated positively with social support, organizational factors, and satisfaction",
+        "EI correlated negatively with workplace stressors",
+        "EI framed as emotion awareness, regulation capacity, empathy, and relationship skills",
+        "Recommends organizational emotional-management training programs"
+      ],
+      "clinical_relevance": "Relevant for occupational-health formulations and for clinicians advising on workplace stress, burnout prevention, and return-to-work planning."
+    },
+    {
+      "id": 4,
+      "title": "Effectiveness of emotional intelligence training on nurses' and nursing students' emotional intelligence, resilience, stress, and communication skills: a systematic review and meta-analysis",
+      "authors": "Kawashima T, Ota Y, Aikawa G, Watanabe M, Ashida K, Sakuramoto H",
+      "year": "2025",
+      "source": "Nurse Education Today via PubMed (PMID 40233578; DOI 10.1016/j.nedt.2025.106743)",
+      "summary": "Systematic review and meta-analysis of 23 randomized controlled trials of EI training for nurses and nursing students.",
+      "key_findings": [
+        "EI training significantly increased emotional intelligence (SMD = 1.76)",
+        "Psychological stress decreased (SMD = -1.51)",
+        "Communication skills improved substantially (SMD = 2.72)",
+        "Resilience change was not statistically significant"
+      ],
+      "clinical_relevance": "RCT-level evidence that EI is trainable in health professionals, with meaningful downstream effects on stress and communication - a template for clinician wellbeing programs."
+    },
+    {
+      "id": 5,
+      "title": "Training emotional competencies at the workplace: a systematic review and metaanalysis",
+      "authors": "Mehler M, Balint E, Gralla M, Poessnecker T, Gast M, Hoelzer M, Koesters M, Guendel H",
+      "year": "2024",
+      "source": "BMC Psychology via PubMed (PMID 39627880; DOI 10.1186/s40359-024-02198-3)",
+      "summary": "Systematic review and meta-analysis of 50 studies (27 controlled) on workplace training of emotional intelligence, empathy, and emotion regulation.",
+      "key_findings": [
+        "Moderate effects: pre-post SMD = 0.44 (95% CI 0.29-0.59); controlled SMD = 0.46 (95% CI 0.30-0.63)",
+        "Training effects persisted beyond three months",
+        "Benefits comparable across teachers, healthcare workers, and managers",
+        "High heterogeneity and low methodological quality noted; better RCTs needed"
+      ],
+      "clinical_relevance": "Supports durable trainability of emotional competencies in adults; useful evidence base when recommending structured EI training as an adjunct to therapy."
+    },
+    {
+      "id": 6,
+      "title": "Emotional Intelligence and Aggressive Behaviors in Adolescents: A Systematic Review and Meta-Analysis",
+      "authors": "Vega A, Cabello R, Megias-Robles A, Gomez-Leal R, Fernandez-Berrocal P",
+      "year": "2022",
+      "source": "Trauma, Violence, & Abuse via PubMed (PMID 33568015; DOI 10.1177/1524838021991296)",
+      "summary": "Systematic review and meta-analysis of 17 studies (Medline, PsycINFO, Scopus) on EI and adolescent aggression across ability and self-report EI models.",
+      "key_findings": [
+        "Adolescents with higher EI show less aggressive behavior",
+        "Effect observed across performance-based, self-report ability, and mixed EI models",
+        "EI characterized as a protective factor against adolescent aggression"
+      ],
+      "clinical_relevance": "Positions EI skill-building as a prevention/intervention lever in adolescent anger, conduct, and school-violence presentations."
+    },
+    {
+      "id": 7,
+      "title": "Promoting resilience and lower stress in nurses and improving inpatient experience through emotional intelligence training in China: A randomized controlled trial",
+      "authors": "Mao L, Huang L, Chen Q",
+      "year": "2021",
+      "source": "Nurse Education Today via PubMed (PMID 34543939; DOI 10.1016/j.nedt.2021.105130)",
+      "summary": "RCT with 103 nurses (53 intervention, 50 control) in a Chinese tertiary hospital; 12-month structured EI training program.",
+      "key_findings": [
+        "Intervention group significantly improved EI, resilience, and perceived stress versus control",
+        "Patient-experience differences favored intervention wards but were not significant on all subscales",
+        "Structured, sustained (12-month) delivery model"
+      ],
+      "clinical_relevance": "Concrete RCT model for embedding EI training in clinical workforces, with wellbeing benefits for staff and suggestive benefits for patient experience."
+    },
+    {
+      "id": 8,
+      "title": "The Relationship between Mindfulness and Emotional Intelligence as a Protective Factor for Healthcare Professionals: Systematic Review",
+      "authors": "Jimenez-Picon N, Romero-Martin M, Ponce-Blandon JA, Ramirez-Baena L, Palomo-Lara JC, Gomez-Salgado J",
+      "year": "2021",
+      "source": "International Journal of Environmental Research and Public Health via PubMed (PMID 34065519; DOI 10.3390/ijerph18105491)",
+      "summary": "Systematic review of 10 studies (2010-2020) on links between mindfulness and emotional intelligence/competencies in healthcare workers and students.",
+      "key_findings": [
+        "Positive relationship between mindfulness and emotion regulation capacity",
+        "Mindfulness training associated with reduced emotional exhaustion",
+        "Benefits for emotional awareness, acceptance, and emotion recognition",
+        "Supports mindfulness-based training as a protective factor for clinician wellbeing"
+      ],
+      "clinical_relevance": "Justifies combining mindfulness practices with EI skill-building in both clinician self-care and client interventions."
+    },
+    {
+      "id": 9,
+      "title": "Impact of therapist emotional intelligence on psychotherapy",
+      "authors": "Kaplowitz MJ, Safran JD, Muran CJ",
+      "year": "2011",
+      "source": "Journal of Nervous and Mental Disease via PubMed (PMID 21278535)",
+      "summary": "Foundational pilot study examining whether therapist emotional intelligence functions as an efficacious therapist variable in psychotherapy outcome.",
+      "key_findings": [
+        "Higher-EI therapists achieved superior treatment outcomes",
+        "Higher therapist EI associated with notably lower client dropout",
+        "Therapist EI correlated with better patient assessment compliance",
+        "Early alliance ratings were not significantly related to therapist EI"
+      ],
+      "clinical_relevance": "Directly relevant to a therapist-facing platform: therapist EI itself may be a trainable determinant of retention and outcome. Included as foundational despite age (pre-2016)."
+    },
+    {
+      "id": 10,
+      "title": "The impact of enhancing students' social and emotional learning: a meta-analysis of school-based universal interventions",
+      "authors": "Durlak JA, Weissberg RP, Dymnicki AB, Taylor RD, Schellinger KB",
+      "year": "2011",
+      "source": "Child Development via PubMed (PMID 21291449)",
+      "summary": "Landmark meta-analysis of 213 universal school-based social and emotional learning (SEL) programs involving 270,034 K-12 students.",
+      "key_findings": [
+        "Significant improvements in social-emotional skills, attitudes, behavior, and academic performance",
+        "11-percentile-point gain in academic achievement",
+        "Programs effectively delivered by regular school staff",
+        "Outcomes moderated by use of four recommended (SAFE) practices and implementation quality"
+      ],
+      "clinical_relevance": "Foundational evidence (included despite age) that emotional-competence training at scale improves youth mental-health-relevant outcomes; underpins school-linked recommendations for child clients."
+    }
+  ],
+  "videos": [
+    {
+      "id": 1,
+      "title": "Social Intelligence | Daniel Goleman | Talks at Google",
+      "url": "https://www.youtube.com/watch?v=-hoo_dIOP8k",
+      "duration_type": "long",
+      "topic": "Emotional Intelligence",
+      "source": "Talks at Google",
+      "description": "Psychologist Daniel Goleman discusses Social Intelligence: The New Science of Human Relationships, covering the social brain, empathy, and how emotional/social capacities shape relationships and performance (Authors@Google series, ~1.2M views).",
+      "clinical_usage": "Foundational orientation to the interpersonal dimension of EI; useful for trainee education and client psychoeducation on empathy and social connection. Older talk retained as foundational."
+    },
+    {
+      "id": 2,
+      "title": "Focus: the Hidden Driver of Excellence | Daniel Goleman | Talks at Google",
+      "url": "https://www.youtube.com/watch?v=b9yRmpcXKjY",
+      "duration_type": "long",
+      "topic": "Emotional Intelligence",
+      "source": "Talks at Google",
+      "description": "Goleman on attention as the underrated basis of self-awareness, self-regulation, and empathy - the attentional foundations of emotional intelligence.",
+      "clinical_usage": "Frames attention training (including mindfulness) as a mechanism for building EI; supports rationale-giving in attention/mindfulness-based interventions."
+    },
+    {
+      "id": 3,
+      "title": "Can Machines Perceive Emotion? | Dr. Lisa Feldman Barrett | Talks at Google",
+      "url": "https://www.youtube.com/watch?v=HlJQXfL_GeM",
+      "duration_type": "long",
+      "topic": "Emotional Intelligence",
+      "source": "Talks at Google",
+      "description": "Distinguished psychologist and neuroscientist Lisa Feldman Barrett explains the theory of constructed emotion and why emotion perception - by machines or people - is context-dependent rather than a simple readout of universal expressions.",
+      "clinical_usage": "Sharpens clinician thinking about the 'perceiving emotions' branch of EI, emotion granularity, and cultural/contextual variability in emotional expression."
+    },
+    {
+      "id": 4,
+      "title": "Emotional First Aid | Guy Winch | Talks at Google",
+      "url": "https://www.youtube.com/watch?v=vBqoA1V6Fgg",
+      "duration_type": "long",
+      "topic": "Emotional Intelligence",
+      "source": "Talks at Google",
+      "description": "Licensed psychologist Guy Winch presents practical strategies for treating failure, rejection, guilt, and other everyday psychological injuries - applied emotional self-care and regulation skills.",
+      "clinical_usage": "Ready-made psychoeducational content on emotional hygiene that clinicians can assign to clients building day-to-day emotion management skills."
+    },
+    {
+      "id": 5,
+      "title": "Marc Brackett: Permission to Feel",
+      "url": "https://www.youtube.com/watch?v=X7aZqzd6jEQ",
+      "duration_type": "long",
+      "topic": "Emotional Intelligence",
+      "source": "Institute of Coaching (McLean Hospital / Harvard Medical School affiliate)",
+      "description": "Yale Center for Emotional Intelligence founding director Marc Brackett presents the science behind Permission to Feel and the RULER framework for recognizing, understanding, labeling, expressing, and regulating emotions.",
+      "clinical_usage": "Structured overview of the RULER skills sequence clinicians can adapt for emotion-skills coaching with clients, families, and schools."
+    },
+    {
+      "id": 6,
+      "title": "Emotional Intelligence 2.0",
+      "url": "https://www.youtube.com/watch?v=1mj9OjnpNvw",
+      "duration_type": "long",
+      "topic": "Emotional Intelligence",
+      "source": "University of California Television (UCTV)",
+      "description": "UCTV program (recorded 03/24/2016) in which Travis Bradberry discusses what EQ is, why unlike IQ it can be improved, and concrete strategies for developing emotional intelligence at work.",
+      "clinical_usage": "Accessible university-hosted introduction for clients and staff on trainable EI skills, particularly in occupational contexts."
+    },
+    {
+      "id": 7,
+      "title": "Richie Davidson - The Emotional Life of Your Brain (Complete)",
+      "url": "https://www.youtube.com/watch?v=GnwhoVR4fCw",
+      "duration_type": "long",
+      "topic": "Emotional Intelligence",
+      "source": "Dalai Lama Center for Peace and Education (public talk co-hosted with UBC Institute for Mental Health)",
+      "description": "Affective neuroscientist Richard Davidson (University of Wisconsin-Madison) presents the six emotional-style dimensions from The Emotional Life of Your Brain and evidence that emotional patterns are neuroplastic and trainable.",
+      "clinical_usage": "Neuroscience-based framework for individual differences in emotional style; supports formulation and hope-instilling psychoeducation about emotional change."
+    },
+    {
+      "id": 8,
+      "title": "11. Human Behavioral Biology: Limbic System 1 by Robert Sapolsky",
+      "url": "https://www.youtube.com/watch?v=xM3nmwUR6Bk",
+      "duration_type": "long",
+      "topic": "Emotional Intelligence",
+      "source": "Stanford School of Humanities and Sciences",
+      "description": "Stanford lecture by Robert Sapolsky on the limbic system - the neural circuitry of emotion - as part of the Human Behavioral Biology course.",
+      "clinical_usage": "Rigorous neuroscience background on the emotional brain underlying EI constructs; suited to clinician continuing education rather than client viewing."
+    },
+    {
+      "id": 9,
+      "title": "Psychologist Marc Brackett: Why Emotional Intelligence is Key to a Life Well Lived",
+      "url": "https://www.youtube.com/watch?v=4zoosXOSbaM",
+      "duration_type": "long",
+      "topic": "Emotional Intelligence",
+      "source": "Welldoing (UK therapist-matching organization; Psychotherapy & Counselling channel)",
+      "description": "Interview with Yale psychologist Marc Brackett, in conversation with therapist Alice McGurran, on emotion skills, the RULER approach, and why emotional intelligence underpins wellbeing.",
+      "clinical_usage": "Conversational deep-dive suitable for client homework or trainee discussion on emotion labeling and regulation; channel is therapy-sector media rather than a university (see collection notes)."
+    }
+  ],
+  "collection_notes": "Videos: 9 of 10 verified (shortfall of 1). Every YouTube URL was confirmed this session via YouTube oEmbed (exact title + channel) after being found in web results; exact durations could not be independently verified because YouTube watch pages did not render - all nine are conference talks, university lectures, or long-form interviews whose formats are typically 20-90 minutes, but the Sapolsky course lecture may run near or slightly over 90 minutes. Channel caveats: 'Dalai Lama Center for Peace and Education' (item 7) and 'Welldoing' (item 9) are adjacent to, not squarely within, the trusted-channel categories; both feature credentialed academic psychologists/neuroscientists and were retained with this note. Items 1 and 6-7 predate 2016 but feature foundational figures (Goleman, Davidson). Papers: Kaplowitz 2011 and Durlak 2011 exceed the 10-year window and are included as foundational (therapist-EI outcome pilot; landmark SEL meta-analysis). Books: titles/authors/years verified via publisher pages (Wiley, MIT Press, Basic Books/Hachette) and Open Library; some subtitles omitted where not directly verified; publishers named in summaries only where confirmed. Research constraint: the session's WebSearch budget was exhausted before this task began, so all verification used WebFetch against PubMed/NCBI E-utilities, Open Library, publisher pages, DuckDuckGo HTML results, and YouTube oEmbed. All summaries derive from abstracts/snippets read this session."
+}
