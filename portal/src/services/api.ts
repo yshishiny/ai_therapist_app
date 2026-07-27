@@ -146,16 +146,73 @@ class ApiClient {
     return response.data
   }
 
+  async getAssessmentCatalog() {
+    const response = await this.client.get('/admin/assessment-catalog')
+    return response.data
+  }
+
+  async uploadAssessmentJson(file: File) {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await this.client.post('/admin/assessment-catalog/upload-json', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  }
+
+  async uploadMaterialDocument(file: File) {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await this.client.post('/admin/material-uploads', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  }
+
+  async getAssessmentVersions(catalogId: string) {
+    const response = await this.client.get(`/admin/assessment-catalog/${catalogId}/versions`)
+    return response.data
+  }
+
+  async updateAssessmentVersion(versionId: string, body: any) {
+    const response = await this.client.patch(`/admin/assessment-versions/${versionId}`, body)
+    return response.data
+  }
+
+  async publishAssessmentVersion(versionId: string) {
+    const response = await this.client.post(`/admin/assessment-versions/${versionId}/publish`)
+    return response.data
+  }
+
   async getPatientAssessments(patientId: string) {
     const response = await this.client.get(`/patients/${patientId}/assessments`)
     return response.data
   }
 
-  async submitAssessment(patientId: string, templateId: string, answers: any) {
+  async submitAssessment(patientId: string, templateId: string, answers: any, sessionId?: string) {
     const response = await this.client.post(`/patients/${patientId}/assessments`, {
       template_id: templateId,
       answers,
+      session_id: sessionId,
     })
+    return response.data
+  }
+
+  async createClinicianSession(patientId: string, templateKeys: string[]) {
+    const response = await this.client.post('/clinician-sessions', {
+      patient_id: patientId,
+      template_keys: templateKeys,
+    })
+    return response.data
+  }
+
+  async getClinicianSession(sessionId: string) {
+    const response = await this.client.get(`/clinician-sessions/${sessionId}`)
+    return response.data
+  }
+
+  async completeClinicianSession(sessionId: string) {
+    const response = await this.client.post(`/clinician-sessions/${sessionId}/complete`)
     return response.data
   }
 

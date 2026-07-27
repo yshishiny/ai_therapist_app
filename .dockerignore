@@ -1,0 +1,15 @@
+# Never let local build artifacts or platform-specific installs leak into
+# the Docker build context -- COPY portal/ . (and COPY backend/ .) would
+# otherwise overwrite the container's own fresh npm ci / pip install output
+# with whatever happens to be sitting on the host machine, silently baking
+# stale or platform-mismatched content into the image.
+**/node_modules
+**/dist
+**/.vite
+**/__pycache__
+**/*.pyc
+.git
+.github
+.vscode
+.claude
+*.jsonl

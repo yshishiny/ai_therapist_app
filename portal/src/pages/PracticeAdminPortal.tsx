@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import apiClient from '../services/api'
 import {
   Brain,
   Plus,
@@ -32,6 +33,7 @@ import {
   ArrowLeft,
   Lock,
   Calendar,
+  FileEdit,
 } from 'lucide-react'
 
 type View = 'dashboard' | 'clinicians' | 'patients' | 'patientDetail' | 'assessments' | 'content' | 'access' | 'billing' | 'settings'
@@ -146,6 +148,15 @@ export default function PracticeAdminPortal() {
             </button>
           )
         })}
+
+        <div className="my-1.5 border-t border-organic-neutral-300/50" />
+        <button
+          onClick={() => navigate('/workspace')}
+          className="flex items-center gap-3 px-3.5 py-2.5 rounded-organic-pill text-[14.5px] transition-colors text-left text-organic-accent-700 font-semibold hover:bg-organic-neutral-200"
+        >
+          <Stethoscope size={19} />
+          Clinical Workspace
+        </button>
 
         <div className="mt-auto p-3 bg-organic-accent-2-100 rounded-organic-tile">
           <div className="text-xs text-organic-accent-2-800 font-semibold mb-1">Professional plan</div>
@@ -599,12 +610,17 @@ function PatientDetailView({ patient, onBack }: { patient: Patient; onBack: () =
 
 // ─── Assessments ────────────────────────────────────────────────────────────
 
-const TEMPLATES = [
-  { name: 'PHQ-9', desc: 'Depression severity', items: 9, cat: 'Clinical' },
-  { name: 'GAD-7', desc: 'Anxiety screen', items: 7, cat: 'Clinical' },
-  { name: 'ACE', desc: 'Adverse childhood exp.', items: 10, cat: 'Trauma' },
-  { name: 'Big Five', desc: 'Personality (short)', items: 15, cat: 'Personality' },
-]
+type CatalogEntry = {
+  id: string
+  template_key: string
+  name: string
+  template_type: string | null
+  category: string | null
+  license_status: string | null
+  description: string | null
+  is_active: boolean
+  current_published_version_number: number | null
+}
 
 const PHQ_BANDS = [
   { label: 'Minimal', active: false },
@@ -615,29 +631,165 @@ const PHQ_BANDS = [
 ]
 
 function AssessmentsView() {
+  const [catalog, setCatalog] = useState<CatalogEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null)
+  const [selected, setSelected] = useState<CatalogEntry | null>(null)
+  const jsonInputRef = useRef<HTMLInputElement>(null)
+  const pdfInputRef = useRef<HTMLInputElement>(null)
+
+  const reload = () => {
+    setLoading(true)
+    apiClient
+      .getAssessmentCatalog()
+      .then((data: CatalogEntry[]) => setCatalog(data))
+      .catch(() => setError('Could not load the assessment catalog.'))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    reload()
+  }, [])
+
+  const handleJsonFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setUploadStatus('Uploading…')
+    try {
+      await apiClient.uploadAssessmentJson(file)
+      setUploadStatus('Added as a draft — review and publish it below.')
+      reload()
+    } catch (err: any) {
+      setUploadStatus(err?.response?.data?.detail || 'Upload failed — check the JSON matches the expected format.')
+    }
+  }
+
+  const handlePdfFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setUploadStatus('Uploading and reading the document — this can take a minute or two…')
+    try {
+      await apiClient.uploadMaterialDocument(file)
+      setUploadStatus('Processing in the background. It will appear as a draft below once ready — refresh to check.')
+    } catch (err: any) {
+      setUploadStatus(err?.response?.data?.detail || 'Upload failed.')
+    }
+  }
+
+  const reserved = catalog.filter((c) => c.license_status === 'LICENSE_REQUIRED')
+  const drafts = catalog.filter((c) => c.license_status !== 'LICENSE_REQUIRED' && !c.current_published_version_number)
+  const published = catalog.filter((c) => c.license_status !== 'LICENSE_REQUIRED' && !!c.current_published_version_number)
+
+  const byCategory = published.reduce<Record<string, CatalogEntry[]>>((acc, t) => {
+    const cat = t.category || 'Other'
+    ;(acc[cat] ||= []).push(t)
+    return acc
+  }, {})
+
   return (
     <div className="grid grid-cols-[1fr_1.1fr] gap-4">
       <div>
         <div className="flex justify-between items-center mb-3.5">
           <h3 className="text-lg font-heading">Catalog</h3>
-          <button className="rounded-organic-pill bg-organic-accent text-organic-accent-100 text-[13px] font-heading px-4 py-2 inline-flex items-center gap-1.5">
-            <Plus size={15} /> Build new
-          </button>
+          <div className="flex gap-2">
+            <input ref={jsonInputRef} type="file" accept="application/json,.json" className="hidden" onChange={handleJsonFile} />
+            <input ref={pdfInputRef} type="file" accept="application/pdf,image/png,image/jpeg" className="hidden" onChange={handlePdfFile} />
+            <button
+              onClick={() => pdfInputRef.current?.click()}
+              className="rounded-organic-pill border border-organic-neutral-300/60 text-organic-neutral-700 text-[13px] font-heading px-4 py-2 inline-flex items-center gap-1.5"
+            >
+              <Upload size={15} /> Upload document
+            </button>
+            <button
+              onClick={() => jsonInputRef.current?.click()}
+              className="rounded-organic-pill bg-organic-accent text-organic-accent-100 text-[13px] font-heading px-4 py-2 inline-flex items-center gap-1.5"
+            >
+              <Plus size={15} /> Upload JSON
+            </button>
+          </div>
         </div>
-        <div className="flex flex-col gap-3">
-          {TEMPLATES.map((t) => (
-            <div key={t.name} className="bg-organic-surface rounded-organic-tile p-[18px] shadow-organic-sm flex items-center gap-4">
-              <div className="w-12 h-12 rounded-organic-tile bg-organic-accent-100 grid place-items-center flex-none">
-                <ClipboardList size={22} className="text-organic-accent-700" />
-              </div>
-              <div className="flex-1">
-                <div className="font-bold text-[15px]">{t.name}</div>
-                <div className="text-xs text-organic-neutral-600">{t.desc} · {t.items} items</div>
-              </div>
-              <span className="text-[11px] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-200 text-organic-neutral-700">{t.cat}</span>
+        {uploadStatus && <div className="text-sm text-organic-accent-800 px-1 mb-3">{uploadStatus}</div>}
+        {loading && <div className="text-sm text-organic-neutral-600 px-1">Loading catalog…</div>}
+        {error && <div className="text-sm text-organic-accent-800 px-1">{error}</div>}
+
+        {Object.entries(byCategory).map(([category, items]) => (
+          <div key={category} className="mb-5">
+            <h4 className="text-[12px] font-heading uppercase tracking-wide text-organic-neutral-500 mb-2 px-1">{category}</h4>
+            <div className="flex flex-col gap-3">
+              {items.map((t) => (
+                <div
+                  key={t.id}
+                  onClick={() => setSelected(t)}
+                  className="bg-organic-surface rounded-organic-tile p-[18px] shadow-organic-sm flex items-center gap-4 cursor-pointer hover:shadow transition-shadow"
+                >
+                  <div className="w-12 h-12 rounded-organic-tile bg-organic-accent-100 grid place-items-center flex-none">
+                    <ClipboardList size={22} className="text-organic-accent-700" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-[15px]">{t.name}</div>
+                    <div className="text-xs text-organic-neutral-600">{t.description || t.template_type || 'Assessment'}</div>
+                  </div>
+                  <span className="text-[11px] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-200 text-organic-neutral-700">{t.template_type || 'FREE'}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
+
+        {drafts.length > 0 && (
+          <>
+            <div className="flex items-center gap-2 mt-6 mb-3.5">
+              <h3 className="text-lg font-heading text-organic-accent-700">Drafts — awaiting review</h3>
+            </div>
+            <div className="flex flex-col gap-3">
+              {drafts.map((t) => (
+                <div
+                  key={t.id}
+                  onClick={() => setSelected(t)}
+                  className="bg-organic-accent-100/60 rounded-organic-tile p-[18px] shadow-organic-sm flex items-center gap-4 cursor-pointer hover:shadow transition-shadow"
+                >
+                  <div className="w-12 h-12 rounded-organic-tile bg-organic-accent-200 grid place-items-center flex-none">
+                    <FileEdit size={20} className="text-organic-accent-700" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-[15px]">{t.name}</div>
+                    <div className="text-xs text-organic-neutral-600">{t.description}</div>
+                  </div>
+                  <span className="text-[11px] px-2.5 py-0.5 rounded-organic-pill bg-organic-accent-300/60 text-organic-accent-800 font-semibold flex-none">
+                    Review
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {reserved.length > 0 && (
+          <>
+            <div className="flex items-center gap-2 mt-6 mb-3.5">
+              <h3 className="text-lg font-heading text-organic-neutral-600">Reserved — awaiting license</h3>
+            </div>
+            <div className="flex flex-col gap-3">
+              {reserved.map((t) => (
+                <div key={t.id} className="bg-organic-surface/60 rounded-organic-tile p-[18px] shadow-organic-sm flex items-center gap-4 opacity-75">
+                  <div className="w-12 h-12 rounded-organic-tile bg-organic-neutral-200 grid place-items-center flex-none">
+                    <Lock size={20} className="text-organic-neutral-500" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-[15px] text-organic-neutral-700">{t.name}</div>
+                    <div className="text-xs text-organic-neutral-500">{t.description}</div>
+                  </div>
+                  <span className="text-[11px] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-300/60 text-organic-neutral-700 font-semibold flex-none">
+                    License required
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
       <div className="bg-organic-surface rounded-organic-card p-6 shadow-organic-sm">
         <div className="flex justify-between items-start mb-1.5">
@@ -675,6 +827,278 @@ function AssessmentsView() {
           <button className="flex-1 rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm py-3">Assign follow-up</button>
           <button className="rounded-organic-pill border border-organic-neutral-300/60 font-heading text-sm px-[18px] py-3">Export</button>
         </div>
+      </div>
+
+      {selected && (
+        <AssessmentReviewPanel
+          catalogEntry={selected}
+          onClose={() => setSelected(null)}
+          onPublished={() => {
+            setSelected(null)
+            reload()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Assessment review / edit / publish panel ─────────────────────────────
+
+type ReviewQuestion = {
+  id: number
+  text: string
+  text_ar?: string
+  type?: string
+  options?: { value: number; label: string; label_ar?: string }[]
+  reverse_scored?: boolean
+}
+
+type ReviewDefinition = {
+  instructions?: string
+  instructions_ar?: string
+  questions: ReviewQuestion[]
+}
+
+type ReviewVersion = {
+  id: string
+  catalog_id: string
+  version_number: number
+  status: string
+  name: string
+  definition_json: ReviewDefinition | null
+  scoring_rules: any
+  interpretation_rules: any
+  risk_rules: any
+  notes: string | null
+}
+
+function AssessmentReviewPanel({
+  catalogEntry,
+  onClose,
+  onPublished,
+}: {
+  catalogEntry: CatalogEntry
+  onClose: () => void
+  onPublished: () => void
+}) {
+  const [version, setVersion] = useState<ReviewVersion | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [lang, setLang] = useState<'en' | 'ar'>('en')
+  const [dirty, setDirty] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveMsg, setSaveMsg] = useState<string | null>(null)
+
+  useEffect(() => {
+    apiClient
+      .getAssessmentVersions(catalogEntry.id)
+      .then((versions: ReviewVersion[]) => {
+        if (versions.length === 0) {
+          setError('No content found for this assessment yet.')
+          return
+        }
+        setVersion(versions[0])
+      })
+      .catch(() => setError('Could not load this assessment.'))
+      .finally(() => setLoading(false))
+  }, [catalogEntry.id])
+
+  const isEditable = version?.status === 'draft'
+
+  const updateQuestionText = (qid: number, value: string) => {
+    if (!version?.definition_json) return
+    setDirty(true)
+    setVersion({
+      ...version,
+      definition_json: {
+        ...version.definition_json,
+        questions: version.definition_json.questions.map((q) =>
+          q.id === qid ? { ...q, [lang === 'en' ? 'text' : 'text_ar']: value } : q
+        ),
+      },
+    })
+  }
+
+  const updateOptionLabel = (qid: number, optIndex: number, value: string) => {
+    if (!version?.definition_json) return
+    setDirty(true)
+    setVersion({
+      ...version,
+      definition_json: {
+        ...version.definition_json,
+        questions: version.definition_json.questions.map((q) => {
+          if (q.id !== qid || !q.options) return q
+          const options = q.options.map((o, i) =>
+            i === optIndex ? { ...o, [lang === 'en' ? 'label' : 'label_ar']: value } : o
+          )
+          return { ...q, options }
+        }),
+      },
+    })
+  }
+
+  const updateInstructions = (value: string) => {
+    if (!version?.definition_json) return
+    setDirty(true)
+    setVersion({
+      ...version,
+      definition_json: { ...version.definition_json, [lang === 'en' ? 'instructions' : 'instructions_ar']: value },
+    })
+  }
+
+  const save = async () => {
+    if (!version) return
+    setSaving(true)
+    setSaveMsg(null)
+    try {
+      await apiClient.updateAssessmentVersion(version.id, { definition_json: version.definition_json })
+      setDirty(false)
+      setSaveMsg('Saved.')
+    } catch (err: any) {
+      setSaveMsg(err?.response?.data?.detail || 'Could not save changes.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const approveAndPublish = async () => {
+    if (!version) return
+    setSaving(true)
+    setSaveMsg(null)
+    try {
+      if (dirty) {
+        await apiClient.updateAssessmentVersion(version.id, { definition_json: version.definition_json })
+        setDirty(false)
+      }
+      await apiClient.publishAssessmentVersion(version.id)
+      onPublished()
+    } catch (err: any) {
+      setSaveMsg(err?.response?.data?.detail || 'Could not publish.')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex justify-end" onClick={onClose}>
+      <div
+        className="bg-organic-bg w-full max-w-[640px] h-screen overflow-y-auto p-7 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+        dir={lang === 'ar' ? 'rtl' : 'ltr'}
+      >
+        <div className="flex justify-between items-start mb-1.5">
+          <div>
+            <h2 className="text-[24px] font-heading text-organic-text">{catalogEntry.name}</h2>
+            <p className="text-sm text-organic-neutral-600">{catalogEntry.category || catalogEntry.template_type}</p>
+          </div>
+          <button onClick={onClose} className="text-organic-neutral-500 hover:text-organic-neutral-800 text-2xl leading-none">
+            &times;
+          </button>
+        </div>
+
+        <div className="inline-flex bg-organic-neutral-100 border border-organic-neutral-300/60 rounded-organic-pill p-1 my-4">
+          {(['en', 'ar'] as const).map((l) => (
+            <button
+              key={l}
+              onClick={() => setLang(l)}
+              className={`font-heading text-[13px] px-4 py-1.5 rounded-organic-pill ${lang === l ? 'bg-organic-accent text-organic-neutral-100' : 'text-organic-neutral-700'}`}
+            >
+              {l === 'en' ? 'English' : 'العربية'}
+            </button>
+          ))}
+        </div>
+
+        {loading && <div className="text-sm text-organic-neutral-600">Loading…</div>}
+        {error && <div className="text-sm text-organic-accent-800">{error}</div>}
+
+        {version && !isEditable && (
+          <div className="text-xs bg-organic-neutral-100 text-organic-neutral-600 rounded-organic-tile p-3 mb-4">
+            This version is already published (view-only here). To revise it, upload a new document or JSON to create a fresh draft.
+          </div>
+        )}
+
+        {version?.notes && (
+          <div className="text-xs bg-organic-accent-100 text-organic-accent-800 rounded-organic-tile p-3 mb-4">{version.notes}</div>
+        )}
+
+        {version?.definition_json && (
+          <>
+            <label className="block text-xs font-semibold text-organic-neutral-600 mb-1.5">Instructions</label>
+            <textarea
+              disabled={!isEditable}
+              value={(lang === 'en' ? version.definition_json.instructions : version.definition_json.instructions_ar) || ''}
+              onChange={(e) => updateInstructions(e.target.value)}
+              className="w-full bg-organic-surface border border-organic-neutral-300/60 rounded-organic-tile p-3 text-sm mb-5 disabled:opacity-60"
+              rows={2}
+            />
+
+            <h3 className="text-sm font-heading text-organic-neutral-700 mb-2.5">
+              Questions ({version.definition_json.questions.length})
+            </h3>
+            <div className="flex flex-col gap-3 mb-6">
+              {version.definition_json.questions.map((qst) => (
+                <div key={qst.id} className="bg-organic-surface rounded-organic-tile p-3.5 shadow-organic-sm">
+                  <div className="flex gap-2 items-start mb-2">
+                    <span className="text-xs font-bold text-organic-neutral-500 mt-2 flex-none">{qst.id}.</span>
+                    <textarea
+                      disabled={!isEditable}
+                      value={(lang === 'en' ? qst.text : qst.text_ar) || ''}
+                      onChange={(e) => updateQuestionText(qst.id, e.target.value)}
+                      className="flex-1 bg-organic-bg border border-organic-neutral-300/60 rounded-organic-tile p-2 text-sm disabled:opacity-60"
+                      rows={1}
+                    />
+                  </div>
+                  {qst.options && qst.options.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pl-5">
+                      {qst.options.map((opt, i) => (
+                        <input
+                          key={i}
+                          disabled={!isEditable}
+                          value={(lang === 'en' ? opt.label : opt.label_ar) || ''}
+                          onChange={(e) => updateOptionLabel(qst.id, i, e.target.value)}
+                          className="bg-organic-neutral-100 border border-organic-neutral-300/50 rounded-organic-pill px-2.5 py-1 text-xs disabled:opacity-60"
+                          style={{ width: `${Math.max(60, ((lang === 'en' ? opt.label : opt.label_ar)?.length || 4) * 7 + 20)}px` }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {(version.scoring_rules || version.interpretation_rules || version.risk_rules) && (
+              <details className="mb-6">
+                <summary className="text-xs font-semibold text-organic-neutral-600 cursor-pointer mb-2">
+                  Advanced: scoring &amp; interpretation rules (read-only — to change scoring logic, upload a revised JSON)
+                </summary>
+                <pre className="bg-organic-neutral-100 rounded-organic-tile p-3 text-[11px] overflow-x-auto">
+                  {JSON.stringify({ scoring_rules: version.scoring_rules, interpretation_rules: version.interpretation_rules, risk_rules: version.risk_rules }, null, 2)}
+                </pre>
+              </details>
+            )}
+          </>
+        )}
+
+        {saveMsg && <div className="text-sm text-organic-accent-800 mb-3">{saveMsg}</div>}
+
+        {isEditable && (
+          <div className="flex gap-2.5 sticky bottom-0 bg-organic-bg pt-3 pb-1">
+            <button
+              onClick={save}
+              disabled={saving || !dirty}
+              className="rounded-organic-pill border border-organic-neutral-300/60 font-heading text-sm px-5 py-2.5 disabled:opacity-50"
+            >
+              Save changes
+            </button>
+            <button
+              onClick={approveAndPublish}
+              disabled={saving}
+              className="flex-1 rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm py-2.5 disabled:opacity-50"
+            >
+              {saving ? 'Publishing…' : 'Approve & publish'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

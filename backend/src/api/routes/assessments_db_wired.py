@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from backend.assessment_admin.service import list_available_templates
 from backend.core.dependencies_access import require_permission
+from backend.src.core.db import DB
 from backend.src.core.dependencies import (
     RequestContext,
     get_assessment_service,
@@ -43,8 +45,15 @@ async def submit_assessment(
 
 @router.get('/assessments/templates')
 async def list_assessment_templates(
+    db: DB,
     context: RequestContext = Depends(get_clinician_context),
     _perm=require_permission('assessments.view'),
-    service: AssessmentServiceDb = Depends(get_assessment_service),
 ):
-    return await service.list_templates()
+    if db is None:
+        return []
+    return await list_available_templates(
+        db,
+        org_id=context.org_id,
+        requesting_user_id=context.user_id,
+        requesting_user_role=context.role,
+    )

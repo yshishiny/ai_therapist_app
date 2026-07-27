@@ -24,6 +24,7 @@ def catalog_row_to_dict(row: asyncpg.Record | dict[str, Any]) -> dict[str, Any]:
         "legacy_template_id": data.get("legacy_template_id"),
         "name": data["name"],
         "template_type": data.get("template_type"),
+        "category": data.get("category"),
         "license_status": data.get("license_status"),
         "description": data.get("description"),
         "is_active": bool(data.get("is_active", True)),
@@ -31,6 +32,7 @@ def catalog_row_to_dict(row: asyncpg.Record | dict[str, Any]) -> dict[str, Any]:
         if data.get("current_published_version_id")
         else None,
         "current_published_version_number": data.get("current_published_version_number"),
+        "owner_user_id": str(data["owner_user_id"]) if data.get("owner_user_id") else None,
         "created_at": data["created_at"],
         "updated_at": data["updated_at"],
     }
@@ -62,7 +64,12 @@ async def list_available_templates(
     db: asyncpg.Pool,
     *,
     org_id: str,
+    requesting_user_id: str | None = None,
+    requesting_user_role: str | None = None,
 ) -> list[dict[str, Any]]:
+    # Org-wide entries (owner_user_id IS NULL) are available to everyone in
+    # the org; owner-scoped entries (e.g. a clinician's own translated
+    # materials) are only available to that clinician and to admins.
     managed_rows = await db.fetch(
         """
         SELECT
@@ -81,9 +88,16 @@ async def list_available_templates(
         WHERE ac.org_id = $1
           AND ac.is_active = TRUE
           AND ac.current_published_version_id IS NOT NULL
+          AND (
+            ac.owner_user_id IS NULL
+            OR $2::text = 'admin'
+            OR ac.owner_user_id = $3::uuid
+          )
         ORDER BY ac.name ASC, ac.template_key ASC
         """,
         uuid.UUID(org_id),
+        requesting_user_role,
+        uuid.UUID(requesting_user_id) if requesting_user_id else None,
     )
 
     unmanaged_rows = await db.fetch(

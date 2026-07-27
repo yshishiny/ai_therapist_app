@@ -16,7 +16,3 @@ class AssessmentServiceDb:
             submitted_by=submitted_by,
             org_id=org_id,
         )
-
-    async def list_templates(self) -> list[dict]:
-        """List all assessment templates."""
-        return await self.repository.list_templates()

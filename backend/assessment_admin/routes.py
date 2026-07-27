@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from backend.access_control.service import write_audit_log
 from backend.assessment_admin.schemas import (
@@ -38,10 +38,12 @@ async def _get_catalog_or_404(db: DB, *, org_id: str, catalog_id: str):
             ac.legacy_template_id,
             ac.name,
             ac.template_type,
+            ac.category,
             ac.license_status,
             ac.description,
             ac.is_active,
             ac.current_published_version_id,
+            ac.owner_user_id,
             ac.created_at,
             ac.updated_at,
             av.version_number AS current_published_version_number
@@ -90,6 +92,8 @@ async def _get_version_or_404(db: DB, *, catalog_id: str, version_id: str):
 
 @router.get("/admin/assessment-catalog", response_model=list[AssessmentCatalogOut])
 async def list_assessment_catalog(user: CatalogViewer, db: DB):
+    # Admins see everything in the org; non-admins see org-wide entries
+    # (owner_user_id IS NULL) plus anything they personally own.
     rows = await db.fetch(
         """
         SELECT
@@ -98,21 +102,112 @@ async def list_assessment_catalog(user: CatalogViewer, db: DB):
             ac.legacy_template_id,
             ac.name,
             ac.template_type,
+            ac.category,
             ac.license_status,
             ac.description,
             ac.is_active,
             ac.current_published_version_id,
+            ac.owner_user_id,
             ac.created_at,
             ac.updated_at,
             av.version_number AS current_published_version_number
         FROM assessment_catalog ac
         LEFT JOIN assessment_versions av ON av.id = ac.current_published_version_id
         WHERE ac.org_id = $1
+          AND ($2 = 'admin' OR ac.owner_user_id IS NULL OR ac.owner_user_id = $3)
         ORDER BY ac.name ASC, ac.template_key ASC
         """,
         uuid.UUID(user.org_id),
+        user.role.value,
+        uuid.UUID(user.sub),
     )
     return [catalog_row_to_dict(row) for row in rows]
+
+
+@router.post(
+    "/admin/assessment-catalog/upload-json",
+    response_model=AssessmentCatalogOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_assessment_json(
+    user: CatalogManager,
+    db: DB,
+    file: UploadFile = File(...),
+):
+    """A clinician-authored assessment as a ready-made JSON file, uploaded
+    directly (no OCR/AI step -- the uploader is asserting the content is
+    correct). Lands as a draft, owner-scoped to the uploader, same as
+    AI-structured uploads -- still needs a publish step before it's
+    assignable to patients."""
+    if file.content_type not in ("application/json", "text/json", "text/plain"):
+        raise HTTPException(status_code=400, detail="Upload a .json file.")
+
+    raw = await file.read()
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail=f"Not valid JSON: {exc}") from exc
+
+    name = payload.get("name")
+    definition_json = payload.get("definition_json")
+    if not name or not isinstance(name, str):
+        raise HTTPException(status_code=400, detail="JSON must include a string 'name' field.")
+    if not isinstance(definition_json, dict) or not definition_json.get("questions"):
+        raise HTTPException(status_code=400, detail="JSON must include a 'definition_json' object with a non-empty 'questions' list.")
+
+    template_key = f"custom_{uuid.uuid4().hex[:8]}"
+    now = datetime.now(timezone.utc)
+    catalog_id = uuid.uuid4()
+    await db.execute(
+        """
+        INSERT INTO assessment_catalog (
+            id, org_id, template_key, name, template_type, category,
+            license_status, description, owner_user_id, created_by, created_at, updated_at
+        )
+        VALUES ($1, $2, $3, $4, 'SCREENING', $5, 'VERIFY', $6, $7, $7, $8, $8)
+        """,
+        catalog_id,
+        uuid.UUID(user.org_id),
+        template_key,
+        name,
+        payload.get("category"),
+        payload.get("description") or "Uploaded directly by the clinician as a ready-made JSON file.",
+        uuid.UUID(user.sub),
+        now,
+    )
+    version_id = uuid.uuid4()
+    await db.execute(
+        """
+        INSERT INTO assessment_versions (
+            id, catalog_id, version_number, status, name, template_type,
+            license_status, definition_json, scoring_rules, interpretation_rules,
+            risk_rules, created_by, created_at
+        )
+        VALUES ($1, $2, 1, 'draft', $3, 'SCREENING', 'VERIFY', $4::jsonb, $5::jsonb, $6::jsonb, $7::jsonb, $8, $9)
+        """,
+        version_id,
+        catalog_id,
+        name,
+        json.dumps(definition_json),
+        json.dumps(payload["scoring_rules"]) if payload.get("scoring_rules") else None,
+        json.dumps(payload["interpretation_rules"]) if payload.get("interpretation_rules") else None,
+        json.dumps(payload["risk_rules"]) if payload.get("risk_rules") else None,
+        uuid.UUID(user.sub),
+        now,
+    )
+
+    await write_audit_log(
+        db,
+        org_id=user.org_id,
+        actor_user_id=user.sub,
+        action="CREATE",
+        entity_type="assessment_catalog",
+        entity_id=str(catalog_id),
+        metadata={"source": "json_upload", "filename": file.filename},
+    )
+
+    created = await _get_catalog_or_404(db, org_id=user.org_id, catalog_id=str(catalog_id))
+    return catalog_row_to_dict(created)
 
 
 @router.post(
@@ -162,13 +257,14 @@ async def create_assessment_catalog_item(
             legacy_template_id,
             name,
             template_type,
+            category,
             license_status,
             description,
             created_by,
             created_at,
             updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
         """,
         catalog_id,
         uuid.UUID(user.org_id),
@@ -176,6 +272,7 @@ async def create_assessment_catalog_item(
         legacy_template_id if legacy_template else None,
         name,
         body.template_type or (legacy_template["template_type"] if legacy_template else None),
+        body.category,
         body.license_status or (legacy_template["license_status"] if legacy_template else "VERIFY"),
         body.description,
         uuid.UUID(user.sub),
@@ -385,6 +482,68 @@ async def create_assessment_version(
         version_id=str(version_id),
     )
     return version_row_to_dict(created)
+
+
+@router.patch(
+    "/admin/assessment-versions/{version_id}",
+    response_model=AssessmentVersionOut,
+)
+async def update_assessment_version(
+    version_id: str,
+    body: AssessmentVersionCreateIn,
+    user: CatalogManager,
+    db: DB,
+):
+    """Edit a draft version's content before publishing. Only 'draft'
+    versions can be edited -- published versions are immutable history."""
+    version = await db.fetchrow(
+        """
+        SELECT av.id, av.status, ac.org_id
+        FROM assessment_versions av
+        JOIN assessment_catalog ac ON ac.id = av.catalog_id
+        WHERE av.id = $1 AND ac.org_id = $2
+        """,
+        uuid.UUID(version_id),
+        uuid.UUID(user.org_id),
+    )
+    if not version:
+        raise HTTPException(status_code=404, detail="Assessment version not found.")
+    if version["status"] != "draft":
+        raise HTTPException(status_code=409, detail="Only draft versions can be edited.")
+
+    await db.execute(
+        """
+        UPDATE assessment_versions
+        SET name = COALESCE($2, name),
+            definition_json = COALESCE($3::jsonb, definition_json),
+            scoring_rules = COALESCE($4::jsonb, scoring_rules),
+            interpretation_rules = COALESCE($5::jsonb, interpretation_rules),
+            risk_rules = COALESCE($6::jsonb, risk_rules),
+            notes = COALESCE($7, notes)
+        WHERE id = $1
+        """,
+        uuid.UUID(version_id),
+        body.name,
+        json.dumps(body.definition_json) if body.definition_json is not None else None,
+        json.dumps(body.scoring_rules) if body.scoring_rules is not None else None,
+        json.dumps(body.interpretation_rules) if body.interpretation_rules is not None else None,
+        json.dumps(body.risk_rules) if body.risk_rules is not None else None,
+        body.notes,
+    )
+
+    await write_audit_log(
+        db,
+        org_id=user.org_id,
+        actor_user_id=user.sub,
+        action="UPDATE",
+        entity_type="assessment_version",
+        entity_id=version_id,
+        metadata={"edited_draft": True},
+    )
+
+    catalog_id = await db.fetchval("SELECT catalog_id FROM assessment_versions WHERE id = $1", uuid.UUID(version_id))
+    updated = await _get_version_or_404(db, catalog_id=str(catalog_id), version_id=version_id)
+    return version_row_to_dict(updated)
 
 
 @router.post(

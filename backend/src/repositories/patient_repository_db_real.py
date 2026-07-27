@@ -22,7 +22,7 @@ class PatientRepositoryDbReal:
             limit,
             offset,
         )
-        return [dict(r) for r in rows]
+        return [self._row_to_dict(r) for r in rows]
 
     async def get_patient(self, patient_id: str, org_id: str) -> dict | None:
         if self.db is None:
@@ -36,7 +36,14 @@ class PatientRepositoryDbReal:
             uuid.UUID(patient_id),
             uuid.UUID(org_id),
         )
-        return dict(row) if row else None
+        return self._row_to_dict(row) if row else None
+
+    @staticmethod
+    def _row_to_dict(row: Any) -> dict:
+        data = dict(row)
+        data["id"] = str(data["id"])
+        data["diagnosis"] = data.get("diagnosis") or ""
+        return data
 
     async def create_patient(self, payload: dict, org_id: str, therapist_id: str) -> dict:
         if self.db is None:

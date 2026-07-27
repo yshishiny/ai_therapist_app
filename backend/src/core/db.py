@@ -16,7 +16,15 @@ async def db_lifespan(app):
     if existing_db is None:
         database_url = os.getenv("DATABASE_URL")
         if database_url:
-            app.state.db = await asyncpg.create_pool(dsn=database_url)
+            # db-f1-micro caps max_connections at 25; asyncpg's default
+            # pool size (10) is enough on its own to exhaust that across
+            # even two overlapping instances (e.g. mid-deploy). Keep pools
+            # small -- this app's real concurrency needs are modest.
+            app.state.db = await asyncpg.create_pool(
+                dsn=database_url,
+                min_size=int(os.getenv("DB_POOL_MIN_SIZE", "1")),
+                max_size=int(os.getenv("DB_POOL_MAX_SIZE", "4")),
+            )
             app.state.db_managed = True
         else:
             app.state.db = None

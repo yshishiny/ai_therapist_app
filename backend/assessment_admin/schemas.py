@@ -10,6 +10,7 @@ class AssessmentCatalogCreateIn(BaseModel):
     template_key: str
     name: str | None = None
     template_type: str | None = None
+    category: str | None = None
     license_status: str = "VERIFY"
     description: str | None = None
     legacy_template_id: str | None = None
@@ -29,11 +30,13 @@ class AssessmentCatalogOut(BaseModel):
     legacy_template_id: str | None = None
     name: str
     template_type: str | None = None
+    category: str | None = None
     license_status: str | None = None
     description: str | None = None
     is_active: bool
     current_published_version_id: str | None = None
     current_published_version_number: int | None = None
+    owner_user_id: str | None = None
     created_at: datetime
     updated_at: datetime
 

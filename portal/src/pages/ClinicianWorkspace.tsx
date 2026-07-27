@@ -1,4 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuthStore } from '../store/authStore'
+import apiClient from '../services/api'
 import {
   Brain,
   LayoutGrid,
@@ -21,6 +24,8 @@ import {
   Circle,
   Lock,
   Check,
+  LayoutDashboard,
+  LogOut,
 } from 'lucide-react'
 
 type WorkspaceView = 'caseload' | 'chart' | 'scribe' | 'plan'
@@ -48,10 +53,19 @@ const SUBTITLES: Record<WorkspaceView, string> = {
 export default function ClinicianWorkspace() {
   const [view, setView] = useState<WorkspaceView>('caseload')
   const goToChart = () => setView('chart')
+  const navigate = useNavigate()
+  const { logout } = useAuthStore()
+  const [showNewSession, setShowNewSession] = useState(false)
+  const [activeSession, setActiveSession] = useState<SessionData | null>(null)
+
+  const handleLogout = async () => {
+    await logout()
+    navigate('/login')
+  }
 
   return (
     <div className="min-h-screen bg-organic-bg flex items-stretch">
-      <IconRail view={view} onChange={setView} />
+      <IconRail view={view} onChange={setView} onOpenAdmin={() => navigate('/')} onLogout={handleLogout} />
 
       <main className="flex-1 min-w-0 px-9 pt-8 pb-16 max-w-[1240px]">
         <header className="flex justify-between items-end gap-5 flex-wrap mb-7">
@@ -64,7 +78,10 @@ export default function ClinicianWorkspace() {
               <Search size={16} className="text-organic-neutral-500" />
               <span className="text-sm text-organic-neutral-500">Find patient…</span>
             </div>
-            <button className="rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm px-[18px] py-2.5 inline-flex items-center gap-1.5 hover:bg-organic-accent-600 transition-colors">
+            <button
+              onClick={() => setShowNewSession(true)}
+              className="rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm px-[18px] py-2.5 inline-flex items-center gap-1.5 hover:bg-organic-accent-600 transition-colors"
+            >
               <Plus size={16} /> New session
             </button>
           </div>
@@ -75,13 +92,347 @@ export default function ClinicianWorkspace() {
         {view === 'scribe' && <ScribeView />}
         {view === 'plan' && <PlanView />}
       </main>
+
+      {showNewSession && (
+        <NewSessionModal
+          onClose={() => setShowNewSession(false)}
+          onStarted={(session) => {
+            setShowNewSession(false)
+            setActiveSession(session)
+          }}
+        />
+      )}
+
+      {activeSession && (
+        <SessionRunner
+          session={activeSession}
+          onClose={() => setActiveSession(null)}
+          onFinished={() => {
+            setActiveSession(null)
+            setView('chart')
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── New session: pick patient + assessments ───────────────────────────────
+
+type SimplePatient = { id: string; name: string; status: string; risk: string }
+type TemplateOption = { id: string; name: string; template_type: string | null }
+type SessionAssessment = {
+  template_key: string
+  name: string
+  definition_json: { instructions?: string; instructions_ar?: string; questions: any[] } | null
+  completed: boolean
+}
+type SessionData = {
+  id: string
+  patient_id: string
+  patient_name: string
+  status: string
+  assessments: SessionAssessment[]
+}
+
+function NewSessionModal({ onClose, onStarted }: { onClose: () => void; onStarted: (s: SessionData) => void }) {
+  const [patients, setPatients] = useState<SimplePatient[]>([])
+  const [templates, setTemplates] = useState<TemplateOption[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [selectedPatient, setSelectedPatient] = useState<SimplePatient | null>(null)
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([])
+  const [starting, setStarting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    Promise.all([apiClient.getPatients(), apiClient.getAssessmentTemplates()])
+      .then(([p, t]: [SimplePatient[], TemplateOption[]]) => {
+        setPatients(p)
+        setTemplates(t)
+      })
+      .catch(() => setError('Could not load patients or assessments.'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const filteredPatients = patients.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
+
+  const toggleKey = (key: string) => {
+    setSelectedKeys((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
+  }
+
+  const start = async () => {
+    if (!selectedPatient) return
+    setStarting(true)
+    setError(null)
+    try {
+      const session = await apiClient.createClinicianSession(selectedPatient.id, selectedKeys)
+      onStarted(session)
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'Could not start the session.')
+      setStarting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center" onClick={onClose}>
+      <div
+        className="bg-organic-bg w-full max-w-[560px] max-h-[85vh] overflow-y-auto rounded-organic-card p-7 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-start mb-4">
+          <h2 className="text-[22px] font-heading text-organic-text">New session</h2>
+          <button onClick={onClose} className="text-organic-neutral-500 hover:text-organic-neutral-800 text-2xl leading-none">
+            &times;
+          </button>
+        </div>
+
+        {loading && <div className="text-sm text-organic-neutral-600">Loading…</div>}
+        {error && <div className="text-sm text-organic-accent-800 mb-3">{error}</div>}
+
+        {!loading && !selectedPatient && (
+          <>
+            <label className="block text-xs font-semibold text-organic-neutral-600 mb-1.5">With whom?</label>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search patients…"
+              className="w-full bg-organic-surface border border-organic-neutral-300/60 rounded-organic-pill px-3.5 py-2 text-sm mb-3"
+            />
+            <div className="flex flex-col gap-1.5 max-h-[280px] overflow-y-auto">
+              {filteredPatients.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setSelectedPatient(p)}
+                  className="text-left flex items-center justify-between bg-organic-surface hover:bg-organic-accent-100 rounded-organic-tile px-3.5 py-2.5 text-sm"
+                >
+                  <span className="font-semibold">{p.name}</span>
+                  <span className="text-xs text-organic-neutral-500">{p.status}</span>
+                </button>
+              ))}
+              {filteredPatients.length === 0 && <div className="text-sm text-organic-neutral-500 px-1">No patients found.</div>}
+            </div>
+          </>
+        )}
+
+        {!loading && selectedPatient && (
+          <>
+            <div className="flex items-center justify-between bg-organic-accent-100 rounded-organic-tile px-3.5 py-2.5 mb-4">
+              <span className="font-semibold text-sm text-organic-accent-800">{selectedPatient.name}</span>
+              <button onClick={() => setSelectedPatient(null)} className="text-xs text-organic-accent-700 underline">
+                Change
+              </button>
+            </div>
+
+            <label className="block text-xs font-semibold text-organic-neutral-600 mb-1.5">
+              Which assessments will you administer this session? (optional)
+            </label>
+            <div className="flex flex-col gap-1.5 max-h-[260px] overflow-y-auto mb-5">
+              {templates.map((t) => (
+                <label
+                  key={t.id}
+                  className="flex items-center gap-2.5 bg-organic-surface rounded-organic-tile px-3.5 py-2.5 text-sm cursor-pointer"
+                >
+                  <input type="checkbox" checked={selectedKeys.includes(t.id)} onChange={() => toggleKey(t.id)} />
+                  {t.name}
+                </label>
+              ))}
+            </div>
+
+            <button
+              onClick={start}
+              disabled={starting}
+              className="w-full rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm py-3 disabled:opacity-50"
+            >
+              {starting ? 'Starting…' : 'Start session'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Active session runner ──────────────────────────────────────────────────
+
+function SessionRunner({
+  session,
+  onClose,
+  onFinished,
+}: {
+  session: SessionData
+  onClose: () => void
+  onFinished: () => void
+}) {
+  const [index, setIndex] = useState(0)
+  const [answers, setAnswers] = useState<Record<number, number | string>>({})
+  const [submitting, setSubmitting] = useState(false)
+  const [results, setResults] = useState<any[]>([])
+  const [lang, setLang] = useState<'en' | 'ar'>('en')
+
+  const assessments = session.assessments
+  const current = assessments[index]
+  const done = index >= assessments.length
+
+  const submitCurrent = async () => {
+    if (!current) return
+    setSubmitting(true)
+    try {
+      const result = await apiClient.submitAssessment(session.patient_id, current.template_key, answers, session.id)
+      setResults((prev) => [...prev, { name: current.name, ...result }])
+      setAnswers({})
+      setIndex((i) => i + 1)
+    } catch {
+      // leave the clinician on the same assessment to retry
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const finish = async () => {
+    try {
+      await apiClient.completeClinicianSession(session.id)
+    } finally {
+      onFinished()
+    }
+  }
+
+  const questions = current?.definition_json?.questions || []
+  const allAnswered =
+    questions.length > 0 &&
+    questions.every((q: any) => {
+      const a = answers[q.id]
+      return typeof a === 'string' ? a.trim().length > 0 : a !== undefined
+    })
+
+  return (
+    <div className="fixed inset-0 bg-organic-bg z-50 overflow-y-auto">
+      <div className="max-w-[720px] mx-auto px-8 py-10" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <h2 className="text-[26px] font-heading text-organic-text">Session with {session.patient_name}</h2>
+            <p className="text-sm text-organic-neutral-600">
+              {assessments.length === 0
+                ? 'No assessments queued — close whenever you\'re done.'
+                : done
+                ? 'All assessments completed'
+                : `Assessment ${index + 1} of ${assessments.length}: ${current.name}`}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-organic-neutral-500 hover:text-organic-neutral-800 text-2xl leading-none">
+            &times;
+          </button>
+        </div>
+
+        {current?.definition_json?.instructions_ar && (
+          <div className="inline-flex bg-organic-neutral-100 border border-organic-neutral-300/60 rounded-organic-pill p-1 my-3">
+            {(['en', 'ar'] as const).map((l) => (
+              <button
+                key={l}
+                onClick={() => setLang(l)}
+                className={`font-heading text-[13px] px-4 py-1.5 rounded-organic-pill ${lang === l ? 'bg-organic-accent text-organic-neutral-100' : 'text-organic-neutral-700'}`}
+              >
+                {l === 'en' ? 'English' : 'العربية'}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {!done && current && (
+          <div className="mt-5">
+            {current.definition_json?.instructions && (
+              <p className="text-sm text-organic-neutral-600 mb-5">
+                {lang === 'en' ? current.definition_json.instructions : current.definition_json.instructions_ar || current.definition_json.instructions}
+              </p>
+            )}
+            <div className="flex flex-col gap-4">
+              {questions.map((q: any, qi: number) => (
+                <div key={q.id} className="bg-organic-surface rounded-organic-tile p-4 shadow-organic-sm">
+                  <div className="text-sm font-semibold mb-2.5">
+                    {qi + 1}. {(lang === 'en' ? q.text : q.text_ar) || q.text}
+                  </div>
+                  {q.options && q.options.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {q.options.map((opt: any) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: opt.value }))}
+                          className={`text-xs px-3 py-1.5 rounded-organic-pill border transition-colors ${
+                            answers[q.id] === opt.value
+                              ? 'bg-organic-accent text-organic-accent-100 border-organic-accent'
+                              : 'bg-organic-bg border-organic-neutral-300/60 text-organic-neutral-700'
+                          }`}
+                        >
+                          {(lang === 'en' ? opt.label : opt.label_ar) || opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <input
+                      value={typeof answers[q.id] === 'string' ? (answers[q.id] as any) : ''}
+                      onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value as any }))}
+                      placeholder="Record the answer…"
+                      className="w-full bg-organic-bg border border-organic-neutral-300/60 rounded-organic-tile px-3 py-2 text-sm"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={submitCurrent}
+              disabled={!allAnswered || submitting}
+              className="w-full mt-6 rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm py-3 disabled:opacity-50"
+            >
+              {submitting ? 'Submitting…' : index === assessments.length - 1 ? 'Submit & finish' : 'Submit & next assessment'}
+            </button>
+          </div>
+        )}
+
+        {(done || assessments.length === 0) && (
+          <div className="mt-6">
+            {results.length > 0 && (
+              <div className="flex flex-col gap-3 mb-6">
+                {results.map((r, i) => (
+                  <div key={i} className="bg-organic-surface rounded-organic-tile p-4 shadow-organic-sm">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-bold text-sm">{r.name}</span>
+                      <span className="font-heading text-lg text-organic-accent-700">{r.raw_score ?? '—'}</span>
+                    </div>
+                    <div className="text-xs text-organic-neutral-600">{r.interpretation}</div>
+                    {r.risk_flags?.length > 0 && (
+                      <div className="mt-2 flex items-center gap-2 bg-organic-accent-100 rounded-organic-tile px-3 py-2">
+                        <AlertTriangle size={16} className="text-organic-accent-700 flex-none" />
+                        <span className="text-xs text-organic-accent-800">{r.risk_flags[0].message}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            <button onClick={finish} className="w-full rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm py-3">
+              Finish session
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
 // ─── Icon rail ────────────────────────────────────────────────────────────
 
-function IconRail({ view, onChange }: { view: WorkspaceView; onChange: (v: WorkspaceView) => void }) {
+function IconRail({
+  view,
+  onChange,
+  onOpenAdmin,
+  onLogout,
+}: {
+  view: WorkspaceView
+  onChange: (v: WorkspaceView) => void
+  onOpenAdmin: () => void
+  onLogout: () => void
+}) {
   return (
     <aside className="flex-none w-[84px] bg-organic-neutral-100 border-r border-organic-neutral-300/50 py-[22px] flex flex-col items-center gap-2 sticky top-0 h-screen">
       <div className="w-11 h-11 rounded-organic-tile bg-organic-accent grid place-items-center text-organic-accent-100 mb-3.5">
@@ -103,8 +454,24 @@ function IconRail({ view, onChange }: { view: WorkspaceView; onChange: (v: Works
           </button>
         )
       })}
-      <div className="mt-auto w-10 h-10 rounded-full bg-organic-accent-2-200 grid place-items-center text-xs font-bold text-organic-accent-2-800">
-        ON
+
+      <div className="mt-auto flex flex-col items-center gap-2">
+        <button
+          onClick={onOpenAdmin}
+          title="Practice admin"
+          className="w-[54px] h-[54px] rounded-2xl flex flex-col items-center justify-center gap-0.5 text-organic-neutral-700 hover:bg-organic-neutral-200 transition-colors"
+        >
+          <LayoutDashboard size={21} />
+          <span className="text-[9px] font-semibold">Admin</span>
+        </button>
+        <button
+          onClick={onLogout}
+          title="Log out"
+          className="w-[54px] h-[44px] rounded-2xl flex flex-col items-center justify-center gap-0.5 text-organic-neutral-700 hover:bg-organic-neutral-200 transition-colors"
+        >
+          <LogOut size={19} />
+          <span className="text-[9px] font-semibold">Log out</span>
+        </button>
       </div>
     </aside>
   )
