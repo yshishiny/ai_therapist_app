@@ -2,6 +2,57 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Text size / readability control ────────────────────────────────────
+   One variable drives the whole UI scale. Everything sized in rem --
+   which after the px→rem conversion means all our type, and Tailwind's
+   own spacing scale (p-4, gap-3, …) -- rescales from this single line.
+
+   We deliberately do NOT use the CSS `zoom` property: it is inconsistent
+   across browsers and interacts badly with position:fixed overlays like
+   the session runner and review panels. Root font-size is the boring,
+   well-supported mechanism.
+
+   Set by useTextSize(); persisted per browser and shared by every portal. */
+:root {
+  --ui-scale: 1;
+}
+
+html {
+  font-size: calc(16px * var(--ui-scale));
+}
+
+/* Icons are lucide SVGs whose size lands as a width/height attribute, so
+   rem cannot reach them. CSS width/height beat those attributes, so we
+   restate each size the app actually uses, multiplied by the same factor.
+   This keeps the deliberate size differences (a 14px inline glyph vs a
+   22px logo mark) intact instead of flattening them to one size, and it
+   scales the layout box -- unlike a transform, which would grow the icon
+   visually while leaving neighbours overlapping it. */
+svg[width='12'] { width: calc(12px * var(--ui-scale)); height: calc(12px * var(--ui-scale)); }
+svg[width='13'] { width: calc(13px * var(--ui-scale)); height: calc(13px * var(--ui-scale)); }
+svg[width='14'] { width: calc(14px * var(--ui-scale)); height: calc(14px * var(--ui-scale)); }
+svg[width='15'] { width: calc(15px * var(--ui-scale)); height: calc(15px * var(--ui-scale)); }
+svg[width='16'] { width: calc(16px * var(--ui-scale)); height: calc(16px * var(--ui-scale)); }
+svg[width='17'] { width: calc(17px * var(--ui-scale)); height: calc(17px * var(--ui-scale)); }
+svg[width='18'] { width: calc(18px * var(--ui-scale)); height: calc(18px * var(--ui-scale)); }
+svg[width='19'] { width: calc(19px * var(--ui-scale)); height: calc(19px * var(--ui-scale)); }
+svg[width='20'] { width: calc(20px * var(--ui-scale)); height: calc(20px * var(--ui-scale)); }
+svg[width='21'] { width: calc(21px * var(--ui-scale)); height: calc(21px * var(--ui-scale)); }
+svg[width='22'] { width: calc(22px * var(--ui-scale)); height: calc(22px * var(--ui-scale)); }
+svg[width='23'] { width: calc(23px * var(--ui-scale)); height: calc(23px * var(--ui-scale)); }
+svg[width='24'] { width: calc(24px * var(--ui-scale)); height: calc(24px * var(--ui-scale)); }
+svg[width='25'] { width: calc(25px * var(--ui-scale)); height: calc(25px * var(--ui-scale)); }
+svg[width='26'] { width: calc(26px * var(--ui-scale)); height: calc(26px * var(--ui-scale)); }
+svg[width='28'] { width: calc(28px * var(--ui-scale)); height: calc(28px * var(--ui-scale)); }
+svg[width='32'] { width: calc(32px * var(--ui-scale)); height: calc(32px * var(--ui-scale)); }
+
+/* Icons keep their stroke weight legible as they grow. The design brief
+   calls for a heavier stroke than lucide's 2 default at larger sizes. */
+:root[data-text-size='large'] svg.lucide,
+:root[data-text-size='larger'] svg.lucide {
+  stroke-width: 2.5;
+}
+
 * {
   margin: 0;
   padding: 0;

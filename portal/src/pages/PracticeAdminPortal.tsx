@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore'
 import apiClient from '../services/api'
 import { useSampleDataHidden } from '../hooks/useSampleDataHidden'
 import { SampleGate } from '../components/SampleGate'
+import { TextSizeControl } from '../components/TextSizeControl'
 import {
   Brain,
   Plus,
@@ -211,8 +212,8 @@ export default function PracticeAdminPortal() {
             <Brain size={20} />
           </div>
           <div className="leading-tight">
-            <div className="font-heading text-[17px] text-organic-text">Cedar &amp; Sage</div>
-            <div className="text-[11px] text-organic-neutral-600">Practice admin</div>
+            <div className="font-heading text-[1.0625rem] text-organic-text">Cedar &amp; Sage</div>
+            <div className="text-[0.7812rem] text-organic-neutral-600">Practice admin</div>
           </div>
         </div>
 
@@ -224,11 +225,11 @@ export default function PracticeAdminPortal() {
                 key={v}
                 title={`${label} — not built yet`}
                 aria-disabled="true"
-                className="flex items-center gap-3 px-3.5 py-2.5 rounded-organic-pill text-[14.5px] text-left text-organic-neutral-500 font-semibold opacity-50 cursor-not-allowed select-none"
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-organic-pill text-[0.9062rem] text-left text-organic-neutral-500 font-semibold opacity-50 cursor-not-allowed select-none"
               >
                 <Icon size={19} />
                 <span className="flex-1">{label}</span>
-                <span className="text-[10px] uppercase tracking-wide bg-organic-neutral-200 text-organic-neutral-600 rounded-organic-pill px-1.5 py-0.5">
+                <span className="text-[0.7812rem] uppercase tracking-wide bg-organic-neutral-200 text-organic-neutral-600 rounded-organic-pill px-1.5 py-0.5">
                   Soon
                 </span>
               </div>
@@ -238,7 +239,7 @@ export default function PracticeAdminPortal() {
             <button
               key={v}
               onClick={() => setView(v)}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-organic-pill text-[14.5px] transition-colors text-left ${
+              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-organic-pill text-[0.9062rem] transition-colors text-left ${
                 active ? 'bg-organic-accent text-organic-neutral-100 font-bold' : 'text-organic-neutral-800 font-semibold hover:bg-organic-neutral-200'
               }`}
             >
@@ -251,7 +252,7 @@ export default function PracticeAdminPortal() {
         <div className="my-1.5 border-t border-organic-neutral-300/50" />
         <button
           onClick={() => navigate('/workspace')}
-          className="flex items-center gap-3 px-3.5 py-2.5 rounded-organic-pill text-[14.5px] transition-colors text-left text-organic-accent-700 font-semibold hover:bg-organic-neutral-200"
+          className="flex items-center gap-3 px-3.5 py-2.5 rounded-organic-pill text-[0.9062rem] transition-colors text-left text-organic-accent-700 font-semibold hover:bg-organic-neutral-200"
         >
           <Stethoscope size={19} />
           Clinical Workspace
@@ -259,13 +260,13 @@ export default function PracticeAdminPortal() {
 
         <div className="mt-auto p-3 bg-organic-accent-2-100 rounded-organic-tile">
           <div className="text-xs text-organic-accent-2-800 font-semibold mb-1">Professional plan</div>
-          <div className="text-[11px] text-organic-accent-2-700 leading-tight">9 / 12 seats used</div>
+          <div className="text-[0.7812rem] text-organic-accent-2-700 leading-tight">9 / 12 seats used</div>
           <div className="h-1.5 rounded-organic-pill bg-organic-accent-2-200 mt-2 overflow-hidden">
             <div className="w-3/4 h-full bg-organic-accent-2-500" />
           </div>
         </div>
         <div className="flex items-center justify-between gap-2 px-2 py-1.5">
-          <span className="text-[11px] font-semibold text-organic-neutral-600">Hide sample data</span>
+          <span className="text-[0.7812rem] font-semibold text-organic-neutral-600">Hide sample data</span>
           <button
             onClick={() => setHideSampleData(!hideSampleData)}
             title={hideSampleData ? 'Sample data hidden — click to show' : 'Sample data shown — click to hide'}
@@ -276,12 +277,12 @@ export default function PracticeAdminPortal() {
           </button>
         </div>
         <div className="flex items-center gap-2.5 p-2 border-t border-organic-neutral-300/50 mt-1">
-          <div className="w-[34px] h-[34px] rounded-full bg-organic-accent-300 grid place-items-center font-bold text-organic-accent-900 text-[13px]">
+          <div className="w-[34px] h-[34px] rounded-full bg-organic-accent-300 grid place-items-center font-bold text-organic-accent-900 text-[0.8125rem]">
             {me ? initialsOf(me.fullName) : '—'}
           </div>
           <div className="leading-tight flex-1 min-w-0">
-            <div className="text-[13px] font-semibold truncate">{me?.fullName || 'Loading…'}</div>
-            <div className="text-[11px] text-organic-neutral-600 capitalize">{me?.role || ''}</div>
+            <div className="text-[0.8125rem] font-semibold truncate">{me?.fullName || 'Loading…'}</div>
+            <div className="text-[0.7812rem] text-organic-neutral-600 capitalize">{me?.role || ''}</div>
           </div>
           <button onClick={handleLogout} title="Log out">
             <LogOut size={17} className="text-organic-neutral-600" />
@@ -292,10 +293,11 @@ export default function PracticeAdminPortal() {
       <main className="flex-1 min-w-0 px-9 pt-8 pb-16 max-w-[1240px]">
         <header className="flex justify-between items-end gap-5 flex-wrap mb-7">
           <div>
-            <h1 className="text-[34px] font-heading text-organic-text mb-1">{title}</h1>
+            <h1 className="text-[2.125rem] font-heading text-organic-text mb-1">{title}</h1>
             <p className="text-organic-neutral-600 text-sm">{subtitle}</p>
           </div>
           <div className="flex gap-2.5 items-center">
+            <TextSizeControl />
             <div className="flex items-center gap-2 bg-organic-surface border border-organic-neutral-300/60 rounded-organic-pill px-3.5 py-2 min-w-[200px]">
               <Search size={16} className="text-organic-neutral-500" />
               <span className="text-sm text-organic-neutral-500">Search patients, notes…</span>
@@ -363,7 +365,7 @@ function DashboardView({ dash, setDash, onOpenPatient }: { dash: DashLayout; set
             <button
               key={k}
               onClick={() => setDash(k)}
-              className={`font-heading text-[13px] px-[18px] py-2 rounded-organic-pill ${dash === k ? 'bg-organic-accent text-organic-neutral-100' : 'text-organic-neutral-700'}`}
+              className={`font-heading text-[0.8125rem] px-[18px] py-2 rounded-organic-pill ${dash === k ? 'bg-organic-accent text-organic-neutral-100' : 'text-organic-neutral-700'}`}
             >
               {k === 'a' ? 'Analytics' : k === 'b' ? 'Welcome' : 'Bento'}
             </button>
@@ -398,7 +400,7 @@ function DashboardAnalytics({ onOpenPatient }: { onOpenPatient: (id: string) => 
               <span className="text-xs text-organic-neutral-600">{st.label}</span>
               <st.icon size={17} className="text-organic-accent-500" />
             </div>
-            <div className="font-heading text-[36px] my-1.5 text-organic-text">{st.value}</div>
+            <div className="font-heading text-[2.25rem] my-1.5 text-organic-text">{st.value}</div>
             <div className="text-xs text-organic-accent-2-700">{st.trend}</div>
           </div>
         ))}
@@ -456,11 +458,11 @@ function DashboardWelcome({ onOpenPatient }: { onOpenPatient: (id: string) => vo
     <div>
       <div className="bg-gradient-to-br from-organic-accent-600 to-organic-accent-800 rounded-[28px] p-9 text-organic-accent-100 flex justify-between items-center gap-6 flex-wrap mb-[18px]">
         <div className="max-w-[520px]">
-          <div className="text-[13px] opacity-80 mb-1.5">Thursday, July 24</div>
+          <div className="text-[0.8125rem] opacity-80 mb-1.5">Thursday, July 24</div>
           <h2 className="text-3xl font-heading text-organic-accent-100 mb-2">Good morning, Dr. Moustafa.</h2>
-          <p className="opacity-85 text-[15px]">3 risk alerts need review, 12 sessions are scheduled today, and 2 clinician invitations are pending.</p>
+          <p className="opacity-85 text-[0.9375rem]">3 risk alerts need review, 12 sessions are scheduled today, and 2 clinician invitations are pending.</p>
         </div>
-        <button className="rounded-organic-pill bg-organic-accent-100 text-organic-accent-800 font-heading text-[15px] px-6 py-3.5 whitespace-nowrap">
+        <button className="rounded-organic-pill bg-organic-accent-100 text-organic-accent-800 font-heading text-[0.9375rem] px-6 py-3.5 whitespace-nowrap">
           Review alerts
         </button>
       </div>
@@ -472,7 +474,7 @@ function DashboardWelcome({ onOpenPatient }: { onOpenPatient: (id: string) => vo
             </div>
             <div>
               <div className="font-heading text-2xl leading-none">{st.value}</div>
-              <div className="text-[11.5px] text-organic-neutral-600">{st.label}</div>
+              <div className="text-[0.7812rem] text-organic-neutral-600">{st.label}</div>
             </div>
           </div>
         ))}
@@ -484,8 +486,8 @@ function DashboardWelcome({ onOpenPatient }: { onOpenPatient: (id: string) => vo
             {PATIENTS.slice(0, 4).map((p) => (
               <button key={p.id} onClick={() => onOpenPatient(p.id)} className="flex items-center gap-3 py-2.5 px-1 border-b border-organic-text/[0.07] last:border-b-0 text-left">
                 <span className="text-xs font-bold text-organic-accent-700 w-[52px]">10:00</span>
-                <div className="w-[30px] h-[30px] rounded-full bg-organic-accent-200 grid place-items-center text-[10px] font-bold text-organic-accent-800">{p.initials}</div>
-                <span className="flex-1 font-semibold text-[13.5px]">{p.name}</span>
+                <div className="w-[30px] h-[30px] rounded-full bg-organic-accent-200 grid place-items-center text-[0.7812rem] font-bold text-organic-accent-800">{p.initials}</div>
+                <span className="flex-1 font-semibold text-[0.8438rem]">{p.name}</span>
                 <span className="text-xs text-organic-neutral-600">{p.clinician}</span>
               </button>
             ))}
@@ -517,7 +519,7 @@ function DashboardBento() {
         <div>
           <div className="text-xs opacity-80">Practice health</div>
           <div className="font-heading text-5xl leading-none mt-2">94%</div>
-          <div className="opacity-85 text-[13px] mt-1.5">Assessment completion this month</div>
+          <div className="opacity-85 text-[0.8125rem] mt-1.5">Assessment completion this month</div>
         </div>
         <svg viewBox="0 0 300 90" className="w-full h-20">
           <path d="M0,70 L50,60 L100,64 L150,44 L200,50 L250,30 L300,24" fill="none" stroke="#fdf3e0" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" opacity={0.9} />
@@ -527,19 +529,19 @@ function DashboardBento() {
         <div key={st.label} className="bg-organic-surface rounded-organic-tile p-[18px] shadow-organic-sm flex flex-col justify-between">
           <st.icon size={19} className="text-organic-accent-500" />
           <div>
-            <div className="font-heading text-[28px] leading-none">{st.value}</div>
-            <div className="text-[11.5px] text-organic-neutral-600">{st.label}</div>
+            <div className="font-heading text-[1.75rem] leading-none">{st.value}</div>
+            <div className="text-[0.7812rem] text-organic-neutral-600">{st.label}</div>
           </div>
         </div>
       ))}
       <div className="col-span-2 bg-organic-surface rounded-organic-tile p-5 shadow-organic-sm">
-        <h3 className="text-[17px] font-heading text-organic-text mb-3">Risk flags</h3>
+        <h3 className="text-[1.0625rem] font-heading text-organic-text mb-3">Risk flags</h3>
         <div className="flex flex-col gap-2">
           {ALERTS.map((a) => (
             <div key={a.name} className={`flex items-center gap-2.5 py-2.5 px-2.5 rounded-organic-tile ${a.med ? 'bg-organic-accent-2-100' : 'bg-organic-accent-100'}`}>
               <span className={`w-2 h-2 rounded-full flex-none ${a.med ? 'bg-organic-accent-2-700' : 'bg-organic-accent-700'}`} />
-              <div className="flex-1 min-w-0 text-[13px]">
-                <span className="font-semibold">{a.name}</span> <span className="text-[11.5px] text-organic-neutral-700">— {a.detail}</span>
+              <div className="flex-1 min-w-0 text-[0.8125rem]">
+                <span className="font-semibold">{a.name}</span> <span className="text-[0.7812rem] text-organic-neutral-700">— {a.detail}</span>
               </div>
             </div>
           ))}
@@ -557,8 +559,8 @@ function AlertsList() {
         <div key={a.name} className={`flex items-center gap-3 py-2.5 px-3 rounded-organic-tile ${a.med ? 'bg-organic-accent-2-100' : 'bg-organic-accent-100'}`}>
           <span className={`w-2.5 h-2.5 rounded-full flex-none ${a.med ? 'bg-organic-accent-2-700' : 'bg-organic-accent-700'}`} />
           <div className="flex-1 min-w-0">
-            <div className="font-semibold text-[13.5px]">{a.name}</div>
-            <div className="text-[11.5px] text-organic-neutral-700 leading-snug">{a.detail}</div>
+            <div className="font-semibold text-[0.8438rem]">{a.name}</div>
+            <div className="text-[0.7812rem] text-organic-neutral-700 leading-snug">{a.detail}</div>
           </div>
           <span className="text-xs text-organic-neutral-500 whitespace-nowrap">{a.time}</span>
         </div>
@@ -572,11 +574,11 @@ function PatientsTable({ patients, onOpenPatient, showNext }: { patients: Patien
     <table className="w-full border-collapse text-sm">
       <thead>
         <tr>
-          <th className="text-left text-[11px] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Patient</th>
-          <th className="text-left text-[11px] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Clinician</th>
-          <th className="text-left text-[11px] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Last session</th>
-          <th className="text-left text-[11px] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Risk</th>
-          {showNext && <th className="text-left text-[11px] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Next action</th>}
+          <th className="text-left text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Patient</th>
+          <th className="text-left text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Clinician</th>
+          <th className="text-left text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Last session</th>
+          <th className="text-left text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Risk</th>
+          {showNext && <th className="text-left text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Next action</th>}
         </tr>
       </thead>
       <tbody>
@@ -584,14 +586,14 @@ function PatientsTable({ patients, onOpenPatient, showNext }: { patients: Patien
           <tr key={p.id} onClick={() => onOpenPatient(p.id)} className="cursor-pointer">
             <td className="px-2 py-3 border-b border-organic-text/[0.08]">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-organic-accent-200 grid place-items-center text-[11px] font-bold text-organic-accent-800">{p.initials}</div>
+                <div className="w-8 h-8 rounded-full bg-organic-accent-200 grid place-items-center text-[0.7812rem] font-bold text-organic-accent-800">{p.initials}</div>
                 <span className="font-semibold">{p.name}</span>
               </div>
             </td>
             <td className="px-2 py-3 border-b border-organic-text/[0.08] text-organic-neutral-700">{p.clinician}</td>
             <td className="px-2 py-3 border-b border-organic-text/[0.08] text-organic-neutral-700">{p.last}</td>
             <td className="px-2 py-3 border-b border-organic-text/[0.08]">
-              <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill ${RISK_STYLE[p.risk].bg} ${RISK_STYLE[p.risk].color}`}>{p.risk}</span>
+              <span className={`text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-pill ${RISK_STYLE[p.risk].bg} ${RISK_STYLE[p.risk].color}`}>{p.risk}</span>
             </td>
             {showNext && <td className="px-2 py-3 border-b border-organic-text/[0.08] text-organic-neutral-700">{p.next}</td>}
           </tr>
@@ -618,16 +620,16 @@ function CliniciansView({ clinicians, onViewCaseload }: { clinicians: ClinicianR
             <div className="flex items-center gap-3.5 mb-3.5">
               <div className="w-12 h-12 rounded-full bg-organic-accent-2-200 grid place-items-center font-bold text-organic-accent-2-800">{c.initials}</div>
               <div className="flex-1 min-w-0">
-                <div className="font-bold text-[15px] truncate">{c.fullName}</div>
+                <div className="font-bold text-[0.9375rem] truncate">{c.fullName}</div>
                 <div className="text-xs text-organic-neutral-600 capitalize">{c.role}</div>
               </div>
-              <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill ${c.active ? 'bg-organic-accent-2-100 text-organic-accent-2-800' : 'bg-organic-neutral-200 text-organic-neutral-700'}`}>
+              <span className={`text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-pill ${c.active ? 'bg-organic-accent-2-100 text-organic-accent-2-800' : 'bg-organic-neutral-200 text-organic-neutral-700'}`}>
                 {c.active ? 'Active' : 'Inactive'}
               </span>
             </div>
             <div className="flex items-center justify-between pt-3 border-t border-organic-neutral-300/50 text-sm">
               <div>
-                <div className="text-organic-neutral-500 text-[11px]">Patients</div>
+                <div className="text-organic-neutral-500 text-[0.7812rem]">Patients</div>
                 <div className="font-semibold">{c.patientCount}</div>
               </div>
               <button
@@ -753,14 +755,14 @@ function PatientDetailView({
           <div className="w-[52px] h-[52px] rounded-full bg-organic-accent-200 grid place-items-center font-bold text-base text-organic-accent-800">{patient.initials}</div>
           <div>
             <div className="flex items-center gap-2.5">
-              <span className="font-heading text-[22px]">{patient.name}</span>
-              <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill ${RISK_STYLE[patient.risk].bg} ${RISK_STYLE[patient.risk].color}`}>{patient.risk} risk</span>
+              <span className="font-heading text-[1.375rem]">{patient.name}</span>
+              <span className={`text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-pill ${RISK_STYLE[patient.risk].bg} ${RISK_STYLE[patient.risk].color}`}>{patient.risk} risk</span>
             </div>
             <div className="text-sm text-organic-neutral-600">Last session {patient.last}</div>
           </div>
         </div>
         <div className="text-right">
-          <label className="block text-[11px] text-organic-neutral-500 mb-1">Assigned clinician</label>
+          <label className="block text-[0.7812rem] text-organic-neutral-500 mb-1">Assigned clinician</label>
           <select
             value={patient.therapistId || ''}
             onChange={(e) => handleReassign(e.target.value)}
@@ -778,7 +780,7 @@ function PatientDetailView({
       </div>
       <div className="grid grid-cols-[2fr_1fr] gap-4">
         <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
-          <SampleGate hidden={hideSampleData} placeholder={<p className="text-[13px] text-organic-neutral-600">No documents uploaded yet.</p>}>
+          <SampleGate hidden={hideSampleData} placeholder={<p className="text-[0.8125rem] text-organic-neutral-600">No documents uploaded yet.</p>}>
             <div className="flex gap-2.5 mb-[18px] flex-wrap">
               {FOLDERS.map((f) => (
                 <button
@@ -794,8 +796,8 @@ function PatientDetailView({
               {(FOLDER_FILES[folder] || []).map((file) => (
                 <div key={file.n} className="flex items-center gap-3 py-3.5 px-3.5 bg-organic-neutral-100 rounded-organic-tile">
                   <FileText size={18} className="text-organic-accent-600" />
-                  <span className="flex-1 font-semibold text-[13.5px]">{file.n}</span>
-                  <span className="text-[11.5px] text-organic-neutral-500">{file.d}</span>
+                  <span className="flex-1 font-semibold text-[0.8438rem]">{file.n}</span>
+                  <span className="text-[0.7812rem] text-organic-neutral-500">{file.d}</span>
                   <Lock size={14} className="text-organic-neutral-400" />
                 </div>
               ))}
@@ -808,13 +810,13 @@ function PatientDetailView({
               <Sparkles size={17} className="text-organic-accent-700" />
               <h4 className="text-base font-heading">AI clinical insights</h4>
             </div>
-            <p className="text-[13px] text-organic-neutral-600 leading-relaxed">
+            <p className="text-[0.8125rem] text-organic-neutral-600 leading-relaxed">
               Generated after enough session and assessment history accumulates for this patient.
             </p>
           </div>
           <div className="bg-organic-surface rounded-organic-tile p-5 shadow-organic-sm">
             <h4 className="text-base font-heading mb-3">Latest scores</h4>
-            <p className="text-[13px] text-organic-neutral-600">No assessments recorded yet.</p>
+            <p className="text-[0.8125rem] text-organic-neutral-600">No assessments recorded yet.</p>
           </div>
         </aside>
       </div>
@@ -919,7 +921,7 @@ function AssessmentsView() {
                 <button
                   key={l}
                   onClick={() => setLang(l)}
-                  className={`text-[12px] font-heading px-3 py-1.5 rounded-organic-pill ${lang === l ? 'bg-organic-accent text-organic-neutral-100' : 'text-organic-neutral-700'}`}
+                  className={`text-[0.7812rem] font-heading px-3 py-1.5 rounded-organic-pill ${lang === l ? 'bg-organic-accent text-organic-neutral-100' : 'text-organic-neutral-700'}`}
                 >
                   {l === 'en' ? 'EN' : 'عربي'}
                 </button>
@@ -929,13 +931,13 @@ function AssessmentsView() {
             <input ref={pdfInputRef} type="file" accept="application/pdf,image/png,image/jpeg" className="hidden" onChange={handlePdfFile} />
             <button
               onClick={() => pdfInputRef.current?.click()}
-              className="rounded-organic-pill border border-organic-neutral-300/60 text-organic-neutral-700 text-[13px] font-heading px-4 py-2 inline-flex items-center gap-1.5"
+              className="rounded-organic-pill border border-organic-neutral-300/60 text-organic-neutral-700 text-[0.8125rem] font-heading px-4 py-2 inline-flex items-center gap-1.5"
             >
               <Upload size={15} /> Upload document
             </button>
             <button
               onClick={() => jsonInputRef.current?.click()}
-              className="rounded-organic-pill bg-organic-accent text-organic-accent-100 text-[13px] font-heading px-4 py-2 inline-flex items-center gap-1.5"
+              className="rounded-organic-pill bg-organic-accent text-organic-accent-100 text-[0.8125rem] font-heading px-4 py-2 inline-flex items-center gap-1.5"
             >
               <Plus size={15} /> Upload JSON
             </button>
@@ -948,7 +950,7 @@ function AssessmentsView() {
         {Object.entries(byCategory).map(([category, items]) => (
           <div key={category} className="mb-5">
             <h4
-              className="text-[12px] font-heading uppercase tracking-wide text-organic-neutral-500 mb-2 px-1"
+              className="text-[0.7812rem] font-heading uppercase tracking-wide text-organic-neutral-500 mb-2 px-1"
               dir={lang === 'ar' ? 'rtl' : 'ltr'}
             >
               {lang === 'ar' ? items[0]?.category_ar || category : category}
@@ -964,10 +966,10 @@ function AssessmentsView() {
                     <ClipboardList size={22} className="text-organic-accent-700" />
                   </div>
                   <div className="flex-1" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-                    <div className="font-bold text-[15px]">{displayName(t)}</div>
+                    <div className="font-bold text-[0.9375rem]">{displayName(t)}</div>
                     <div className="text-xs text-organic-neutral-600">{t.description || t.template_type || 'Assessment'}</div>
                   </div>
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-200 text-organic-neutral-700">{t.template_type || 'FREE'}</span>
+                  <span className="text-[0.7812rem] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-200 text-organic-neutral-700">{t.template_type || 'FREE'}</span>
                 </div>
               ))}
             </div>
@@ -990,10 +992,10 @@ function AssessmentsView() {
                     <FileEdit size={20} className="text-organic-accent-700" />
                   </div>
                   <div className="flex-1" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-                    <div className="font-bold text-[15px]">{displayName(t)}</div>
+                    <div className="font-bold text-[0.9375rem]">{displayName(t)}</div>
                     <div className="text-xs text-organic-neutral-600">{t.description}</div>
                   </div>
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-organic-pill bg-organic-accent-300/60 text-organic-accent-800 font-semibold flex-none">
+                  <span className="text-[0.7812rem] px-2.5 py-0.5 rounded-organic-pill bg-organic-accent-300/60 text-organic-accent-800 font-semibold flex-none">
                     Review
                   </span>
                 </div>
@@ -1014,10 +1016,10 @@ function AssessmentsView() {
                     <Lock size={20} className="text-organic-neutral-500" />
                   </div>
                   <div className="flex-1" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-                    <div className="font-bold text-[15px] text-organic-neutral-700">{displayName(t)}</div>
+                    <div className="font-bold text-[0.9375rem] text-organic-neutral-700">{displayName(t)}</div>
                     <div className="text-xs text-organic-neutral-500">{t.description}</div>
                   </div>
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-300/60 text-organic-neutral-700 font-semibold flex-none">
+                  <span className="text-[0.7812rem] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-300/60 text-organic-neutral-700 font-semibold flex-none">
                     License required
                   </span>
                 </div>
@@ -1028,13 +1030,13 @@ function AssessmentsView() {
       </div>
       <div className="bg-organic-surface rounded-organic-card p-6 shadow-organic-sm">
         <div className="flex justify-between items-start mb-1.5">
-          <h3 className="text-[22px] font-heading">PHQ-9 result</h3>
-          <span className="text-[11px] px-3 py-1 rounded-organic-pill bg-organic-accent-200 text-organic-accent-800 font-semibold">Maya Okonkwo</span>
+          <h3 className="text-[1.375rem] font-heading">PHQ-9 result</h3>
+          <span className="text-[0.7812rem] px-3 py-1 rounded-organic-pill bg-organic-accent-200 text-organic-accent-800 font-semibold">Maya Okonkwo</span>
         </div>
-        <p className="text-[13px] text-organic-neutral-600 mb-5">Completed 2 days ago · scored automatically</p>
+        <p className="text-[0.8125rem] text-organic-neutral-600 mb-5">Completed 2 days ago · scored automatically</p>
         <div className="flex items-baseline gap-3 mb-[18px]">
-          <span className="font-heading text-[56px] text-organic-accent-700 leading-none">14</span>
-          <span className="text-[15px] text-organic-neutral-700">/ 27 · <strong>Moderately severe</strong></span>
+          <span className="font-heading text-[3.5rem] text-organic-accent-700 leading-none">14</span>
+          <span className="text-[0.9375rem] text-organic-neutral-700">/ 27 · <strong>Moderately severe</strong></span>
         </div>
         <div className="flex gap-1.5 mb-2">
           {PHQ_BANDS.map((b) => (
@@ -1046,7 +1048,7 @@ function AssessmentsView() {
         <div className="h-2 rounded-organic-pill bg-organic-neutral-200 overflow-hidden mb-1.5">
           <div className="w-[56%] h-full bg-gradient-to-r from-organic-accent-2-400 via-organic-accent-500 to-organic-accent-700" />
         </div>
-        <div className="flex justify-between text-[10.5px] text-organic-neutral-500 mb-5">
+        <div className="flex justify-between text-[0.7812rem] text-organic-neutral-500 mb-5">
           {PHQ_BANDS.map((b) => (
             <span key={b.label}>{b.label}</span>
           ))}
@@ -1054,7 +1056,7 @@ function AssessmentsView() {
         <div className="flex items-center gap-3 p-3.5 bg-organic-accent-100 rounded-organic-tile mb-5">
           <AlertTriangle size={22} className="text-organic-accent-700 flex-none" />
           <div>
-            <div className="font-bold text-[13.5px] text-organic-accent-800">Risk flag: Item 9 = 2</div>
+            <div className="font-bold text-[0.8438rem] text-organic-accent-800">Risk flag: Item 9 = 2</div>
             <div className="text-xs text-organic-accent-800 opacity-85">Thoughts of self-harm reported — clinician alerted automatically.</div>
           </div>
         </div>
@@ -1223,7 +1225,7 @@ function AssessmentReviewPanel({
       >
         <div className="flex justify-between items-start mb-1.5">
           <div>
-            <h2 className="text-[24px] font-heading text-organic-text">
+            <h2 className="text-[1.5rem] font-heading text-organic-text">
               {lang === 'ar' && catalogEntry.name_ar ? catalogEntry.name_ar : catalogEntry.name}
             </h2>
             <p className="text-sm text-organic-neutral-600">
@@ -1242,7 +1244,7 @@ function AssessmentReviewPanel({
             <button
               key={l}
               onClick={() => setLang(l)}
-              className={`font-heading text-[13px] px-4 py-1.5 rounded-organic-pill ${lang === l ? 'bg-organic-accent text-organic-neutral-100' : 'text-organic-neutral-700'}`}
+              className={`font-heading text-[0.8125rem] px-4 py-1.5 rounded-organic-pill ${lang === l ? 'bg-organic-accent text-organic-neutral-100' : 'text-organic-neutral-700'}`}
             >
               {l === 'en' ? 'English' : 'العربية'}
             </button>
@@ -1312,7 +1314,7 @@ function AssessmentReviewPanel({
                 <summary className="text-xs font-semibold text-organic-neutral-600 cursor-pointer mb-2">
                   Advanced: scoring &amp; interpretation rules (read-only — to change scoring logic, upload a revised JSON)
                 </summary>
-                <pre className="bg-organic-neutral-100 rounded-organic-tile p-3 text-[11px] overflow-x-auto">
+                <pre className="bg-organic-neutral-100 rounded-organic-tile p-3 text-[0.7812rem] overflow-x-auto">
                   {JSON.stringify({ scoring_rules: version.scoring_rules, interpretation_rules: version.interpretation_rules, risk_rules: version.risk_rules }, null, 2)}
                 </pre>
               </details>
@@ -1383,10 +1385,10 @@ function ContentView() {
               <div className="w-[46px] h-[46px] rounded-organic-tile bg-organic-accent-100 grid place-items-center">
                 <c.icon size={22} className="text-organic-accent-700" />
               </div>
-              <span className="text-[10.5px] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-200 text-organic-neutral-700">{c.type}</span>
+              <span className="text-[0.7812rem] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-200 text-organic-neutral-700">{c.type}</span>
             </div>
             <div>
-              <div className="font-bold text-[15px] leading-tight">{c.title}</div>
+              <div className="font-bold text-[0.9375rem] leading-tight">{c.title}</div>
               <div className="text-xs text-organic-neutral-600 mt-1">{c.cat}</div>
             </div>
             <div className="flex items-center gap-1.5 pt-3 border-t border-organic-neutral-300/50 text-xs text-organic-neutral-700">
@@ -1431,15 +1433,15 @@ function AccessView() {
     <div className="flex flex-col gap-[18px]">
       <div className="bg-organic-surface rounded-organic-card p-6 shadow-organic-sm">
         <h3 className="text-lg font-heading mb-1">Role permissions</h3>
-        <p className="text-[13px] text-organic-neutral-600 mb-4">Baseline capabilities per role. Override per user below.</p>
+        <p className="text-[0.8125rem] text-organic-neutral-600 mb-4">Baseline capabilities per role. Override per user below.</p>
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
-              <th className="text-left text-[11px] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Capability</th>
-              <th className="text-[11px] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Admin</th>
-              <th className="text-[11px] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Supervisor</th>
-              <th className="text-[11px] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Clinician</th>
-              <th className="text-[11px] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Patient</th>
+              <th className="text-left text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Capability</th>
+              <th className="text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Admin</th>
+              <th className="text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Supervisor</th>
+              <th className="text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Clinician</th>
+              <th className="text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Patient</th>
             </tr>
           </thead>
           <tbody>
@@ -1461,10 +1463,10 @@ function AccessView() {
         <div className="flex flex-col gap-2.5">
           {OVERRIDES.map((o) => (
             <div key={o.user} className="flex items-center gap-3.5 py-3.5 px-4 bg-organic-neutral-100 rounded-organic-tile">
-              <div className="w-9 h-9 rounded-full bg-organic-accent-2-200 grid place-items-center text-[11px] font-bold text-organic-accent-2-800">{o.initials}</div>
+              <div className="w-9 h-9 rounded-full bg-organic-accent-2-200 grid place-items-center text-[0.7812rem] font-bold text-organic-accent-2-800">{o.initials}</div>
               <div className="flex-1">
                 <div className="font-semibold text-sm">{o.user}</div>
-                <div className="text-[12.5px] text-organic-neutral-700">{o.rule}</div>
+                <div className="text-[0.7812rem] text-organic-neutral-700">{o.rule}</div>
               </div>
               <Pencil size={16} className="text-organic-neutral-500" />
             </div>
@@ -1501,8 +1503,8 @@ function BillingView() {
       <div className="grid grid-cols-3 gap-3.5">
         {USAGE.map((u) => (
           <div key={u.label} className="bg-organic-surface rounded-organic-tile p-5 shadow-organic-sm">
-            <div className="text-[13px] text-organic-neutral-600 mb-2">{u.label}</div>
-            <div className="font-heading text-[26px] mb-2.5">
+            <div className="text-[0.8125rem] text-organic-neutral-600 mb-2">{u.label}</div>
+            <div className="font-heading text-[1.625rem] mb-2.5">
               {u.used}
               <span className="text-sm text-organic-neutral-500"> / {u.cap}</span>
             </div>
@@ -1519,12 +1521,12 @@ function BillingView() {
             <div key={pl.name} className="rounded-organic-card p-6 shadow-organic-sm bg-organic-surface border-2 border-organic-neutral-300/60 flex flex-col">
               <div className="font-heading text-xl mb-0.5">{pl.name}</div>
               <div className="flex items-baseline gap-1.5 mb-4">
-                <span className="font-heading text-[34px] text-organic-accent-700">{pl.price}</span>
+                <span className="font-heading text-[2.125rem] text-organic-accent-700">{pl.price}</span>
                 <span className="text-xs text-organic-neutral-500">{pl.per}</span>
               </div>
               <div className="flex flex-col gap-2.5 flex-1 mb-[18px]">
                 {pl.feats.map((f) => (
-                  <div key={f} className="flex items-center gap-2 text-[13px] text-organic-neutral-800">
+                  <div key={f} className="flex items-center gap-2 text-[0.8125rem] text-organic-neutral-800">
                     <Check size={15} className="text-organic-accent-2-600 flex-none" /> {f}
                   </div>
                 ))}
@@ -1544,7 +1546,7 @@ function BillingView() {
             <div className="text-xs text-organic-neutral-600">Next charge $891 on Aug 1, 2026</div>
           </div>
         </div>
-        <button className="rounded-organic-pill border border-organic-neutral-300/60 font-heading text-[13px] px-[18px] py-2.5">Update payment</button>
+        <button className="rounded-organic-pill border border-organic-neutral-300/60 font-heading text-[0.8125rem] px-[18px] py-2.5">Update payment</button>
       </div>
     </div>
     </SampleGate>
@@ -1613,13 +1615,13 @@ function SettingsView() {
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center gap-3 py-3 px-3.5 bg-organic-neutral-100 rounded-organic-tile">
               <Calendar size={18} className="text-organic-accent-700" />
-              <span className="flex-1 font-semibold text-[13.5px]">Google Calendar</span>
-              <span className="text-[11px] font-semibold text-organic-accent-2-700">Connected</span>
+              <span className="flex-1 font-semibold text-[0.8438rem]">Google Calendar</span>
+              <span className="text-[0.7812rem] font-semibold text-organic-accent-2-700">Connected</span>
             </div>
             <div className="flex items-center gap-3 py-3 px-3.5 bg-organic-neutral-100 rounded-organic-tile">
               <Brain size={18} className="text-organic-accent-700" />
-              <span className="flex-1 font-semibold text-[13.5px]">OpenAI (AI assistant)</span>
-              <span className="text-[11px] font-semibold text-organic-accent-2-700">Connected</span>
+              <span className="flex-1 font-semibold text-[0.8438rem]">OpenAI (AI assistant)</span>
+              <span className="text-[0.7812rem] font-semibold text-organic-accent-2-700">Connected</span>
             </div>
           </div>
         </div>

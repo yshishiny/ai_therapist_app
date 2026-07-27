@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { TextSizeControl } from '../components/TextSizeControl'
 import {
   Bell,
   Sparkles,
@@ -60,10 +61,13 @@ export default function PatientApp() {
               <div className="font-heading text-lg">Maya</div>
             </div>
           </div>
-          <button className="w-10 h-10 rounded-full border border-organic-neutral-300/60 bg-organic-surface grid place-items-center relative">
-            <Bell size={18} />
-            <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-organic-accent" />
-          </button>
+          <div className="flex items-center gap-2">
+            <TextSizeControl compact />
+            <button className="w-10 h-10 rounded-full border border-organic-neutral-300/60 bg-organic-surface grid place-items-center relative">
+              <Bell size={18} />
+              <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-organic-accent" />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 pb-[108px] pt-1.5">
@@ -84,7 +88,7 @@ export default function PatientApp() {
               className={`flex-1 flex flex-col items-center gap-1 ${t === tab ? 'text-organic-accent' : 'text-organic-neutral-500'}`}
             >
               <Icon size={23} />
-              <span className={`text-[10.5px] ${t === tab ? 'font-bold' : 'font-medium'}`}>{label}</span>
+              <span className={`text-[0.7812rem] ${t === tab ? 'font-bold' : 'font-medium'}`}>{label}</span>
             </button>
           ))}
         </div>
@@ -106,16 +110,16 @@ function HomeTab({ onGoChat, onGoTasks, mood, setMood }: { onGoChat: () => void;
       <div className="bg-gradient-to-br from-organic-accent-600 to-organic-accent-800 rounded-organic-tile p-[22px] text-organic-accent-100 relative overflow-hidden">
         <div className="relative">
           <div className="text-xs opacity-85 mb-1">Next session</div>
-          <div className="font-heading text-[22px] mb-0.5">Thursday · 10:00 AM</div>
-          <div className="text-[13px] opacity-85 mb-4">with Dr. Heba Moustafa · video call</div>
-          <button className="rounded-organic-pill bg-organic-accent-100 text-organic-accent-800 font-heading text-[13.5px] px-[18px] py-2.5">
+          <div className="font-heading text-[1.375rem] mb-0.5">Thursday · 10:00 AM</div>
+          <div className="text-[0.8125rem] opacity-85 mb-4">with Dr. Heba Moustafa · video call</div>
+          <button className="rounded-organic-pill bg-organic-accent-100 text-organic-accent-800 font-heading text-[0.8438rem] px-[18px] py-2.5">
             Join &amp; prepare
           </button>
         </div>
       </div>
 
       <div className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm">
-        <div className="font-heading text-[17px] mb-3.5">How are you feeling today?</div>
+        <div className="font-heading text-[1.0625rem] mb-3.5">How are you feeling today?</div>
         <div className="flex justify-between gap-1.5">
           {MOODS.map((m, i) => {
             const sel = mood === i
@@ -126,7 +130,7 @@ function HomeTab({ onGoChat, onGoTasks, mood, setMood }: { onGoChat: () => void;
                 className={`flex-1 rounded-organic-tile py-3 flex flex-col items-center gap-1.5 ${sel ? 'bg-organic-accent-200' : 'bg-organic-neutral-100'}`}
               >
                 <m.icon size={22} className={sel ? 'text-organic-accent-800' : 'text-organic-neutral-600'} />
-                <span className={`text-[10.5px] font-semibold ${sel ? 'text-organic-accent-800' : 'text-organic-neutral-600'}`}>{m.label}</span>
+                <span className={`text-[0.7812rem] font-semibold ${sel ? 'text-organic-accent-800' : 'text-organic-neutral-600'}`}>{m.label}</span>
               </button>
             )
           })}
@@ -136,7 +140,7 @@ function HomeTab({ onGoChat, onGoTasks, mood, setMood }: { onGoChat: () => void;
       <div>
         <div className="flex justify-between items-center mb-2.5">
           <h3 className="text-lg font-heading">Today&apos;s tasks</h3>
-          <button onClick={onGoTasks} className="text-[12.5px] text-organic-accent">See all</button>
+          <button onClick={onGoTasks} className="text-[0.7812rem] text-organic-accent">See all</button>
         </div>
         <div className="flex flex-col gap-2.5">
           {HOME_TASKS.map((t) => (
@@ -160,7 +164,7 @@ function HomeTab({ onGoChat, onGoTasks, mood, setMood }: { onGoChat: () => void;
         </div>
         <div className="flex-1">
           <div className="font-heading text-base text-organic-accent-2-900">Talk to Aria</div>
-          <div className="text-[12.5px] text-organic-accent-2-800">Your AI companion, here anytime</div>
+          <div className="text-[0.7812rem] text-organic-accent-2-800">Your AI companion, here anytime</div>
         </div>
         <ArrowRight size={19} className="text-organic-accent-2-700" />
       </button>
@@ -187,7 +191,7 @@ function ChatTab() {
         </div>
         <div>
           <div className="font-heading text-lg">Aria</div>
-          <div className="text-[11.5px] text-organic-accent-2-700">● Always here to listen</div>
+          <div className="text-[0.7812rem] text-organic-accent-2-700">● Always here to listen</div>
         </div>
       </div>
       {CHAT_MESSAGES.map((m, i) => (
@@ -205,7 +209,7 @@ function ChatTab() {
       ))}
       <div className="flex gap-2 flex-wrap mt-0.5">
         {CHIPS.map((c) => (
-          <span key={c} className="text-[12.5px] px-3.5 py-2 rounded-organic-pill bg-organic-surface border border-organic-neutral-300/60 text-organic-neutral-800">
+          <span key={c} className="text-[0.7812rem] px-3.5 py-2 rounded-organic-pill bg-organic-surface border border-organic-neutral-300/60 text-organic-neutral-800">
             {c}
           </span>
         ))}
@@ -216,7 +220,7 @@ function ChatTab() {
           <ArrowUp size={19} className="text-organic-accent-100" />
         </button>
       </div>
-      <div className="flex items-center gap-2 justify-center text-[11px] text-organic-neutral-600 mt-0.5">
+      <div className="flex items-center gap-2 justify-center text-[0.7812rem] text-organic-neutral-600 mt-0.5">
         <Shield size={13} /> Aria isn&apos;t a crisis service. In an emergency, call your local line.
       </div>
     </div>
@@ -237,11 +241,11 @@ function TasksTab() {
   const completed = TASKS.filter((t) => t.done).length
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-[26px] font-heading">Your homework</h2>
+      <h2 className="text-[1.625rem] font-heading">Your homework</h2>
       <div className="bg-organic-accent-2-100 rounded-organic-tile px-[18px] py-4 flex items-center gap-3.5">
         <div className="font-heading text-3xl text-organic-accent-2-800">{completed}/{TASKS.length}</div>
         <div className="flex-1">
-          <div className="font-semibold text-[13.5px] text-organic-accent-2-900">Completed this week</div>
+          <div className="font-semibold text-[0.8438rem] text-organic-accent-2-900">Completed this week</div>
           <div className="h-1.5 rounded-organic-pill bg-organic-accent-2-200 mt-1.5 overflow-hidden">
             <div className="h-full bg-organic-accent-2-500" style={{ width: `${(completed / TASKS.length) * 100}%` }} />
           </div>
@@ -257,7 +261,7 @@ function TasksTab() {
               <div className={`font-semibold text-sm ${t.done ? 'text-organic-neutral-500 line-through' : 'text-organic-text'}`}>{t.title}</div>
               <div className="text-xs text-organic-neutral-600">{t.meta}</div>
             </div>
-            <span className="text-[10.5px] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-200 text-organic-neutral-700">{t.type}</span>
+            <span className="text-[0.7812rem] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-200 text-organic-neutral-700">{t.type}</span>
           </div>
         ))}
       </div>
@@ -275,21 +279,21 @@ const SCORES = [
 function ProgressTab() {
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-[26px] font-heading">Your progress</h2>
+      <h2 className="text-[1.625rem] font-heading">Your progress</h2>
       <div className="flex gap-3">
         <div className="flex-1 bg-organic-surface rounded-organic-tile p-4 shadow-organic-sm">
-          <div className="font-heading text-[28px] text-organic-accent-700">12</div>
+          <div className="font-heading text-[1.75rem] text-organic-accent-700">12</div>
           <div className="text-xs text-organic-neutral-600">Day streak</div>
         </div>
         <div className="flex-1 bg-organic-surface rounded-organic-tile p-4 shadow-organic-sm">
-          <div className="font-heading text-[28px] text-organic-accent-2-700">8</div>
+          <div className="font-heading text-[1.75rem] text-organic-accent-2-700">8</div>
           <div className="text-xs text-organic-neutral-600">Sessions done</div>
         </div>
       </div>
       <div className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm">
         <div className="flex justify-between items-center mb-3.5">
-          <h3 className="text-[17px] font-heading">Mood this month</h3>
-          <span className="text-[11px] text-organic-accent-2-700 font-semibold">Trending up</span>
+          <h3 className="text-[1.0625rem] font-heading">Mood this month</h3>
+          <span className="text-[0.7812rem] text-organic-accent-2-700 font-semibold">Trending up</span>
         </div>
         <svg viewBox="0 0 320 130" className="w-full h-[130px]">
           <defs>
@@ -303,11 +307,11 @@ function ProgressTab() {
         </svg>
       </div>
       <div className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm">
-        <h3 className="text-[17px] font-heading mb-3.5">Assessment scores</h3>
+        <h3 className="text-[1.0625rem] font-heading mb-3.5">Assessment scores</h3>
         <div className="flex flex-col gap-3.5">
           {SCORES.map((s) => (
             <div key={s.name}>
-              <div className="flex justify-between text-[13px] mb-1.5">
+              <div className="flex justify-between text-[0.8125rem] mb-1.5">
                 <span className="font-semibold">{s.name}</span>
                 <span className="text-organic-neutral-700">
                   {s.now} · {s.band} <span className="text-organic-accent-2-700">{s.delta}</span>

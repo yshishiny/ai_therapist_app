@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore'
 import apiClient from '../services/api'
 import { useSampleDataHidden } from '../hooks/useSampleDataHidden'
 import { SampleGate } from '../components/SampleGate'
+import { TextSizeControl } from '../components/TextSizeControl'
 import {
   Brain,
   LayoutGrid,
@@ -126,10 +127,11 @@ export default function ClinicianWorkspace() {
       <main className="flex-1 min-w-0 px-9 pt-8 pb-16 max-w-[1240px]">
         <header className="flex justify-between items-end gap-5 flex-wrap mb-7">
           <div>
-            <h1 className="text-[34px] font-heading text-organic-text mb-1">{title}</h1>
+            <h1 className="text-[2.125rem] font-heading text-organic-text mb-1">{title}</h1>
             <p className="text-organic-neutral-600 text-sm">{subtitle}</p>
           </div>
           <div className="flex gap-2.5 items-center">
+            <TextSizeControl />
             <div className="flex items-center gap-2 bg-organic-surface border border-organic-neutral-300/60 rounded-organic-pill px-3.5 py-2 min-w-[190px]">
               <Search size={16} className="text-organic-neutral-500" />
               <span className="text-sm text-organic-neutral-500">Find patient…</span>
@@ -260,7 +262,7 @@ function NewSessionModal({ onClose, onStarted }: { onClose: () => void; onStarte
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-start mb-4">
-          <h2 className="text-[22px] font-heading text-organic-text">New session</h2>
+          <h2 className="text-[1.375rem] font-heading text-organic-text">New session</h2>
           <button onClick={onClose} className="text-organic-neutral-500 hover:text-organic-neutral-800 text-2xl leading-none">
             &times;
           </button>
@@ -299,7 +301,7 @@ function NewSessionModal({ onClose, onStarted }: { onClose: () => void; onStarte
             <div className="flex items-center justify-between bg-organic-accent-100 rounded-organic-tile px-3.5 py-2.5 mb-4">
               <div>
                 {autoDetected && (
-                  <div className="text-[11px] uppercase tracking-wide text-organic-accent-700 mb-0.5">
+                  <div className="text-[0.7812rem] uppercase tracking-wide text-organic-accent-700 mb-0.5">
                     From your current appointment
                   </div>
                 )}
@@ -407,7 +409,7 @@ function SessionRunner({
       <div className="max-w-[720px] mx-auto px-8 py-10" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
         <div className="flex justify-between items-start mb-2">
           <div>
-            <h2 className="text-[26px] font-heading text-organic-text">Session with {session.patient_name}</h2>
+            <h2 className="text-[1.625rem] font-heading text-organic-text">Session with {session.patient_name}</h2>
             <p className="text-sm text-organic-neutral-600">
               {assessments.length === 0
                 ? 'No assessments queued — close whenever you\'re done.'
@@ -429,7 +431,7 @@ function SessionRunner({
               <button
                 key={l}
                 onClick={() => setLang(l)}
-                className={`font-heading text-[13px] px-4 py-1.5 rounded-organic-pill ${lang === l ? 'bg-organic-accent text-organic-neutral-100' : 'text-organic-neutral-700'}`}
+                className={`font-heading text-[0.8125rem] px-4 py-1.5 rounded-organic-pill ${lang === l ? 'bg-organic-accent text-organic-neutral-100' : 'text-organic-neutral-700'}`}
               >
                 {l === 'en' ? 'English' : 'العربية'}
               </button>
@@ -549,7 +551,7 @@ function IconRail({
               className="w-[54px] h-[54px] rounded-2xl flex flex-col items-center justify-center gap-0.5 text-organic-neutral-500 opacity-40 cursor-not-allowed select-none"
             >
               <Icon size={21} />
-              <span className="text-[9px] font-semibold">{short}</span>
+              <span className="text-[0.7812rem] font-semibold">{short}</span>
             </div>
           )
         }
@@ -563,7 +565,7 @@ function IconRail({
             }`}
           >
             <Icon size={21} />
-            <span className="text-[9px] font-semibold">{short}</span>
+            <span className="text-[0.7812rem] font-semibold">{short}</span>
           </button>
         )
       })}
@@ -578,7 +580,7 @@ function IconRail({
           }`}
         >
           {hideSampleData ? <EyeOff size={18} /> : <Eye size={18} />}
-          <span className="text-[9px] font-semibold">Samples</span>
+          <span className="text-[0.7812rem] font-semibold">Samples</span>
         </button>
         <button
           onClick={onOpenAdmin}
@@ -586,7 +588,7 @@ function IconRail({
           className="w-[54px] h-[54px] rounded-2xl flex flex-col items-center justify-center gap-0.5 text-organic-neutral-700 hover:bg-organic-neutral-200 transition-colors"
         >
           <LayoutDashboard size={21} />
-          <span className="text-[9px] font-semibold">Admin</span>
+          <span className="text-[0.7812rem] font-semibold">Admin</span>
         </button>
         <button
           onClick={onLogout}
@@ -594,7 +596,7 @@ function IconRail({
           className="w-[54px] h-[44px] rounded-2xl flex flex-col items-center justify-center gap-0.5 text-organic-neutral-700 hover:bg-organic-neutral-200 transition-colors"
         >
           <LogOut size={19} />
-          <span className="text-[9px] font-semibold">Log out</span>
+          <span className="text-[0.7812rem] font-semibold">Log out</span>
         </button>
       </div>
     </aside>
@@ -647,13 +649,13 @@ function CaseloadView({
                 <span className="text-xs text-organic-neutral-600">{st.label}</span>
                 <st.icon size={16} className="text-organic-accent-500" />
               </div>
-              <div className="font-heading text-[28px] mt-1.5 text-organic-text">{st.value}</div>
+              <div className="font-heading text-[1.75rem] mt-1.5 text-organic-text">{st.value}</div>
             </div>
           ))}
         </div>
 
         <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
-          <h3 className="text-[19px] font-heading text-organic-text mb-3">Today&apos;s schedule</h3>
+          <h3 className="text-[1.1875rem] font-heading text-organic-text mb-3">Today&apos;s schedule</h3>
           <div className="flex flex-col">
             {!dashboard && <div className="text-sm text-organic-neutral-600 py-2">Loading…</div>}
             {dashboard && dashboard.today_schedule.length === 0 && (
@@ -666,14 +668,14 @@ function CaseloadView({
                 className="flex items-center gap-3.5 py-3 px-1 border-b border-organic-text/[0.07] last:border-b-0 text-left"
               >
                 <span className="text-sm font-bold text-organic-accent-700 w-14">{formatTime(s.start_time)}</span>
-                <div className="w-9 h-9 rounded-full bg-organic-accent-200 grid place-items-center text-[11px] font-bold text-organic-accent-800">
+                <div className="w-9 h-9 rounded-full bg-organic-accent-200 grid place-items-center text-[0.7812rem] font-bold text-organic-accent-800">
                   {initialsOf(s.patient_name)}
                 </div>
                 <div className="flex-1">
                   <div className="font-semibold text-sm text-organic-text">{s.patient_name}</div>
                   <div className="text-xs text-organic-neutral-600">{s.location === 'ONLINE' ? 'Video' : 'In person'} · {s.status}</div>
                 </div>
-                <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill ${riskStyle(s.patient_risk).bg} ${riskStyle(s.patient_risk).color}`}>
+                <span className={`text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-pill ${riskStyle(s.patient_risk).bg} ${riskStyle(s.patient_risk).color}`}>
                   {s.patient_risk}
                 </span>
               </button>
@@ -686,7 +688,7 @@ function CaseloadView({
         <div className="bg-organic-accent-100 rounded-organic-card p-5">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle size={17} className="text-organic-accent-700" />
-            <h3 className="text-[17px] font-heading text-organic-accent-800">Needs review</h3>
+            <h3 className="text-[1.0625rem] font-heading text-organic-accent-800">Needs review</h3>
           </div>
           <div className="flex flex-col gap-2.5">
             {dashboard && dashboard.needs_review.length === 0 && (
@@ -698,7 +700,7 @@ function CaseloadView({
                 onClick={() => onOpenPatient({ id: f.patient_id, name: f.patient_name })}
                 className="bg-organic-bg rounded-organic-tile p-3 text-left w-full"
               >
-                <div className="font-semibold text-[13.5px] text-organic-text">{f.patient_name}</div>
+                <div className="font-semibold text-[0.8438rem] text-organic-text">{f.patient_name}</div>
                 <div className="text-xs text-organic-neutral-700">
                   {f.instrument_name}{f.interpretation_text ? ` — ${f.interpretation_text}` : ' flagged'}
                 </div>
@@ -708,13 +710,13 @@ function CaseloadView({
         </div>
 
         <div className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm">
-          <h3 className="text-[17px] font-heading text-organic-text mb-3">Tasks</h3>
+          <h3 className="text-[1.0625rem] font-heading text-organic-text mb-3">Tasks</h3>
           <div className="flex flex-col gap-2.5">
             {dashboard && dashboard.notes_due.length === 0 && (
-              <div className="text-[13.5px] text-organic-neutral-600">All session notes are signed off.</div>
+              <div className="text-[0.8438rem] text-organic-neutral-600">All session notes are signed off.</div>
             )}
             {dashboard?.notes_due.map((n) => (
-              <div key={n.note_id} className="flex items-center gap-2.5 text-[13.5px] text-organic-text">
+              <div key={n.note_id} className="flex items-center gap-2.5 text-[0.8438rem] text-organic-text">
                 <span className="w-5 h-5 rounded-[6px] border-2 border-organic-neutral-400 flex-none" />
                 Sign session note · {n.patient_name}
               </div>
@@ -899,7 +901,7 @@ function profilePatch(detail: PatientDetail, draft: ProfileDraft): Record<string
   return patch
 }
 
-const DT_CLASS = 'text-[11px] font-semibold tracking-wide uppercase text-organic-neutral-600 mb-0.5'
+const DT_CLASS = 'text-[0.7812rem] font-semibold tracking-wide uppercase text-organic-neutral-600 mb-0.5'
 const INPUT_CLASS = 'w-full bg-organic-bg border border-organic-neutral-300/60 rounded-organic-tile px-3 py-2 text-sm'
 const FORM_LABEL_CLASS = 'block text-xs font-semibold text-organic-neutral-600 mb-1.5'
 
@@ -907,7 +909,7 @@ function ProfileField({ label, value }: { label: string; value: string | null })
   return (
     <div>
       <dt className={DT_CLASS}>{label}</dt>
-      <dd className={`text-[13.5px] ${value ? 'text-organic-text' : 'text-organic-neutral-500 italic'}`}>
+      <dd className={`text-[0.8438rem] ${value ? 'text-organic-text' : 'text-organic-neutral-500 italic'}`}>
         {value || 'Not recorded'}
       </dd>
     </div>
@@ -977,7 +979,7 @@ function PatientProfileCard({
         {detail && !draft && (
           <button
             onClick={startEdit}
-            className="rounded-organic-pill border border-organic-neutral-300/70 bg-transparent font-heading text-[12.5px] px-3.5 py-1.5 text-organic-text hover:bg-organic-neutral-100 transition-colors"
+            className="rounded-organic-pill border border-organic-neutral-300/70 bg-transparent font-heading text-[0.7812rem] px-3.5 py-1.5 text-organic-text hover:bg-organic-neutral-100 transition-colors"
           >
             Edit
           </button>
@@ -1012,12 +1014,12 @@ function PatientProfileCard({
             <dd>
               {detail.risk ? (
                 <span
-                  className={`inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill ${riskStyle(detail.risk).bg} ${riskStyle(detail.risk).color}`}
+                  className={`inline-block text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-pill ${riskStyle(detail.risk).bg} ${riskStyle(detail.risk).color}`}
                 >
                   {detail.risk}
                 </span>
               ) : (
-                <span className="text-[13.5px] text-organic-neutral-500 italic">Not recorded</span>
+                <span className="text-[0.8438rem] text-organic-neutral-500 italic">Not recorded</span>
               )}
             </dd>
           </div>
@@ -1026,14 +1028,14 @@ function PatientProfileCard({
             <dd>
               {detail.wellbeing_status ? (
                 <span
-                  className={`inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill ${
+                  className={`inline-block text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-pill ${
                     (WELLBEING_STYLE[detail.wellbeing_status] || WELLBEING_STYLE.GREEN).bg
                   } ${(WELLBEING_STYLE[detail.wellbeing_status] || WELLBEING_STYLE.GREEN).color}`}
                 >
                   {(WELLBEING_STYLE[detail.wellbeing_status] || { label: detail.wellbeing_status }).label}
                 </span>
               ) : (
-                <span className="text-[13.5px] text-organic-neutral-500 italic">Not recorded</span>
+                <span className="text-[0.8438rem] text-organic-neutral-500 italic">Not recorded</span>
               )}
             </dd>
           </div>
@@ -1041,7 +1043,7 @@ function PatientProfileCard({
             <dt className={DT_CLASS}>AI analysis consent</dt>
             <dd>
               <span
-                className={`inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill ${
+                className={`inline-block text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-pill ${
                   detail.consent_ai_analysis
                     ? 'bg-organic-accent-2-200 text-organic-accent-2-800'
                     : 'bg-organic-neutral-200 text-organic-neutral-700'
@@ -1285,9 +1287,9 @@ function ChartView({
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2.5">
-            <span className="font-heading text-[22px] text-organic-text">{patient.name}</span>
+            <span className="font-heading text-[1.375rem] text-organic-text">{patient.name}</span>
             {detail && (
-              <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill ${riskStyle(detail.risk).bg} ${riskStyle(detail.risk).color}`}>
+              <span className={`text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-pill ${riskStyle(detail.risk).bg} ${riskStyle(detail.risk).color}`}>
                 {detail.risk} risk
               </span>
             )}
@@ -1336,7 +1338,7 @@ function ChartView({
                 <div key={n.id} className="flex items-start gap-3.5 py-3 px-1 border-b border-organic-text/[0.07] last:border-b-0">
                   <FileText size={17} className="text-organic-accent-600 mt-0.5 flex-none" />
                   <div className="flex-1 min-w-0">
-                    <div className="text-[13.5px] text-organic-text">{notePreview(n)}</div>
+                    <div className="text-[0.8438rem] text-organic-text">{notePreview(n)}</div>
                     <div className="text-xs text-organic-neutral-600 mt-0.5">
                       {new Date(n.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} · {n.template}
                     </div>
@@ -1367,7 +1369,7 @@ function ChartView({
                   <div className="flex justify-between items-center text-xs text-organic-neutral-600 mt-0.5">
                     <span>{new Date(r.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                     {r.flagged && (
-                      <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-organic-pill bg-organic-accent-200 text-organic-accent-800">
+                      <span className="text-[0.7812rem] font-semibold px-2 py-0.5 rounded-organic-pill bg-organic-accent-200 text-organic-accent-800">
                         Flagged
                       </span>
                     )}
@@ -1421,10 +1423,10 @@ function ScribeView() {
         <div className="flex flex-col gap-3">
           {TRANSCRIPT.map((t, i) => (
             <div key={i}>
-              <div className={`text-[11px] font-bold mb-0.5 ${t.who === 'CLINICIAN' ? 'text-organic-accent-700' : 'text-organic-accent-2-700'}`}>
+              <div className={`text-[0.7812rem] font-bold mb-0.5 ${t.who === 'CLINICIAN' ? 'text-organic-accent-700' : 'text-organic-accent-2-700'}`}>
                 {t.who}
               </div>
-              <div className="text-[13.5px] text-organic-neutral-800 leading-relaxed">{t.text}</div>
+              <div className="text-[0.8438rem] text-organic-neutral-800 leading-relaxed">{t.text}</div>
             </div>
           ))}
         </div>
@@ -1439,8 +1441,8 @@ function ScribeView() {
           <div className="flex flex-col gap-3">
             {SOAP.map((s) => (
               <div key={s.k}>
-                <div className="text-[11px] font-bold tracking-wide uppercase text-organic-accent-700 mb-0.5">{s.k}</div>
-                <div className="text-[13px] text-organic-neutral-800 leading-relaxed">{s.v}</div>
+                <div className="text-[0.7812rem] font-bold tracking-wide uppercase text-organic-accent-700 mb-0.5">{s.k}</div>
+                <div className="text-[0.8125rem] text-organic-neutral-800 leading-relaxed">{s.v}</div>
               </div>
             ))}
           </div>
@@ -1489,8 +1491,8 @@ function PlanView() {
     <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-4">
       <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-[19px] font-heading text-organic-text">Treatment plan · Maya O.</h3>
-          <span className="text-[11px] px-3 py-1 rounded-organic-pill bg-organic-accent-2-100 text-organic-accent-2-800 font-semibold">
+          <h3 className="text-[1.1875rem] font-heading text-organic-text">Treatment plan · Maya O.</h3>
+          <span className="text-[0.7812rem] px-3 py-1 rounded-organic-pill bg-organic-accent-2-100 text-organic-accent-2-800 font-semibold">
             CBT · 12 weeks
           </span>
         </div>
@@ -1519,7 +1521,7 @@ function PlanView() {
               </div>
               <div className="pb-[18px]">
                 <div className="font-bold text-sm text-organic-text">{p.title}</div>
-                <div className="text-[12.5px] text-organic-neutral-600">{p.detail}</div>
+                <div className="text-[0.7812rem] text-organic-neutral-600">{p.detail}</div>
               </div>
             </div>
           ))}
@@ -1529,7 +1531,7 @@ function PlanView() {
       <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
         <div className="flex justify-between items-center mb-3.5">
           <h3 className="text-lg font-heading text-organic-text">Assign homework</h3>
-          <button className="rounded-organic-pill bg-organic-accent text-organic-accent-100 text-[12.5px] font-heading px-3.5 py-2 hover:bg-organic-accent-600 transition-colors">
+          <button className="rounded-organic-pill bg-organic-accent text-organic-accent-100 text-[0.7812rem] font-heading px-3.5 py-2 hover:bg-organic-accent-600 transition-colors">
             + Add
           </button>
         </div>
@@ -1540,8 +1542,8 @@ function PlanView() {
                 <h.icon size={18} className="text-organic-accent-700" />
               </div>
               <div className="flex-1">
-                <div className="font-semibold text-[13.5px] text-organic-text">{h.title}</div>
-                <div className="text-[11.5px] text-organic-neutral-600">{h.meta}</div>
+                <div className="font-semibold text-[0.8438rem] text-organic-text">{h.title}</div>
+                <div className="text-[0.7812rem] text-organic-neutral-600">{h.meta}</div>
               </div>
               {h.done ? (
                 <CheckCircle2 size={17} className="text-organic-accent-2-600" />

@@ -54,7 +54,7 @@ export default function PlatformAdminPortal() {
           </div>
           <div className="leading-tight">
             <div className="font-heading text-base text-organic-neutral-100">AI Therapist</div>
-            <div className="text-[11px] text-organic-neutral-500">Platform console</div>
+            <div className="text-[0.7812rem] text-organic-neutral-500">Platform console</div>
           </div>
         </div>
 
@@ -62,7 +62,7 @@ export default function PlatformAdminPortal() {
           <button
             key={v}
             onClick={() => setView(v)}
-            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-organic-tile text-[14.5px] transition-colors text-left ${
+            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-organic-tile text-[0.9062rem] transition-colors text-left ${
               v === view ? 'bg-organic-accent text-organic-neutral-100 font-bold' : 'text-organic-neutral-300 font-semibold hover:bg-white/5'
             }`}
           >
@@ -74,8 +74,8 @@ export default function PlatformAdminPortal() {
         <div className="mt-auto flex items-center gap-2.5 pt-2.5 px-2 border-t border-white/10">
           <div className="w-[34px] h-[34px] rounded-full bg-organic-accent-500 grid place-items-center font-bold text-xs text-organic-accent-100">YS</div>
           <div className="leading-tight">
-            <div className="text-[13px] font-semibold text-organic-neutral-100">Y. Shishiny</div>
-            <div className="text-[11px] text-organic-neutral-500">Platform owner</div>
+            <div className="text-[0.8125rem] font-semibold text-organic-neutral-100">Y. Shishiny</div>
+            <div className="text-[0.7812rem] text-organic-neutral-500">Platform owner</div>
           </div>
         </div>
       </aside>
@@ -83,7 +83,7 @@ export default function PlatformAdminPortal() {
       <main className="flex-1 min-w-0 px-9 pt-8 pb-16 max-w-[1240px]">
         <header className="flex justify-between items-end gap-5 flex-wrap mb-7">
           <div>
-            <h1 className="text-[34px] font-heading text-organic-text mb-1">{TITLES[view]}</h1>
+            <h1 className="text-[2.125rem] font-heading text-organic-text mb-1">{TITLES[view]}</h1>
             <p className="text-organic-neutral-600 text-sm">{SUBTITLES[view]}</p>
           </div>
           <button className="rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm px-5 py-2.5 inline-flex items-center gap-2">
@@ -125,7 +125,7 @@ function OverviewView() {
               <span className="text-xs text-organic-neutral-600">{st.label}</span>
               <st.icon size={17} className="text-organic-accent-500" />
             </div>
-            <div className="font-heading text-[34px] my-1.5">{st.value}</div>
+            <div className="font-heading text-[2.125rem] my-1.5">{st.value}</div>
             <div className="text-xs text-organic-accent-2-700">{st.trend}</div>
           </div>
         ))}
@@ -152,7 +152,7 @@ function OverviewView() {
           <div className="flex flex-col gap-3.5">
             {PLAN_MIX.map((p) => (
               <div key={p.name}>
-                <div className="flex justify-between text-[13px] mb-1.5">
+                <div className="flex justify-between text-[0.8125rem] mb-1.5">
                   <span className="font-semibold">{p.name}</span>
                   <span className="text-organic-neutral-700">{p.count} clinics</span>
                 </div>
@@ -196,11 +196,11 @@ function TenantsView() {
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr>
-            <th className="text-left text-[11px] tracking-wide uppercase text-organic-neutral-600 px-2 py-3.5 border-b border-organic-neutral-300/60">Clinic</th>
-            <th className="text-left text-[11px] tracking-wide uppercase text-organic-neutral-600 px-2 py-3.5 border-b border-organic-neutral-300/60">Plan</th>
-            <th className="text-left text-[11px] tracking-wide uppercase text-organic-neutral-600 px-2 py-3.5 border-b border-organic-neutral-300/60">Seats</th>
-            <th className="text-left text-[11px] tracking-wide uppercase text-organic-neutral-600 px-2 py-3.5 border-b border-organic-neutral-300/60">MRR</th>
-            <th className="text-left text-[11px] tracking-wide uppercase text-organic-neutral-600 px-2 py-3.5 border-b border-organic-neutral-300/60">Status</th>
+            <th className="text-left text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-3.5 border-b border-organic-neutral-300/60">Clinic</th>
+            <th className="text-left text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-3.5 border-b border-organic-neutral-300/60">Plan</th>
+            <th className="text-left text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-3.5 border-b border-organic-neutral-300/60">Seats</th>
+            <th className="text-left text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-3.5 border-b border-organic-neutral-300/60">MRR</th>
+            <th className="text-left text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-3.5 border-b border-organic-neutral-300/60">Status</th>
           </tr>
         </thead>
         <tbody>
@@ -213,12 +213,12 @@ function TenantsView() {
                 </div>
               </td>
               <td className="px-2 py-3.5 border-b border-organic-text/[0.08]">
-                <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill ${PLAN_STYLE[t.plan]}`}>{t.plan}</span>
+                <span className={`text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-pill ${PLAN_STYLE[t.plan]}`}>{t.plan}</span>
               </td>
               <td className="px-2 py-3.5 border-b border-organic-text/[0.08] text-organic-neutral-700">{t.seats}</td>
               <td className="px-2 py-3.5 border-b border-organic-text/[0.08] font-semibold">{t.mrr}</td>
               <td className="px-2 py-3.5 border-b border-organic-text/[0.08]">
-                <span className="inline-flex items-center gap-1.5 text-[12.5px]">
+                <span className="inline-flex items-center gap-1.5 text-[0.7812rem]">
                   <span className={`w-2 h-2 rounded-full ${STATUS_DOT[t.status]}`} />
                   {t.status}
                 </span>
@@ -249,12 +249,12 @@ function PlansView() {
             <Pencil size={15} className="text-organic-neutral-500" />
           </div>
           <div className="flex items-baseline gap-1.5 mb-4">
-            <span className="font-heading text-[34px] text-organic-accent-700">{pl.price}</span>
+            <span className="font-heading text-[2.125rem] text-organic-accent-700">{pl.price}</span>
             <span className="text-xs text-organic-neutral-500">{pl.per}</span>
           </div>
           <div className="flex flex-col gap-2.5 flex-1 mb-[18px]">
             {pl.feats.map((f) => (
-              <div key={f} className="flex items-center gap-2 text-[13px] text-organic-neutral-800">
+              <div key={f} className="flex items-center gap-2 text-[0.8125rem] text-organic-neutral-800">
                 <Check size={15} className="text-organic-accent-2-600 flex-none" /> {f}
               </div>
             ))}
@@ -301,10 +301,10 @@ function CatalogView() {
               <div className="w-[46px] h-[46px] rounded-organic-tile bg-organic-accent-100 grid place-items-center">
                 <ClipboardList size={22} className="text-organic-accent-700" />
               </div>
-              <span className={`text-[10.5px] px-2.5 py-0.5 rounded-organic-pill ${TIER_STYLE[c.tier]}`}>{c.tier}</span>
+              <span className={`text-[0.7812rem] px-2.5 py-0.5 rounded-organic-pill ${TIER_STYLE[c.tier]}`}>{c.tier}</span>
             </div>
             <div>
-              <div className="font-bold text-[15px]">{c.name}</div>
+              <div className="font-bold text-[0.9375rem]">{c.name}</div>
               <div className="text-xs text-organic-neutral-600 mt-1">{c.desc}</div>
             </div>
             <div className="flex justify-between items-center pt-3 border-t border-organic-neutral-300/50 text-xs text-organic-neutral-700">
