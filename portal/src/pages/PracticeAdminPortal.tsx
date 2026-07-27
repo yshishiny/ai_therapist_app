@@ -734,14 +734,25 @@ function PatientDetailView({
 }) {
   const [folder, setFolder] = useState<string>('input')
   const [reassigning, setReassigning] = useState(false)
+  const [reassignError, setReassignError] = useState<string | null>(null)
   const [hideSampleData] = useSampleDataHidden()
 
+  // Transferring a patient between clinicians had no error handling: on a
+  // 403/404/500 the promise rejected unhandled, the select snapped back, and
+  // nothing told anyone. A failed care transfer looked exactly like a
+  // successful one -- meaning a patient could be believed to be on a
+  // colleague's caseload while remaining on nobody's.
   const handleReassign = async (newClinicianId: string) => {
     if (!newClinicianId || newClinicianId === patient.therapistId) return
     setReassigning(true)
+    setReassignError(null)
     try {
       await apiClient.updatePatient(patient.id, { therapist_id: newClinicianId })
       onReassigned()
+    } catch (err: any) {
+      setReassignError(
+        err?.response?.data?.detail || 'Could not reassign this patient. They remain with their current clinician.',
+      )
     } finally {
       setReassigning(false)
     }
@@ -780,6 +791,11 @@ function PatientDetailView({
           </select>
         </div>
       </div>
+      {reassignError && (
+        <div className="text-sm text-organic-accent-800 bg-organic-accent-100 rounded-organic-tile px-3.5 py-2.5 mb-3.5">
+          {reassignError}
+        </div>
+      )}
       <div className="grid grid-cols-[2fr_1fr] gap-4">
         <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
           <SampleGate hidden={hideSampleData} placeholder={<p className="text-[0.8125rem] text-organic-neutral-600">No documents uploaded yet.</p>}>
@@ -843,14 +859,6 @@ type CatalogEntry = {
   is_active: boolean
   current_published_version_number: number | null
 }
-
-const PHQ_BANDS = [
-  { label: 'Minimal', active: false },
-  { label: 'Mild', active: false },
-  { label: 'Moderate', active: false },
-  { label: 'Mod. severe', active: true },
-  { label: 'Severe', active: false },
-]
 
 function AssessmentsView() {
   const [catalog, setCatalog] = useState<CatalogEntry[]>([])
@@ -1063,41 +1071,17 @@ function AssessmentsView() {
         )}
       </div>
       <div className="bg-organic-surface rounded-organic-card p-6 shadow-organic-sm">
-        <div className="flex justify-between items-start mb-1.5">
-          <h3 className="text-[1.375rem] font-heading">PHQ-9 result</h3>
-          <span className="text-[0.7812rem] px-3 py-1 rounded-organic-pill bg-organic-accent-200 text-organic-accent-800 font-semibold">Maya Okonkwo</span>
-        </div>
-        <p className="text-[0.8125rem] text-organic-neutral-600 mb-5">Completed 2 days ago · scored automatically</p>
-        <div className="flex items-baseline gap-3 mb-[18px]">
-          <span className="font-heading text-[3.5rem] text-organic-accent-700 leading-none">14</span>
-          <span className="text-[0.9375rem] text-organic-neutral-700">/ 27 · <strong>Moderately severe</strong></span>
-        </div>
-        <div className="flex gap-1.5 mb-2">
-          {PHQ_BANDS.map((b) => (
-            <div key={b.label} className="flex-1">
-              <div className="h-2 rounded-organic-pill bg-organic-neutral-200" />
-            </div>
-          ))}
-        </div>
-        <div className="h-2 rounded-organic-pill bg-organic-neutral-200 overflow-hidden mb-1.5">
-          <div className="w-[56%] h-full bg-gradient-to-r from-organic-accent-2-400 via-organic-accent-500 to-organic-accent-700" />
-        </div>
-        <div className="flex justify-between text-[0.7812rem] text-organic-neutral-500 mb-5">
-          {PHQ_BANDS.map((b) => (
-            <span key={b.label}>{b.label}</span>
-          ))}
-        </div>
-        <div className="flex items-center gap-3 p-3.5 bg-organic-accent-100 rounded-organic-tile mb-5">
-          <AlertTriangle size={22} className="text-organic-accent-700 flex-none" />
-          <div>
-            <div className="font-bold text-[0.8438rem] text-organic-accent-800">Risk flag: Item 9 = 2</div>
-            <div className="text-xs text-organic-accent-800 opacity-85">Thoughts of self-harm reported — clinician alerted automatically.</div>
-          </div>
-        </div>
-        <div className="flex gap-2.5">
-          <button className="flex-1 rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm py-3">Assign follow-up</button>
-          <button className="rounded-organic-pill border border-organic-neutral-300/60 font-heading text-sm px-[18px] py-3">Export</button>
-        </div>
+        {/* This panel previously rendered a hardcoded PHQ-9 score of 14/27 for
+            an invented patient, complete with a red "Item 9 = 2 — thoughts of
+            self-harm" risk flag. It sat on a live screen next to real catalog
+            data and was indistinguishable from a genuine result. Fabricated
+            clinical findings must never render; a real result viewer belongs
+            here, reading from getPatientAssessments. */}
+        <h3 className="text-[1.375rem] font-heading mb-1.5">Assessment results</h3>
+        <p className="text-[0.8125rem] text-organic-neutral-600">
+          Open a patient from the Patients list to see their scored assessments,
+          severity bands and any risk flags.
+        </p>
       </div>
 
       {trialEntry && (

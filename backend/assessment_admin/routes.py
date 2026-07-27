@@ -265,6 +265,10 @@ async def create_assessment_catalog_item(
 
     now = datetime.now(timezone.utc)
     catalog_id = uuid.uuid4()
+    resolved_license_status = body.license_status or (
+        legacy_template["license_status"] if legacy_template else "VERIFY"
+    )
+
     await db.execute(
         """
         INSERT INTO assessment_catalog (
@@ -285,7 +289,7 @@ async def create_assessment_catalog_item(
             created_at,
             updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $15)
         """,
         catalog_id,
         uuid.UUID(user.org_id),
@@ -296,7 +300,11 @@ async def create_assessment_catalog_item(
         body.template_type or (legacy_template["template_type"] if legacy_template else None),
         body.category,
         body.category_ar,
-        body.license_status or (legacy_template["license_status"] if legacy_template else "VERIFY"),
+        resolved_license_status,
+        # An instrument that needs a licence starts life RESERVED (metadata
+        # only) rather than immediately usable.
+        "RESERVED" if resolved_license_status == "LICENSE_REQUIRED" else "AVAILABLE",
+        False,
         body.description,
         uuid.UUID(user.sub),
         now,

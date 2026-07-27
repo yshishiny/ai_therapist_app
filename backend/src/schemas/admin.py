@@ -10,6 +10,11 @@ class ResourceOut(BaseModel):
     category: str
     description: str | None
     file_url: str | None
+    # Carries the topic slug and the provenance marker (verified / unverified).
+    # The repository has always returned this; omitting it here made FastAPI
+    # strip it from every response, so a clinician could not tell a
+    # citation-checked reading list from an unchecked one.
+    tags: list[str] = []
     created_at: datetime
 
 

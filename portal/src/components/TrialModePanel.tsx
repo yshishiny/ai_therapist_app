@@ -169,7 +169,7 @@ export function TrialModePanel({
                       Enter License
                     </button>
                     <a
-                      href={`mailto:?subject=License request: ${encodeURIComponent(entry.name)}`}
+                      href={`mailto:?subject=${encodeURIComponent('License request: ' + entry.name)}&body=${encodeURIComponent('We would like to license ' + entry.name + ' for clinical use.')}`}
                       className="rounded-organic-pill border border-organic-neutral-300/60 text-organic-neutral-700 font-heading text-sm px-4 py-2"
                     >
                       Request License
