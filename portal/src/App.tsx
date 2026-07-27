@@ -3,11 +3,14 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useAuthStore } from './store/authStore'
 import ProtectedRoute from './components/ProtectedRoute'
 import LoginPage from './pages/Login'
-import DashboardPage from './pages/Dashboard'
-import PatientsPage from './pages/Patients'
-import AssessmentsPage from './pages/Assessments'
+import PracticeAdminPortal from './pages/PracticeAdminPortal'
+import PlatformAdminPortal from './pages/PlatformAdminPortal'
+import PortalHub from './pages/PortalHub'
 import ClinicianWorkspace from './pages/ClinicianWorkspace'
 import PatientApp from './pages/PatientApp'
+import { UserRole } from './types/auth'
+
+const STAFF_ROLES: UserRole[] = ['clinician', 'supervisor', 'admin']
 
 export default function App() {
   const { checkAuth } = useAuthStore()
@@ -21,7 +24,7 @@ export default function App() {
   }, [checkAuth])
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f5ead8' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#eff0f4' }}>
       <Router>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
@@ -29,26 +32,26 @@ export default function App() {
           <Route
             path="/"
             element={
-              <ProtectedRoute>
-                <DashboardPage />
+              <ProtectedRoute requiredRoles={STAFF_ROLES}>
+                <PracticeAdminPortal />
               </ProtectedRoute>
             }
           />
 
           <Route
-            path="/patients"
+            path="/platform-admin"
             element={
-              <ProtectedRoute>
-                <PatientsPage />
+              <ProtectedRoute requiredRoles={['admin']}>
+                <PlatformAdminPortal />
               </ProtectedRoute>
             }
           />
 
           <Route
-            path="/assessments"
+            path="/hub"
             element={
-              <ProtectedRoute>
-                <AssessmentsPage />
+              <ProtectedRoute requiredRoles={['admin']}>
+                <PortalHub />
               </ProtectedRoute>
             }
           />
@@ -56,7 +59,7 @@ export default function App() {
           <Route
             path="/workspace"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requiredRoles={STAFF_ROLES}>
                 <ClinicianWorkspace />
               </ProtectedRoute>
             }
@@ -71,6 +74,9 @@ export default function App() {
             }
           />
 
+          {/* Old top-nav pages are now views inside PracticeAdminPortal */}
+          <Route path="/patients" element={<Navigate to="/" replace />} />
+          <Route path="/assessments" element={<Navigate to="/" replace />} />
           <Route path="/sessions" element={<Navigate to="/" replace />} />
           <Route path="/settings" element={<Navigate to="/" replace />} />
           <Route path="/my-assessments" element={<Navigate to="/" replace />} />

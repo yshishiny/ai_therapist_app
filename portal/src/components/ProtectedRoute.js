@@ -7,7 +7,7 @@ export default function ProtectedRoute({ children, requiredRoles }) {
         return _jsx(Navigate, { to: "/login", replace: true });
     }
     if (requiredRoles && !requiredRoles.includes(user.role)) {
-        return _jsx(Navigate, { to: "/", replace: true });
+        return _jsx(Navigate, { to: user.role === 'patient' ? '/patient-app' : '/', replace: true });
     }
     return _jsx(_Fragment, { children: children });
 }

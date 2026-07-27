@@ -4,11 +4,12 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useAuthStore } from './store/authStore';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/Login';
-import DashboardPage from './pages/Dashboard';
-import PatientsPage from './pages/Patients';
-import AssessmentsPage from './pages/Assessments';
+import PracticeAdminPortal from './pages/PracticeAdminPortal';
+import PlatformAdminPortal from './pages/PlatformAdminPortal';
+import PortalHub from './pages/PortalHub';
 import ClinicianWorkspace from './pages/ClinicianWorkspace';
 import PatientApp from './pages/PatientApp';
+const STAFF_ROLES = ['clinician', 'supervisor', 'admin'];
 export default function App() {
     const { checkAuth } = useAuthStore();
     useEffect(() => {
@@ -19,5 +20,5 @@ export default function App() {
             console.error('Auth check failed:', error);
         }
     }, [checkAuth]);
-    return (_jsx("div", { style: { minHeight: '100vh', backgroundColor: '#f5ead8' }, children: _jsx(Router, { children: _jsxs(Routes, { children: [_jsx(Route, { path: "/login", element: _jsx(LoginPage, {}) }), _jsx(Route, { path: "/", element: _jsx(ProtectedRoute, { children: _jsx(DashboardPage, {}) }) }), _jsx(Route, { path: "/patients", element: _jsx(ProtectedRoute, { children: _jsx(PatientsPage, {}) }) }), _jsx(Route, { path: "/assessments", element: _jsx(ProtectedRoute, { children: _jsx(AssessmentsPage, {}) }) }), _jsx(Route, { path: "/workspace", element: _jsx(ProtectedRoute, { children: _jsx(ClinicianWorkspace, {}) }) }), _jsx(Route, { path: "/patient-app", element: _jsx(ProtectedRoute, { children: _jsx(PatientApp, {}) }) }), _jsx(Route, { path: "/sessions", element: _jsx(Navigate, { to: "/", replace: true }) }), _jsx(Route, { path: "/settings", element: _jsx(Navigate, { to: "/", replace: true }) }), _jsx(Route, { path: "/my-assessments", element: _jsx(Navigate, { to: "/", replace: true }) }), _jsx(Route, { path: "/homework", element: _jsx(Navigate, { to: "/", replace: true }) }), _jsx(Route, { path: "*", element: _jsx(Navigate, { to: "/", replace: true }) })] }) }) }));
+    return (_jsx("div", { style: { minHeight: '100vh', backgroundColor: '#eff0f4' }, children: _jsx(Router, { children: _jsxs(Routes, { children: [_jsx(Route, { path: "/login", element: _jsx(LoginPage, {}) }), _jsx(Route, { path: "/", element: _jsx(ProtectedRoute, { requiredRoles: STAFF_ROLES, children: _jsx(PracticeAdminPortal, {}) }) }), _jsx(Route, { path: "/platform-admin", element: _jsx(ProtectedRoute, { requiredRoles: ['admin'], children: _jsx(PlatformAdminPortal, {}) }) }), _jsx(Route, { path: "/hub", element: _jsx(ProtectedRoute, { requiredRoles: ['admin'], children: _jsx(PortalHub, {}) }) }), _jsx(Route, { path: "/workspace", element: _jsx(ProtectedRoute, { requiredRoles: STAFF_ROLES, children: _jsx(ClinicianWorkspace, {}) }) }), _jsx(Route, { path: "/patient-app", element: _jsx(ProtectedRoute, { children: _jsx(PatientApp, {}) }) }), _jsx(Route, { path: "/patients", element: _jsx(Navigate, { to: "/", replace: true }) }), _jsx(Route, { path: "/assessments", element: _jsx(Navigate, { to: "/", replace: true }) }), _jsx(Route, { path: "/sessions", element: _jsx(Navigate, { to: "/", replace: true }) }), _jsx(Route, { path: "/settings", element: _jsx(Navigate, { to: "/", replace: true }) }), _jsx(Route, { path: "/my-assessments", element: _jsx(Navigate, { to: "/", replace: true }) }), _jsx(Route, { path: "/homework", element: _jsx(Navigate, { to: "/", replace: true }) }), _jsx(Route, { path: "*", element: _jsx(Navigate, { to: "/", replace: true }) })] }) }) }));
 }

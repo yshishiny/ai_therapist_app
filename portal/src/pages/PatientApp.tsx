@@ -1,403 +1,323 @@
 import { useState } from 'react'
-import { Badge } from '../components/OrganicUI'
-import { Send } from 'lucide-react'
+import {
+  Bell,
+  Sparkles,
+  ArrowRight,
+  PenLine,
+  AudioLines,
+  ChevronRight,
+  Shield,
+  ArrowUp,
+  Home,
+  MessageCircle,
+  ListChecks,
+  LineChart,
+  Check,
+  Frown,
+  Annoyed,
+  Meh,
+  Smile,
+  Laugh,
+} from 'lucide-react'
 
-type PatientTab = 'home' | 'aria' | 'tasks' | 'progress'
+type Tab = 'home' | 'chat' | 'tasks' | 'progress'
 
-interface Message {
-  id: string
-  sender: 'user' | 'aria'
-  text: string
-  timestamp: string
+const TABS: { tab: Tab; label: string; icon: typeof Home }[] = [
+  { tab: 'home', label: 'Home', icon: Home },
+  { tab: 'chat', label: 'Aria', icon: MessageCircle },
+  { tab: 'tasks', label: 'Tasks', icon: ListChecks },
+  { tab: 'progress', label: 'Progress', icon: LineChart },
+]
+
+const MOODS: { icon: typeof Frown; label: string }[] = [
+  { icon: Frown, label: 'Low' },
+  { icon: Annoyed, label: 'Meh' },
+  { icon: Meh, label: 'Okay' },
+  { icon: Smile, label: 'Good' },
+  { icon: Laugh, label: 'Great' },
+]
+
+function greeting() {
+  const hr = new Date().getHours()
+  return hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening'
 }
 
 export default function PatientApp() {
-  const [currentTab, setCurrentTab] = useState<PatientTab>('home')
-  const [messages, setMessages] = useState<Message[]>([
-    { id: '1', sender: 'aria', text: 'Hi! How are you feeling today?', timestamp: '10:30 AM' },
-    { id: '2', sender: 'user', text: 'Better than yesterday, thanks for asking', timestamp: '10:31 AM' },
-    { id: '3', sender: 'aria', text: "That's wonderful! Keep up the good work with those breathing exercises.", timestamp: '10:32 AM' },
-  ])
-  const [messageInput, setMessageInput] = useState('')
-  const [moodCheckin, setMoodCheckin] = useState<number | null>(null)
-
-  const handleSendMessage = () => {
-    if (messageInput.trim()) {
-      setMessages([
-        ...messages,
-        { id: String(messages.length + 1), sender: 'user', text: messageInput, timestamp: 'Now' },
-      ])
-      setMessageInput('')
-      // Simulate Aria response
-      setTimeout(() => {
-        setMessages((prev) => [
-          ...prev,
-          { id: String(prev.length + 1), sender: 'aria', text: "I'm here to support you. Keep taking care of yourself!", timestamp: 'Now' },
-        ])
-      }, 1000)
-    }
-  }
+  const [tab, setTab] = useState<Tab>('home')
+  const [mood, setMood] = useState(2)
 
   return (
-    <div className="min-h-screen bg-organic-bg p-4 flex items-center justify-center">
-      {/* Phone Frame */}
-      <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden border-8 border-gray-900">
-        {/* Status Bar */}
-        <div className="bg-organic-text text-white px-6 py-2 flex justify-between items-center text-xs">
-          <span>9:41</span>
-          <div className="flex gap-1">
-            <span>📶</span>
-            <span>📡</span>
-            <span>🔋</span>
-          </div>
-        </div>
-
-        {/* App Content */}
-        <div className="bg-organic-bg min-h-screen flex flex-col">
-          {/* Header */}
-          <div className="bg-organic-surface px-4 py-4 border-b border-organic-neutral-200">
-            <div className="flex justify-between items-start mb-2">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-organic-accent-2 to-green-600 flex items-center justify-center text-white text-lg">
-                  🧘
-                </div>
-                <div>
-                  <p className="font-heading text-organic-text text-base">Good morning, Alex</p>
-                  <p className="text-xs text-organic-neutral-600">Ready to check in?</p>
-                </div>
-              </div>
-              <button className="relative">
-                <div className="text-xl">🔔</div>
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full" />
-              </button>
+    <div
+      className="min-h-screen flex justify-center items-start p-4 pt-6"
+      style={{ background: 'radial-gradient(circle at 30% 0%, #eceef3, #d9dce4)' }}
+    >
+      <div className="w-full max-w-[412px] bg-organic-bg rounded-[38px] shadow-organic-lg overflow-hidden relative min-h-[812px] flex flex-col">
+        <div className="px-[22px] pt-[22px] pb-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-[42px] h-[42px] rounded-full bg-organic-accent-300 grid place-items-center font-bold text-organic-accent-900">MO</div>
+            <div className="leading-tight">
+              <div className="text-xs text-organic-neutral-600">{greeting()}</div>
+              <div className="font-heading text-lg">Maya</div>
             </div>
           </div>
-
-          {/* Tab Content */}
-          <div className="flex-1 overflow-y-auto pb-24">
-            {currentTab === 'home' && <HomeTab moodCheckin={moodCheckin} onMoodChange={setMoodCheckin} />}
-            {currentTab === 'aria' && <AriaTab messages={messages} messageInput={messageInput} onMessageChange={setMessageInput} onSendMessage={handleSendMessage} />}
-            {currentTab === 'tasks' && <TasksTab />}
-            {currentTab === 'progress' && <ProgressTab />}
-          </div>
-
-          {/* Bottom Tab Bar */}
-          <div className="fixed bottom-0 left-0 right-0 max-w-sm mx-auto bg-white/80 backdrop-blur border-t border-organic-neutral-200 px-4 py-2 flex justify-around">
-            {[
-              { id: 'home', icon: '🏠', label: 'Home' },
-              { id: 'aria', icon: '💬', label: 'Aria' },
-              { id: 'tasks', icon: '✅', label: 'Tasks' },
-              { id: 'progress', icon: '📈', label: 'Progress' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setCurrentTab(tab.id as PatientTab)}
-                className={`flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${
-                  currentTab === tab.id
-                    ? 'bg-organic-accent text-organic-accent-100'
-                    : 'text-organic-neutral-600 hover:bg-organic-neutral-100'
-                }`}
-              >
-                <span className="text-xl">{tab.icon}</span>
-                <span className="text-xs font-medium">{tab.label}</span>
-              </button>
-            ))}
-          </div>
+          <button className="w-10 h-10 rounded-full border border-organic-neutral-300/60 bg-organic-surface grid place-items-center relative">
+            <Bell size={18} />
+            <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-organic-accent" />
+          </button>
         </div>
-      </div>
-    </div>
-  )
-}
 
-// Home Tab
-interface HomeTabProps {
-  moodCheckin: number | null
-  onMoodChange: (mood: number) => void
-}
+        <div className="flex-1 overflow-y-auto px-5 pb-[108px] pt-1.5">
+          {tab === 'home' && <HomeTab onGoChat={() => setTab('chat')} onGoTasks={() => setTab('tasks')} mood={mood} setMood={setMood} />}
+          {tab === 'chat' && <ChatTab />}
+          {tab === 'tasks' && <TasksTab />}
+          {tab === 'progress' && <ProgressTab />}
+        </div>
 
-function HomeTab({ moodCheckin, onMoodChange }: HomeTabProps) {
-  const moods = [
-    { emoji: '😢', label: 'Terrible', value: 0 },
-    { emoji: '😕', label: 'Bad', value: 1 },
-    { emoji: '😐', label: 'Okay', value: 2 },
-    { emoji: '🙂', label: 'Good', value: 3 },
-    { emoji: '😄', label: 'Great', value: 4 },
-  ]
-
-  return (
-    <div className="p-4 space-y-4">
-      {/* Next Session Card */}
-      <div className="bg-gradient-to-br from-organic-accent to-organic-accent-600 text-white rounded-2xl p-4">
-        <p className="text-xs text-organic-accent-100 mb-1">NEXT SESSION</p>
-        <p className="font-heading text-lg">Thu, 2:00 PM</p>
-        <p className="text-sm text-organic-accent-100 mt-1">with Dr. Moustafa</p>
-        <button className="mt-3 bg-white text-organic-accent px-4 py-2 rounded-full text-sm font-medium hover:bg-organic-accent-100 transition-colors">
-          Join & prepare
-        </button>
-      </div>
-
-      {/* Mood Check-in */}
-      <div className="bg-organic-surface rounded-2xl p-4 border border-organic-neutral-200">
-        <p className="font-medium text-organic-text text-sm mb-3">How are you feeling right now?</p>
-        <div className="flex justify-between gap-2">
-          {moods.map((mood) => (
+        <div
+          className="absolute bottom-0 left-0 right-0 border-t border-organic-neutral-300/50 px-[18px] pt-3 pb-[22px] flex justify-between"
+          style={{ background: 'rgba(247, 248, 250, 0.92)', backdropFilter: 'blur(10px)' }}
+        >
+          {TABS.map(({ tab: t, label, icon: Icon }) => (
             <button
-              key={mood.value}
-              onClick={() => onMoodChange(mood.value)}
-              className={`flex-1 py-2 rounded-xl transition-all ${
-                moodCheckin === mood.value
-                  ? 'bg-organic-accent-200 ring-2 ring-organic-accent'
-                  : 'bg-organic-neutral-100 hover:bg-organic-neutral-200'
-              }`}
-              title={mood.label}
+              key={t}
+              onClick={() => setTab(t)}
+              className={`flex-1 flex flex-col items-center gap-1 ${t === tab ? 'text-organic-accent' : 'text-organic-neutral-500'}`}
             >
-              <span className="text-2xl">{mood.emoji}</span>
+              <Icon size={23} />
+              <span className={`text-[10.5px] ${t === tab ? 'font-bold' : 'font-medium'}`}>{label}</span>
             </button>
           ))}
         </div>
       </div>
+    </div>
+  )
+}
 
-      {/* Today's Tasks Preview */}
-      <div className="bg-organic-surface rounded-2xl p-4 border border-organic-neutral-200">
-        <p className="font-medium text-organic-text text-sm mb-3">Today's tasks</p>
-        <div className="space-y-2">
-          {[
-            { title: 'Breathing exercises (3x)', done: false },
-            { title: 'Mood check-in', done: true },
-            { title: 'Journaling', done: false },
-          ].map((task, i) => (
-            <div key={i} className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={task.done} readOnly className="w-4 h-4 rounded" />
-              <span className={task.done ? 'line-through text-organic-neutral-500' : 'text-organic-text'}>
-                {task.title}
-              </span>
+// ─── Home ───────────────────────────────────────────────────────────────────
+
+const HOME_TASKS = [
+  { icon: PenLine, title: 'CBT thought record', meta: 'Worksheet · 10 min' },
+  { icon: AudioLines, title: 'Evening breathing', meta: 'Audio · 6 min' },
+]
+
+function HomeTab({ onGoChat, onGoTasks, mood, setMood }: { onGoChat: () => void; onGoTasks: () => void; mood: number; setMood: (m: number) => void }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="bg-gradient-to-br from-organic-accent-600 to-organic-accent-800 rounded-organic-tile p-[22px] text-organic-accent-100 relative overflow-hidden">
+        <div className="relative">
+          <div className="text-xs opacity-85 mb-1">Next session</div>
+          <div className="font-heading text-[22px] mb-0.5">Thursday · 10:00 AM</div>
+          <div className="text-[13px] opacity-85 mb-4">with Dr. Heba Moustafa · video call</div>
+          <button className="rounded-organic-pill bg-organic-accent-100 text-organic-accent-800 font-heading text-[13.5px] px-[18px] py-2.5">
+            Join &amp; prepare
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm">
+        <div className="font-heading text-[17px] mb-3.5">How are you feeling today?</div>
+        <div className="flex justify-between gap-1.5">
+          {MOODS.map((m, i) => {
+            const sel = mood === i
+            return (
+              <button
+                key={m.label}
+                onClick={() => setMood(i)}
+                className={`flex-1 rounded-organic-tile py-3 flex flex-col items-center gap-1.5 ${sel ? 'bg-organic-accent-200' : 'bg-organic-neutral-100'}`}
+              >
+                <m.icon size={22} className={sel ? 'text-organic-accent-800' : 'text-organic-neutral-600'} />
+                <span className={`text-[10.5px] font-semibold ${sel ? 'text-organic-accent-800' : 'text-organic-neutral-600'}`}>{m.label}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div>
+        <div className="flex justify-between items-center mb-2.5">
+          <h3 className="text-lg font-heading">Today&apos;s tasks</h3>
+          <button onClick={onGoTasks} className="text-[12.5px] text-organic-accent">See all</button>
+        </div>
+        <div className="flex flex-col gap-2.5">
+          {HOME_TASKS.map((t) => (
+            <div key={t.title} className="flex items-center gap-3.5 bg-organic-surface rounded-organic-tile p-3.5 shadow-organic-sm">
+              <div className="w-10 h-10 rounded-organic-tile bg-organic-accent-100 grid place-items-center flex-none">
+                <t.icon size={19} className="text-organic-accent-700" />
+              </div>
+              <div className="flex-1">
+                <div className="font-semibold text-sm">{t.title}</div>
+                <div className="text-xs text-organic-neutral-600">{t.meta}</div>
+              </div>
+              <ChevronRight size={18} className="text-organic-neutral-500" />
             </div>
           ))}
         </div>
-        <button className="w-full mt-3 text-organic-accent text-sm font-medium hover:underline">
-          View all tasks →
-        </button>
       </div>
 
-      {/* Talk to Aria Card */}
-      <div className="bg-gradient-to-br from-organic-accent-2 to-green-600 text-white rounded-2xl p-4">
-        <div className="flex items-center gap-3">
-          <div className="text-3xl">🤖</div>
-          <div>
-            <p className="font-heading text-base">Talk to Aria</p>
-            <p className="text-xs text-green-100">Always here to listen</p>
-          </div>
+      <button onClick={onGoChat} className="bg-organic-accent-2-100 rounded-organic-tile p-[18px] flex items-center gap-3.5 text-left">
+        <div className="w-[46px] h-[46px] rounded-full bg-organic-accent-2-500 grid place-items-center flex-none">
+          <Sparkles size={22} className="text-organic-accent-2-100" />
         </div>
-        <button className="w-full mt-3 bg-white text-green-700 px-4 py-2 rounded-full text-sm font-medium hover:bg-green-50 transition-colors">
-          Open chat
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// Aria Tab (Chat)
-interface AriaTabProps {
-  messages: Message[]
-  messageInput: string
-  onMessageChange: (text: string) => void
-  onSendMessage: () => void
-}
-
-function AriaTab({ messages, messageInput, onMessageChange, onSendMessage }: AriaTabProps) {
-  return (
-    <div className="flex flex-col h-screen">
-      {/* Aria Header */}
-      <div className="bg-gradient-to-r from-organic-accent-2 to-green-600 text-white px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-            🤖
-          </div>
-          <div>
-            <p className="font-medium text-sm">Aria</p>
-            <p className="text-xs text-green-100">Always here to listen</p>
-          </div>
+        <div className="flex-1">
+          <div className="font-heading text-base text-organic-accent-2-900">Talk to Aria</div>
+          <div className="text-[12.5px] text-organic-accent-2-800">Your AI companion, here anytime</div>
         </div>
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        {messages.map((msg) => (
-          <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div
-              className={`max-w-xs px-4 py-2 rounded-2xl ${
-                msg.sender === 'user'
-                  ? 'bg-organic-accent text-organic-accent-100 rounded-br-none'
-                  : 'bg-organic-surface text-organic-text rounded-bl-none'
-              }`}
-            >
-              <p className="text-sm">{msg.text}</p>
-              <p className="text-xs mt-1 opacity-70">{msg.timestamp}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Suggestion Chips */}
-      <div className="px-4 py-2 flex gap-2 overflow-x-auto">
-        {['Tell me a tip', 'How to breathe', 'Sleep tips'].map((suggestion) => (
-          <button
-            key={suggestion}
-            className="flex-shrink-0 bg-organic-surface px-3 py-2 rounded-full text-xs text-organic-text hover:bg-organic-neutral-200 transition-colors"
-            onClick={() => onMessageChange(suggestion)}
-          >
-            {suggestion}
-          </button>
-        ))}
-      </div>
-
-      {/* Input Area */}
-      <div className="border-t border-organic-neutral-200 px-3 py-3 flex gap-2">
-        <input
-          type="text"
-          value={messageInput}
-          onChange={(e) => onMessageChange(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && onSendMessage()}
-          placeholder="Message Aria..."
-          className="flex-1 bg-organic-neutral-100 text-organic-text placeholder-organic-neutral-500 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-organic-accent"
-        />
-        <button
-          onClick={onSendMessage}
-          className="w-10 h-10 bg-organic-accent text-organic-accent-100 rounded-full flex items-center justify-center hover:bg-organic-accent-600 transition-colors"
-        >
-          <Send size={18} />
-        </button>
-      </div>
-
-      {/* Safety Disclaimer */}
-      <div className="px-4 py-2 text-xs text-organic-neutral-600 text-center border-t border-organic-neutral-200">
-        <p>🆘 Aria isn't a crisis service. If you're in danger, call 988.</p>
-      </div>
-    </div>
-  )
-}
-
-// Tasks Tab
-function TasksTab() {
-  const completedCount = 2
-  const totalCount = 5
-
-  const tasks = [
-    { title: 'Morning breathing exercises', category: 'Wellness', done: true },
-    { title: 'Mood check-in', category: 'Daily', done: true },
-    { title: 'Progressive muscle relaxation', category: 'Practice', done: false },
-    { title: 'Gratitude journaling', category: 'Mindfulness', done: false },
-    { title: 'Evening reflection', category: 'Daily', done: false },
-  ]
-
-  return (
-    <div className="p-4 space-y-4">
-      {/* Progress Card */}
-      <div className="bg-organic-surface rounded-2xl p-4 border border-organic-neutral-200">
-        <p className="text-xs text-organic-neutral-600 font-medium mb-2">THIS WEEK</p>
-        <p className="text-2xl font-heading text-organic-text mb-1">
-          {completedCount}/{totalCount} completed
-        </p>
-        <div className="w-full bg-organic-neutral-200 rounded-full h-2 mt-2">
-          <div
-            className="bg-gradient-to-r from-organic-accent to-organic-accent-600 h-full rounded-full"
-            style={{ width: `${(completedCount / totalCount) * 100}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Task List */}
-      <div className="space-y-2">
-        {tasks.map((task, i) => (
-          <div key={i} className="bg-organic-surface rounded-xl p-3 flex items-center gap-3 border border-organic-neutral-200">
-            <input
-              type="checkbox"
-              checked={task.done}
-              readOnly
-              className="w-5 h-5 rounded text-organic-accent cursor-pointer"
-            />
-            <div className="flex-1">
-              <p className={`text-sm ${task.done ? 'line-through text-organic-neutral-500' : 'text-organic-text font-medium'}`}>
-                {task.title}
-              </p>
-              <Badge variant="neutral" className="mt-1 inline-block text-xs py-0.5 px-2">
-                {task.category}
-              </Badge>
-            </div>
-            {task.done && <span className="text-organic-accent-2-700 text-lg">✓</span>}
-          </div>
-        ))}
-      </div>
-
-      {/* Add Button */}
-      <button className="w-full bg-organic-accent text-organic-accent-100 rounded-xl py-3 font-medium hover:bg-organic-accent-600 transition-colors">
-        + Add custom task
+        <ArrowRight size={19} className="text-organic-accent-2-700" />
       </button>
     </div>
   )
 }
 
-// Progress Tab
+// ─── Chat (Aria) ────────────────────────────────────────────────────────────
+
+const CHAT_MESSAGES = [
+  { who: 'ai', text: "Hi Maya, I'm glad you're here. How has your week felt so far?" },
+  { who: 'me', text: "A bit up and down. Work has been stressful and I haven't slept well." },
+  { who: 'ai', text: "That sounds draining. When your sleep dips, what tends to be on your mind as you're lying awake?" },
+  { who: 'me', text: "Mostly worrying I'll fall behind on everything." },
+]
+const CHIPS = ['I feel anxious', 'Help me reframe this', 'A grounding exercise']
+
+function ChatTab() {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2.5 pb-2">
+        <div className="w-[42px] h-[42px] rounded-full bg-organic-accent-2-500 grid place-items-center">
+          <Sparkles size={20} className="text-organic-accent-2-100" />
+        </div>
+        <div>
+          <div className="font-heading text-lg">Aria</div>
+          <div className="text-[11.5px] text-organic-accent-2-700">● Always here to listen</div>
+        </div>
+      </div>
+      {CHAT_MESSAGES.map((m, i) => (
+        <div key={i} className={`flex ${m.who === 'me' ? 'justify-end' : 'justify-start'}`}>
+          <div
+            className={`max-w-[78%] px-4 py-3 text-sm leading-relaxed ${
+              m.who === 'me'
+                ? 'bg-organic-accent text-organic-accent-100 rounded-2xl rounded-br-md'
+                : 'bg-organic-surface text-organic-text rounded-2xl rounded-bl-md'
+            }`}
+          >
+            {m.text}
+          </div>
+        </div>
+      ))}
+      <div className="flex gap-2 flex-wrap mt-0.5">
+        {CHIPS.map((c) => (
+          <span key={c} className="text-[12.5px] px-3.5 py-2 rounded-organic-pill bg-organic-surface border border-organic-neutral-300/60 text-organic-neutral-800">
+            {c}
+          </span>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 py-2 pl-[18px] pr-2 bg-organic-surface border border-organic-neutral-300/60 rounded-organic-pill mt-1.5">
+        <span className="flex-1 text-sm text-organic-neutral-500">Share what&apos;s on your mind…</span>
+        <button className="w-[38px] h-[38px] rounded-full bg-organic-accent grid place-items-center">
+          <ArrowUp size={19} className="text-organic-accent-100" />
+        </button>
+      </div>
+      <div className="flex items-center gap-2 justify-center text-[11px] text-organic-neutral-600 mt-0.5">
+        <Shield size={13} /> Aria isn&apos;t a crisis service. In an emergency, call your local line.
+      </div>
+    </div>
+  )
+}
+
+// ─── Tasks ──────────────────────────────────────────────────────────────────
+
+const TASKS = [
+  { title: 'Gratitude journal', meta: 'Completed today', type: 'Journal', done: true },
+  { title: 'CBT thought record', meta: 'Due today', type: 'Worksheet', done: false },
+  { title: 'Evening breathing', meta: 'Due today', type: 'Audio', done: false },
+  { title: 'Read: Understanding worry', meta: 'Due Fri', type: 'Reading', done: false },
+  { title: 'Morning walk log', meta: 'Completed yesterday', type: 'Activity', done: true },
+]
+
+function TasksTab() {
+  const completed = TASKS.filter((t) => t.done).length
+  return (
+    <div className="flex flex-col gap-4">
+      <h2 className="text-[26px] font-heading">Your homework</h2>
+      <div className="bg-organic-accent-2-100 rounded-organic-tile px-[18px] py-4 flex items-center gap-3.5">
+        <div className="font-heading text-3xl text-organic-accent-2-800">{completed}/{TASKS.length}</div>
+        <div className="flex-1">
+          <div className="font-semibold text-[13.5px] text-organic-accent-2-900">Completed this week</div>
+          <div className="h-1.5 rounded-organic-pill bg-organic-accent-2-200 mt-1.5 overflow-hidden">
+            <div className="h-full bg-organic-accent-2-500" style={{ width: `${(completed / TASKS.length) * 100}%` }} />
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2.5">
+        {TASKS.map((t) => (
+          <div key={t.title} className="flex items-center gap-3.5 bg-organic-surface rounded-organic-tile p-3.5 shadow-organic-sm">
+            <span className={`w-[26px] h-[26px] rounded-full flex-none grid place-items-center border-2 ${t.done ? 'bg-organic-accent-2-500 border-organic-accent-2-500' : 'border-organic-neutral-400'}`}>
+              {t.done && <Check size={14} className="text-organic-accent-2-100" />}
+            </span>
+            <div className="flex-1">
+              <div className={`font-semibold text-sm ${t.done ? 'text-organic-neutral-500 line-through' : 'text-organic-text'}`}>{t.title}</div>
+              <div className="text-xs text-organic-neutral-600">{t.meta}</div>
+            </div>
+            <span className="text-[10.5px] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-200 text-organic-neutral-700">{t.type}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Progress ───────────────────────────────────────────────────────────────
+
+const SCORES = [
+  { name: 'PHQ-9 (depression)', now: 14, band: 'Mod. severe', delta: '↓ from 18', pct: 52, color: 'bg-organic-accent-500' },
+  { name: 'GAD-7 (anxiety)', now: 11, band: 'Moderate', delta: '↓ from 15', pct: 52, color: 'bg-organic-accent-2-500' },
+]
+
 function ProgressTab() {
   return (
-    <div className="p-4 space-y-4">
-      {/* Streak Card */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-gradient-to-br from-organic-accent to-organic-accent-600 text-white rounded-2xl p-4">
-          <p className="text-xs text-organic-accent-100 mb-1">CURRENT STREAK</p>
-          <p className="text-3xl font-heading">12 days</p>
-          <p className="text-xs text-organic-accent-100 mt-1">🔥 Keep it up!</p>
+    <div className="flex flex-col gap-4">
+      <h2 className="text-[26px] font-heading">Your progress</h2>
+      <div className="flex gap-3">
+        <div className="flex-1 bg-organic-surface rounded-organic-tile p-4 shadow-organic-sm">
+          <div className="font-heading text-[28px] text-organic-accent-700">12</div>
+          <div className="text-xs text-organic-neutral-600">Day streak</div>
         </div>
-        <div className="bg-gradient-to-br from-organic-accent-2 to-green-600 text-white rounded-2xl p-4">
-          <p className="text-xs text-green-100 mb-1">SESSIONS</p>
-          <p className="text-3xl font-heading">8</p>
-          <p className="text-xs text-green-100 mt-1">Completed</p>
+        <div className="flex-1 bg-organic-surface rounded-organic-tile p-4 shadow-organic-sm">
+          <div className="font-heading text-[28px] text-organic-accent-2-700">8</div>
+          <div className="text-xs text-organic-neutral-600">Sessions done</div>
         </div>
       </div>
-
-      {/* Mood This Month */}
-      <div className="bg-organic-surface rounded-2xl p-4 border border-organic-neutral-200">
-        <p className="font-medium text-organic-text text-sm mb-3">Mood this month</p>
-        <svg viewBox="0 0 300 100" className="w-full h-20">
+      <div className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm">
+        <div className="flex justify-between items-center mb-3.5">
+          <h3 className="text-[17px] font-heading">Mood this month</h3>
+          <span className="text-[11px] text-organic-accent-2-700 font-semibold">Trending up</span>
+        </div>
+        <svg viewBox="0 0 320 130" className="w-full h-[130px]">
           <defs>
-            <linearGradient id="moodGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" style={{ stopColor: '#7a8a5e', stopOpacity: 0.8 }} />
-              <stop offset="100%" style={{ stopColor: '#7a8a5e', stopOpacity: 0.1 }} />
+            <linearGradient id="patientMood" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#c9903d" stopOpacity="0.3" />
+              <stop offset="1" stopColor="#c9903d" stopOpacity="0" />
             </linearGradient>
           </defs>
-          <polyline points="10,70 40,50 70,60 100,40 130,55 160,35 190,45 220,30 250,40 280,25" fill="url(#moodGradient)" stroke="#7a8a5e" strokeWidth="2" />
+          <path d="M0,90 L53,96 L106,72 L160,80 L213,54 L266,58 L320,34 L320,130 L0,130 Z" fill="url(#patientMood)" />
+          <path d="M0,90 L53,96 L106,72 L160,80 L213,54 L266,58 L320,34" fill="none" stroke="#c9903d" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        <p className="text-xs text-organic-neutral-600 mt-2">Trending upward 📈</p>
       </div>
-
-      {/* Assessment Scores */}
-      <div className="bg-organic-surface rounded-2xl p-4 border border-organic-neutral-200">
-        <p className="font-medium text-organic-text text-sm mb-4">Assessment scores</p>
-        <div className="space-y-4">
-          <div>
-            <div className="flex justify-between mb-2">
-              <p className="text-sm text-organic-text">PHQ-9</p>
-              <p className="text-sm font-heading text-organic-accent">14</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 bg-organic-neutral-200 rounded-full h-2">
-                <div className="bg-organic-accent h-full rounded-full" style={{ width: '52%' }} />
+      <div className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm">
+        <h3 className="text-[17px] font-heading mb-3.5">Assessment scores</h3>
+        <div className="flex flex-col gap-3.5">
+          {SCORES.map((s) => (
+            <div key={s.name}>
+              <div className="flex justify-between text-[13px] mb-1.5">
+                <span className="font-semibold">{s.name}</span>
+                <span className="text-organic-neutral-700">
+                  {s.now} · {s.band} <span className="text-organic-accent-2-700">{s.delta}</span>
+                </span>
               </div>
-              <span className="text-xs text-organic-neutral-600">↓ 18</span>
-            </div>
-          </div>
-          <div>
-            <div className="flex justify-between mb-2">
-              <p className="text-sm text-organic-text">GAD-7</p>
-              <p className="text-sm font-heading text-organic-accent-2-700">11</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 bg-organic-neutral-200 rounded-full h-2">
-                <div className="bg-organic-accent-2-700 h-full rounded-full" style={{ width: '52%' }} />
+              <div className="h-2 rounded-organic-pill bg-organic-neutral-200 overflow-hidden">
+                <div className={`h-full ${s.color}`} style={{ width: `${s.pct}%` }} />
               </div>
-              <span className="text-xs text-organic-neutral-600">↓ 15</span>
             </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>

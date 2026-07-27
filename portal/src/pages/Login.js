@@ -22,7 +22,8 @@ export default function LoginPage() {
         setError(null);
         try {
             await login(formData.email, formData.password);
-            navigate('/');
+            const role = useAuthStore.getState().user?.role;
+            navigate(role === 'patient' ? '/patient-app' : '/');
         }
         catch (err) {
             setError(err.response?.data?.detail || 'Invalid credentials');
@@ -40,7 +41,8 @@ export default function LoginPage() {
                 setError(null);
                 try {
                     await loginWithGoogle(response.credential);
-                    navigate('/');
+                    const role = useAuthStore.getState().user?.role;
+                    navigate(role === 'patient' ? '/patient-app' : '/');
                 }
                 catch (err) {
                     setError(err.response?.data?.detail || 'Google sign-in failed');

@@ -16,7 +16,7 @@ export default function ProtectedRoute({ children, requiredRoles }: ProtectedRou
   }
 
   if (requiredRoles && !requiredRoles.includes(user.role)) {
-    return <Navigate to="/" replace />
+    return <Navigate to={user.role === 'patient' ? '/patient-app' : '/'} replace />
   }
 
   return <>{children}</>
