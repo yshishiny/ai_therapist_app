@@ -23,7 +23,13 @@ class SessionRepositoryDbReal:
                FROM session_notes WHERE patient_id=$1 ORDER BY created_at DESC""",
             uuid.UUID(patient_id),
         )
-        return [dict(r) for r in rows]
+        results = []
+        for row in rows:
+            item = dict(row)
+            item["id"] = str(item["id"])
+            item["patient_id"] = str(item["patient_id"])
+            results.append(item)
+        return results
 
     async def create_session(self, patient_id: str, payload: dict, org_id: str) -> dict:
         if self.db is None:

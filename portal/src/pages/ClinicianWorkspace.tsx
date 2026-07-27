@@ -41,11 +41,12 @@ const NAV_ITEMS: { view: WorkspaceView; label: string; short: string; icon: type
   { view: 'plan', label: 'Care plan', short: 'Plan', icon: ListChecks },
 ]
 
-const SUBTITLES: Record<Exclude<WorkspaceView, 'caseload'>, string> = {
-  chart: 'Maya Okonkwo · clinical record',
+const SUBTITLES: Record<Exclude<WorkspaceView, 'caseload' | 'chart'>, string> = {
   scribe: 'Live documentation assistant',
   plan: 'Phased treatment & homework',
 }
+
+type ChartPatientRef = { id: string; name: string }
 
 type ScheduleItem = {
   id: string
@@ -72,13 +73,18 @@ const TODAY_LABEL = new Date().toLocaleDateString(undefined, { weekday: 'long', 
 
 export default function ClinicianWorkspace() {
   const [view, setView] = useState<WorkspaceView>('caseload')
-  const goToChart = () => setView('chart')
   const navigate = useNavigate()
   const { logout, user } = useAuthStore()
   const [showNewSession, setShowNewSession] = useState(false)
   const [activeSession, setActiveSession] = useState<SessionData | null>(null)
   const [dashboard, setDashboard] = useState<ClinicianDashboard | null>(null)
   const [myName, setMyName] = useState<string | null>(null)
+  const [chartPatient, setChartPatient] = useState<ChartPatientRef | null>(null)
+
+  const openPatient = (p: ChartPatientRef) => {
+    setChartPatient(p)
+    setView('chart')
+  }
 
   const loadDashboard = () => apiClient.getClinicianDashboard().then(setDashboard)
 
@@ -95,9 +101,20 @@ export default function ClinicianWorkspace() {
     navigate('/login')
   }
 
-  const title = view === 'caseload' ? `Good morning, ${myName || '…'}` : { chart: 'Patient chart', scribe: 'AI Scribe', plan: 'Care plan' }[view]
+  const title =
+    view === 'caseload'
+      ? `Good morning, ${myName || '…'}`
+      : view === 'chart'
+      ? chartPatient?.name || 'Patient chart'
+      : { scribe: 'AI Scribe', plan: 'Care plan' }[view]
   const subtitle =
-    view === 'caseload' ? `${TODAY_LABEL} · ${dashboard ? dashboard.sessions_today_count : '…'} sessions today` : SUBTITLES[view]
+    view === 'caseload'
+      ? `${TODAY_LABEL} · ${dashboard ? dashboard.sessions_today_count : '…'} sessions today`
+      : view === 'chart'
+      ? chartPatient
+        ? 'Clinical record'
+        : 'Choose a patient to open their record'
+      : SUBTITLES[view]
 
   return (
     <div className="min-h-screen bg-organic-bg flex items-stretch">
@@ -123,8 +140,8 @@ export default function ClinicianWorkspace() {
           </div>
         </header>
 
-        {view === 'caseload' && <CaseloadView dashboard={dashboard} onOpenPatient={goToChart} />}
-        {view === 'chart' && <ChartView />}
+        {view === 'caseload' && <CaseloadView dashboard={dashboard} onOpenPatient={openPatient} />}
+        {view === 'chart' && <ChartView patient={chartPatient} onPickPatient={setChartPatient} />}
         {view === 'scribe' && <ScribeView />}
         {view === 'plan' && <PlanView />}
       </main>
@@ -596,7 +613,7 @@ function CaseloadView({
   onOpenPatient,
 }: {
   dashboard: ClinicianDashboard | null
-  onOpenPatient: () => void
+  onOpenPatient: (p: ChartPatientRef) => void
 }) {
   const stats = [
     { label: 'Today', value: dashboard ? String(dashboard.sessions_today_count) : '…', icon: Calendar },
@@ -629,7 +646,7 @@ function CaseloadView({
             {dashboard?.today_schedule.map((s) => (
               <button
                 key={s.id}
-                onClick={onOpenPatient}
+                onClick={() => onOpenPatient({ id: s.patient_id, name: s.patient_name })}
                 className="flex items-center gap-3.5 py-3 px-1 border-b border-organic-text/[0.07] last:border-b-0 text-left"
               >
                 <span className="text-sm font-bold text-organic-accent-700 w-14">{formatTime(s.start_time)}</span>
@@ -660,12 +677,16 @@ function CaseloadView({
               <div className="text-xs text-organic-accent-700">Nothing flagged in the last 14 days.</div>
             )}
             {dashboard?.needs_review.map((f) => (
-              <div key={`${f.patient_id}-${f.taken_at}`} className="bg-organic-bg rounded-organic-tile p-3">
+              <button
+                key={`${f.patient_id}-${f.taken_at}`}
+                onClick={() => onOpenPatient({ id: f.patient_id, name: f.patient_name })}
+                className="bg-organic-bg rounded-organic-tile p-3 text-left w-full"
+              >
                 <div className="font-semibold text-[13.5px] text-organic-text">{f.patient_name}</div>
                 <div className="text-xs text-organic-neutral-700">
                   {f.instrument_name}{f.interpretation_text ? ` — ${f.interpretation_text}` : ' flagged'}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -689,94 +710,189 @@ function CaseloadView({
   )
 }
 
-// ─── Patient chart ──────────────────────────────────────────────────────────
+// ─── Patient chart (real data) ──────────────────────────────────────────────
 
-const SESSION_HISTORY = [
-  { title: 'Session 08 — CBT reframing', date: 'Jul 17, 2026', tag: 'Signed' },
-  { title: 'Session 07 — Sleep & rumination', date: 'Jul 10, 2026', tag: 'Signed' },
-  { title: 'Session 06 — Behavioral activation', date: 'Jul 3, 2026', tag: 'Signed' },
-]
+type PatientDetail = {
+  id: string
+  name: string
+  status: string
+  risk: string
+  diagnosis: string
+  last_seen: string | null
+  dob: string | null
+  gender: string | null
+}
+type SessionNote = {
+  id: string
+  patient_id: string
+  template: string
+  subjective: string | null
+  objective: string | null
+  assessment: string | null
+  plan: string | null
+  free_text: string | null
+  created_at: string
+}
+type AssessmentRecord = {
+  id: string
+  assessment_id: string
+  raw_score: number | null
+  severity: string | null
+  interpretation: string | null
+  flagged: boolean
+  created_at: string
+}
 
-function ChartView() {
-  const [hideSampleData] = useSampleDataHidden()
-  return (
-    <SampleGate
-      hidden={hideSampleData}
-      placeholder={
-        <div className="text-sm text-organic-neutral-600 py-8">
-          Patient chart details will appear here once session and assessment history is available.
+function notePreview(n: SessionNote): string {
+  const text = n.free_text || [n.subjective, n.objective, n.assessment, n.plan].filter(Boolean).join(' · ')
+  return text ? (text.length > 160 ? text.slice(0, 160) + '…' : text) : '(empty note)'
+}
+
+function ageFrom(dob: string | null): string | null {
+  if (!dob) return null
+  const diff = Date.now() - new Date(dob).getTime()
+  const years = Math.floor(diff / (365.25 * 24 * 3600 * 1000))
+  return Number.isFinite(years) && years > 0 ? `${years}` : null
+}
+
+function ChartView({
+  patient,
+  onPickPatient,
+}: {
+  patient: ChartPatientRef | null
+  onPickPatient: (p: ChartPatientRef | null) => void
+}) {
+  const [myPatients, setMyPatients] = useState<SimplePatient[]>([])
+  const [detail, setDetail] = useState<PatientDetail | null>(null)
+  const [notes, setNotes] = useState<SessionNote[] | null>(null)
+  const [records, setRecords] = useState<AssessmentRecord[] | null>(null)
+  const [noteText, setNoteText] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!patient) {
+      apiClient.getPatients({ mine: true }).then(setMyPatients).catch(() => setMyPatients([]))
+      return
+    }
+    setDetail(null)
+    setNotes(null)
+    setRecords(null)
+    setError(null)
+    Promise.all([
+      apiClient.getPatient(patient.id),
+      apiClient.getPatientSessions(patient.id),
+      apiClient.getPatientAssessments(patient.id),
+    ])
+      .then(([d, n, a]) => {
+        setDetail(d)
+        setNotes(n)
+        setRecords(a)
+      })
+      .catch(() => setError('Could not load this patient\'s record.'))
+  }, [patient?.id])
+
+  const saveNote = async () => {
+    if (!patient || !noteText.trim()) return
+    setSavingNote(true)
+    try {
+      const created = await apiClient.createSession(patient.id, { template: 'FREE', free_text: noteText.trim() })
+      setNotes((prev) => [created, ...(prev || [])])
+      setNoteText('')
+    } catch {
+      setError('Could not save the note — try again.')
+    } finally {
+      setSavingNote(false)
+    }
+  }
+
+  if (!patient) {
+    return (
+      <div className="max-w-[560px]">
+        <h3 className="text-lg font-heading text-organic-text mb-3">Open a patient record</h3>
+        <div className="flex flex-col gap-1.5">
+          {myPatients.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => onPickPatient({ id: p.id, name: p.name })}
+              className="text-left flex items-center justify-between bg-organic-surface hover:bg-organic-accent-100 rounded-organic-tile px-3.5 py-2.5 text-sm"
+            >
+              <span className="font-semibold">{p.name}</span>
+              <span className="text-xs text-organic-neutral-500">{p.status}</span>
+            </button>
+          ))}
+          {myPatients.length === 0 && (
+            <div className="text-sm text-organic-neutral-600">No patients assigned to you yet.</div>
+          )}
         </div>
-      }
-    >
+      </div>
+    )
+  }
+
+  const age = ageFrom(detail?.dob || null)
+
+  return (
     <div>
       <div className="flex items-center gap-3.5 mb-[18px]">
         <div className="w-[52px] h-[52px] rounded-full bg-organic-accent-200 grid place-items-center font-bold text-base text-organic-accent-800">
-          MO
+          {initialsOf(patient.name)}
         </div>
-        <div>
+        <div className="flex-1">
           <div className="flex items-center gap-2.5">
-            <span className="font-heading text-[22px] text-organic-text">Maya Okonkwo</span>
-            <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill bg-organic-accent-200 text-organic-accent-800">
-              High risk
-            </span>
+            <span className="font-heading text-[22px] text-organic-text">{patient.name}</span>
+            {detail && (
+              <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-organic-pill ${riskStyle(detail.risk).bg} ${riskStyle(detail.risk).color}`}>
+                {detail.risk} risk
+              </span>
+            )}
           </div>
-          <div className="text-sm text-organic-neutral-600">34F · In treatment · 8 sessions · since Feb 2026</div>
+          <div className="text-sm text-organic-neutral-600">
+            {[age && `${age} yrs`, detail?.gender, detail?.status, detail?.diagnosis].filter(Boolean).join(' · ') || 'Loading…'}
+          </div>
         </div>
+        <button onClick={() => onPickPatient(null)} className="text-xs text-organic-accent-700 underline">
+          Change patient
+        </button>
       </div>
+
+      {error && <div className="text-sm text-organic-accent-800 mb-3">{error}</div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
         <div className="flex flex-col gap-4">
           <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
-            <h3 className="text-lg font-heading text-organic-text mb-3.5">Symptom trajectory</h3>
-            <svg viewBox="0 0 560 180" className="w-full h-[180px]">
-              <defs>
-                <linearGradient id="trajectoryFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stopColor="#5262ad" stopOpacity="0.28" />
-                  <stop offset="1" stopColor="#5262ad" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path d="M0,40 L110,54 L220,70 L330,86 L440,110 L560,120 L560,180 L0,180 Z" fill="url(#trajectoryFill)" />
-              <path
-                d="M0,40 L110,54 L220,70 L330,86 L440,110 L560,120"
-                fill="none"
-                stroke="#5262ad"
-                strokeWidth={3}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M0,90 L110,84 L220,96 L330,88 L440,100 L560,94"
-                fill="none"
-                stroke="#c9903d"
-                strokeWidth={3}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeDasharray="1 8"
-              />
-            </svg>
-            <div className="flex gap-5 mt-1.5 text-xs text-organic-neutral-600">
-              <span className="flex items-center gap-1.5">
-                <span className="w-4 h-[3px] bg-organic-accent rounded-sm" />
-                PHQ-9
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-4 h-[3px] bg-organic-accent-2 rounded-sm" />
-                GAD-7
-              </span>
-            </div>
+            <h3 className="text-lg font-heading text-organic-text mb-3">Add session note</h3>
+            <textarea
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              placeholder="Write the session note…"
+              rows={4}
+              className="w-full bg-organic-bg border border-organic-neutral-300/60 rounded-organic-tile px-3.5 py-2.5 text-sm mb-2.5 resize-y"
+            />
+            <button
+              onClick={saveNote}
+              disabled={savingNote || !noteText.trim()}
+              className="rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm px-5 py-2 disabled:opacity-50"
+            >
+              {savingNote ? 'Saving…' : 'Save note'}
+            </button>
           </div>
 
           <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
             <h3 className="text-lg font-heading text-organic-text mb-3">Session history</h3>
             <div className="flex flex-col">
-              {SESSION_HISTORY.map((s) => (
-                <div key={s.title} className="flex items-center gap-3.5 py-3 px-1 border-b border-organic-text/[0.07] last:border-b-0">
-                  <FileText size={17} className="text-organic-accent-600" />
-                  <div className="flex-1">
-                    <div className="font-semibold text-[13.5px] text-organic-text">{s.title}</div>
-                    <div className="text-xs text-organic-neutral-600">{s.date}</div>
+              {notes === null && <div className="text-sm text-organic-neutral-600 py-2">Loading…</div>}
+              {notes && notes.length === 0 && (
+                <div className="text-sm text-organic-neutral-600 py-2">No session notes yet — the note you write above will be the first.</div>
+              )}
+              {notes?.map((n) => (
+                <div key={n.id} className="flex items-start gap-3.5 py-3 px-1 border-b border-organic-text/[0.07] last:border-b-0">
+                  <FileText size={17} className="text-organic-accent-600 mt-0.5 flex-none" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13.5px] text-organic-text">{notePreview(n)}</div>
+                    <div className="text-xs text-organic-neutral-600 mt-0.5">
+                      {new Date(n.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} · {n.template}
+                    </div>
                   </div>
-                  <span className="text-[11.5px] text-organic-neutral-600">{s.tag}</span>
                 </div>
               ))}
             </div>
@@ -784,40 +900,37 @@ function ChartView() {
         </div>
 
         <aside className="flex flex-col gap-3.5">
-          <div className="bg-gradient-to-br from-organic-accent-100 to-organic-surface rounded-organic-card p-5 shadow-organic-sm">
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles size={17} className="text-organic-accent-700" />
-              <h4 className="text-base font-heading text-organic-text">AI summary</h4>
-            </div>
-            <p className="text-[13px] text-organic-neutral-800 leading-relaxed mb-3">
-              Depression improving steadily (18→14); anxiety stable. Item 9 elevated — maintain weekly safety
-              check-ins. Client reports better sleep with breathing homework.
-            </p>
-            <div className="flex gap-2 flex-wrap">
-              <span className="text-[11px] px-2.5 py-1 rounded-organic-pill bg-organic-accent-200 text-organic-accent-800">CBT</span>
-              <span className="text-[11px] px-2.5 py-1 rounded-organic-pill bg-organic-accent-2-200 text-organic-accent-2-800">
-                Safety plan active
-              </span>
-            </div>
-          </div>
-
           <div className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm">
-            <h4 className="text-base font-heading text-organic-text mb-3">Latest scores</h4>
+            <h4 className="text-base font-heading text-organic-text mb-3">Assessment results</h4>
             <div className="flex flex-col gap-2.5">
-              <div className="flex justify-between">
-                <span className="text-sm text-organic-neutral-700">PHQ-9</span>
-                <span className="font-bold text-organic-accent-700">14 · Mod. severe</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-organic-neutral-700">GAD-7</span>
-                <span className="font-bold text-organic-accent-2-700">11 · Moderate</span>
-              </div>
+              {records === null && <div className="text-sm text-organic-neutral-600">Loading…</div>}
+              {records && records.length === 0 && (
+                <div className="text-sm text-organic-neutral-600">No assessments recorded yet.</div>
+              )}
+              {records?.map((r) => (
+                <div key={r.id} className="border-b border-organic-text/[0.07] last:border-b-0 pb-2.5 last:pb-0">
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="text-sm font-semibold text-organic-text uppercase">{r.assessment_id}</span>
+                    <span className="font-bold text-organic-accent-700 text-sm">
+                      {r.raw_score !== null ? r.raw_score : '—'}
+                      {r.severity ? ` · ${r.severity}` : ''}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs text-organic-neutral-600 mt-0.5">
+                    <span>{new Date(r.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                    {r.flagged && (
+                      <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-organic-pill bg-organic-accent-200 text-organic-accent-800">
+                        Flagged
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </aside>
       </div>
     </div>
-    </SampleGate>
   )
 }
 

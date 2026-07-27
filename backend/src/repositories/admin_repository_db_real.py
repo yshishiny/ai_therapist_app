@@ -12,10 +12,18 @@ class AdminRepositoryDbReal:
         if self.db is None:
             return []
         rows = await self.db.fetch(
-            "SELECT id, title, author, category, description, file_url, created_at FROM resources WHERE org_id = $1 ORDER BY created_at DESC",
+            "SELECT id, title, author, category, description, file_url, tags, created_at FROM resources WHERE org_id = $1 ORDER BY created_at DESC",
             uuid.UUID(org_id),
         )
-        return [dict(r) for r in rows]
+        return [self._resource_row(r) for r in rows]
+
+    @staticmethod
+    def _resource_row(row: Any) -> dict:
+        item = dict(row)
+        item["id"] = str(item["id"])
+        tags = item.get("tags")
+        item["tags"] = json.loads(tags) if isinstance(tags, str) else (tags or [])
+        return item
 
     async def create_resource(
         self,
@@ -35,7 +43,7 @@ class AdminRepositoryDbReal:
                    (id, org_id, uploaded_by, title, author, category,
                     description, file_url, tags, created_at)
                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)
-               RETURNING id, title, author, category, description, file_url, created_at""",
+               RETURNING id, title, author, category, description, file_url, tags, created_at""",
             uuid.uuid4(),
             uuid.UUID(org_id),
             uuid.UUID(user_id),
@@ -47,7 +55,7 @@ class AdminRepositoryDbReal:
             json.dumps(tags),
             now,
         )
-        return dict(row)
+        return self._resource_row(row)
 
     async def list_contacts(self, org_id: str) -> list[dict]:
         if self.db is None:
