@@ -1,76 +1,27 @@
-"""Drop all tables and recreate from schema.sql + migration_patient_portal.sql.
-Usage: railway run python run_migration.py
 """
-import os, sys, psycopg2
+DISABLED — this script used to destroy the database.
 
-url = os.environ.get("DATABASE_URL")
-if not url:
-    print("ERROR: DATABASE_URL not set.")
-    sys.exit(1)
+What it did: dropped every table in the public schema, then replayed
+schema.sql and one migration. Its own comment said "nuclear reset — DB
+currently has no real data". That was true when it was written. It stopped
+being true a long time ago, and the script was never updated. Running it
+against production today would delete every patient, clinician, assessment
+result, session note and resource, and it took its connection straight from
+DATABASE_URL with no confirmation and no environment check.
 
-base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backend")
+It has been replaced by backend/migrate.py, which applies ordered,
+recorded, one-time migrations and never drops anything:
 
-print("Connecting to database...")
-conn = psycopg2.connect(url)
-conn.autocommit = True
-cur = conn.cursor()
+    python backend/migrate.py --status     what is applied, what is pending
+    python backend/migrate.py --apply      apply everything pending
+    python backend/migrate.py --baseline   record as applied without running
 
-# Step 0: Drop everything (nuclear reset — DB currently has no real data)
-print("Dropping all existing tables...")
-cur.execute("""
-    DO $$ DECLARE
-        r RECORD;
-    BEGIN
-        FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
-            EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
-        END LOOP;
-    END $$;
-""")
-print("✅ All tables dropped.")
+There is deliberately no reset command. If you genuinely need an empty
+database, create a new one and point DATABASE_URL at it — that way the
+blast radius is a database you just made, not the one serving the clinic.
+"""
 
-# Step 1: Run schema.sql
-schema_file = os.path.join(base_dir, "schema.sql")
-with open(schema_file, "r", encoding="utf-8") as f:
-    schema_sql = f.read()
+import sys
 
-print(f"\nRunning schema.sql ({len(schema_sql)} chars)...")
-cur.execute(schema_sql)
-print("✅ schema.sql completed")
-
-# Step 2: Run migration_patient_portal.sql
-migration_file = os.path.join(base_dir, "migration_patient_portal.sql")
-with open(migration_file, "r", encoding="utf-8") as f:
-    migration_sql = f.read()
-
-print(f"\nRunning migration_patient_portal.sql ({len(migration_sql)} chars)...")
-cur.execute(migration_sql)
-print("✅ migration_patient_portal.sql completed")
-
-# Step 3: Verify
-print("\n=== Verification ===")
-cur.execute("""
-    SELECT table_name FROM information_schema.tables 
-    WHERE table_schema = 'public' ORDER BY table_name
-""")
-tables = [r[0] for r in cur.fetchall()]
-print(f"Tables ({len(tables)}): {tables}")
-
-cur.execute("SELECT COUNT(*) FROM patients")
-print(f"patients rows: {cur.fetchone()[0]}")
-
-cur.execute("SELECT COUNT(*) FROM patient_users")
-print(f"patient_users rows: {cur.fetchone()[0]}")
-
-cur.execute("SELECT email FROM patient_users")
-emails = [r[0] for r in cur.fetchall()]
-print(f"patient emails: {emails}")
-
-cur.execute("SELECT COUNT(*) FROM clinicians")
-print(f"clinicians rows: {cur.fetchone()[0]}")
-
-cur.execute("SELECT COUNT(*) FROM organisations")
-print(f"organisations rows: {cur.fetchone()[0]}")
-
-cur.close()
-conn.close()
-print("\n🎉 Database fully reset and ready!")
+print(__doc__)
+sys.exit(1)
