@@ -199,6 +199,48 @@ class ApiClient {
     return response.data
   }
 
+  // ── Controlled Trial Mode ────────────────────────────────────────────
+  async getAssessmentTrial(catalogId: string) {
+    const response = await this.client.get(`/admin/assessment-catalog/${catalogId}/trial`)
+    return response.data
+  }
+
+  async activateAssessmentTrial(catalogId: string, data: any, governanceApproved = false) {
+    const response = await this.client.post(
+      `/admin/assessment-catalog/${catalogId}/trial`,
+      data,
+      { params: { governance_approved: governanceApproved } },
+    )
+    return response.data
+  }
+
+  async recordTrialAdministration(trialId: string, data: any) {
+    const response = await this.client.post(`/admin/assessment-trials/${trialId}/administrations`, data)
+    return response.data
+  }
+
+  async submitAssessmentLicense(catalogId: string, data: any, trialId?: string) {
+    const response = await this.client.post(
+      `/admin/assessment-catalog/${catalogId}/license`,
+      data,
+      trialId ? { params: { trial_id: trialId } } : undefined,
+    )
+    return response.data
+  }
+
+  async reviewAssessmentLicense(licenseId: string, approve: boolean, notes?: string) {
+    const response = await this.client.post(`/admin/assessment-licenses/${licenseId}/review`, {
+      approve,
+      notes,
+    })
+    return response.data
+  }
+
+  async getAssessmentRecommendations(normalizedResult: any) {
+    const response = await this.client.post('/assessment-recommendations', normalizedResult)
+    return response.data
+  }
+
   async getPatientAssessments(patientId: string) {
     const response = await this.client.get(`/patients/${patientId}/assessments`)
     return response.data

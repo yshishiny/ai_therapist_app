@@ -28,6 +28,11 @@ def catalog_row_to_dict(row: asyncpg.Record | dict[str, Any]) -> dict[str, Any]:
         "category": data.get("category"),
         "category_ar": data.get("category_ar"),
         "license_status": data.get("license_status"),
+        # Trial Mode lifecycle: RESERVED / EDUCATIONAL_PREVIEW / TRIAL /
+        # LICENSED_ACTIVE / AVAILABLE. This mapper whitelists fields, so a
+        # column added to the SELECT is silently dropped unless listed here.
+        "availability_state": data.get("availability_state"),
+        "requires_governance_approval": bool(data.get("requires_governance_approval")),
         "description": data.get("description"),
         "is_active": bool(data.get("is_active", True)),
         "current_published_version_id": str(data["current_published_version_id"])

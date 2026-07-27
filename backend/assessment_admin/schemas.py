@@ -36,6 +36,9 @@ class AssessmentCatalogOut(BaseModel):
     category: str | None = None
     category_ar: str | None = None
     license_status: str | None = None
+    # RESERVED | EDUCATIONAL_PREVIEW | TRIAL | LICENSED_ACTIVE | AVAILABLE
+    availability_state: str | None = None
+    requires_governance_approval: bool = False
     description: str | None = None
     is_active: bool
     current_published_version_id: str | None = None

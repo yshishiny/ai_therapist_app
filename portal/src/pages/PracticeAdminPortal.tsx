@@ -5,6 +5,7 @@ import apiClient from '../services/api'
 import { useSampleDataHidden } from '../hooks/useSampleDataHidden'
 import { SampleGate } from '../components/SampleGate'
 import { TextSizeControl } from '../components/TextSizeControl'
+import { TrialModePanel } from '../components/TrialModePanel'
 import {
   Brain,
   Plus,
@@ -16,6 +17,7 @@ import {
   ClipboardList,
   LibraryBig,
   ShieldCheck,
+  FlaskConical,
   CreditCard,
   Settings as SettingsIcon,
   LogOut,
@@ -835,6 +837,8 @@ type CatalogEntry = {
   category: string | null
   category_ar: string | null
   license_status: string | null
+  availability_state: string | null
+  requires_governance_approval?: boolean
   description: string | null
   is_active: boolean
   current_published_version_number: number | null
@@ -854,6 +858,7 @@ function AssessmentsView() {
   const [error, setError] = useState<string | null>(null)
   const [uploadStatus, setUploadStatus] = useState<string | null>(null)
   const [selected, setSelected] = useState<CatalogEntry | null>(null)
+  const [trialEntry, setTrialEntry] = useState<CatalogEntry | null>(null)
   const [lang, setLang] = useState<'en' | 'ar'>('en')
   const jsonInputRef = useRef<HTMLInputElement>(null)
   const pdfInputRef = useRef<HTMLInputElement>(null)
@@ -1010,20 +1015,49 @@ function AssessmentsView() {
               <h3 className="text-lg font-heading text-organic-neutral-600">Reserved — awaiting license</h3>
             </div>
             <div className="flex flex-col gap-3">
-              {reserved.map((t) => (
-                <div key={t.id} className="bg-organic-surface/60 rounded-organic-tile p-[18px] shadow-organic-sm flex items-center gap-4 opacity-75">
-                  <div className="w-12 h-12 rounded-organic-tile bg-organic-neutral-200 grid place-items-center flex-none">
-                    <Lock size={20} className="text-organic-neutral-500" />
+              {reserved.map((t) => {
+                const st = t.availability_state || 'RESERVED'
+                const onTrial = st === 'TRIAL'
+                const licensed = st === 'LICENSED_ACTIVE'
+                return (
+                  <div
+                    key={t.id}
+                    onClick={() => setTrialEntry(t)}
+                    className={`rounded-organic-tile p-[18px] shadow-organic-sm flex items-center gap-4 cursor-pointer hover:shadow transition-shadow ${
+                      onTrial ? 'bg-organic-accent-100/60' : licensed ? 'bg-organic-surface' : 'bg-organic-surface/60 opacity-75'
+                    }`}
+                  >
+                    <div
+                      className={`w-12 h-12 rounded-organic-tile grid place-items-center flex-none ${
+                        onTrial ? 'bg-organic-accent-200' : 'bg-organic-neutral-200'
+                      }`}
+                    >
+                      {onTrial ? (
+                        <FlaskConical size={20} className="text-organic-accent-700" />
+                      ) : licensed ? (
+                        <ShieldCheck size={20} className="text-organic-accent-700" />
+                      ) : (
+                        <Lock size={20} className="text-organic-neutral-500" />
+                      )}
+                    </div>
+                    <div className="flex-1" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+                      <div className="font-bold text-[0.9375rem] text-organic-neutral-700">{displayName(t)}</div>
+                      <div className="text-xs text-organic-neutral-500">{t.description}</div>
+                    </div>
+                    <span
+                      className={`text-[0.7812rem] px-2.5 py-0.5 rounded-organic-pill font-semibold flex-none ${
+                        onTrial
+                          ? 'bg-organic-accent-300/60 text-organic-accent-800'
+                          : licensed
+                          ? 'bg-organic-accent-2-200 text-organic-accent-2-800'
+                          : 'bg-organic-neutral-300/60 text-organic-neutral-700'
+                      }`}
+                    >
+                      {onTrial ? 'Trial' : licensed ? 'Licensed' : 'License required'}
+                    </span>
                   </div>
-                  <div className="flex-1" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-                    <div className="font-bold text-[0.9375rem] text-organic-neutral-700">{displayName(t)}</div>
-                    <div className="text-xs text-organic-neutral-500">{t.description}</div>
-                  </div>
-                  <span className="text-[0.7812rem] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-300/60 text-organic-neutral-700 font-semibold flex-none">
-                    License required
-                  </span>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </>
         )}
@@ -1065,6 +1099,14 @@ function AssessmentsView() {
           <button className="rounded-organic-pill border border-organic-neutral-300/60 font-heading text-sm px-[18px] py-3">Export</button>
         </div>
       </div>
+
+      {trialEntry && (
+        <TrialModePanel
+          entry={trialEntry}
+          onClose={() => setTrialEntry(null)}
+          onChanged={reload}
+        />
+      )}
 
       {selected && (
         <AssessmentReviewPanel
