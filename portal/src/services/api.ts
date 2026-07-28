@@ -119,6 +119,43 @@ export function resourceReviewStatus(r: ResourceItem): ResourceReviewStatus | nu
 }
 
 /**
+ * A stored string, but only if it is a web address this app is willing to put
+ * in an `href` or an iframe `src`.
+ *
+ * Everything the library holds in `file_url` — and therefore everything the
+ * server echoes back as `lookup_url`, since the backend returns `file_url`
+ * verbatim as the "source" lookup — is attacker-controllable data: the create
+ * endpoint (`ResourceIn.file_url`) takes any string with no URL validation.
+ * React does not neutralise a `javascript:` href; it warns in development and
+ * still writes the attribute, so an unchecked stored URL is a stored XSS the
+ * moment a reviewer clicks the link. `data:` is refused for the same reason.
+ *
+ * Returns the original text (trimmed), not a re-serialised URL: what gets
+ * opened must be exactly what the database holds, so a reviewer checking a
+ * citation is checking the stored link and not a normalised approximation.
+ */
+export function webUrl(raw: string | null | undefined): string | null {
+  if (typeof raw !== 'string') return null
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+  try {
+    const u = new URL(trimmed)
+    return u.protocol === 'http:' || u.protocol === 'https:' ? trimmed : null
+  } catch {
+    return null
+  }
+}
+
+export type ResourceLookupTarget =
+  | { url: string; kind: ResourceLookupKind }
+  /**
+   * The row stores something in its link field, but it is not an http(s) web
+   * address, so no link is offered for it. `stored` is the raw text, for the
+   * UI to show as text — never as a destination.
+   */
+  | { url: null; kind: 'blocked'; stored: string }
+
+/**
  * Resolves the link to open, and what that link honestly is.
  *
  * The server sends both halves. When it sends neither (older build), the only
@@ -131,13 +168,24 @@ export function resourceReviewStatus(r: ResourceItem): ResourceReviewStatus | nu
  * under-claiming is a reviewer double-checking something she did not need to;
  * the failure mode of over-claiming is a fabricated citation passing as
  * confirmed.
+ *
+ * Anything that is not an http(s) address comes back as 'blocked' rather than
+ * as a link or as silence: refusing to open it is right, but hiding that the
+ * row holds it would leave a poisoned entry looking like a clean one.
  */
-export function resourceLookup(r: ResourceItem): { url: string; kind: ResourceLookupKind } | null {
-  const url = typeof r.lookup_url === 'string' && r.lookup_url.trim() ? r.lookup_url.trim() : null
-  if (!url) {
-    const file = typeof r.file_url === 'string' && r.file_url.trim() ? r.file_url.trim() : null
-    return file ? { url: file, kind: 'source' } : null
+export function resourceLookup(r: ResourceItem): ResourceLookupTarget | null {
+  const stored = typeof r.lookup_url === 'string' && r.lookup_url.trim() ? r.lookup_url.trim() : null
+  const storedFile = typeof r.file_url === 'string' && r.file_url.trim() ? r.file_url.trim() : null
+
+  if (!stored) {
+    if (!storedFile) return null
+    const safeFile = webUrl(storedFile)
+    return safeFile ? { url: safeFile, kind: 'source' } : { url: null, kind: 'blocked', stored: storedFile }
   }
+
+  const url = webUrl(stored)
+  if (!url) return { url: null, kind: 'blocked', stored }
+
   const raw = typeof r.lookup_kind === 'string' ? r.lookup_kind.toLowerCase() : null
   if (raw === 'source') return { url, kind: 'source' }
   if (raw === 'search') return { url, kind: 'search' }
@@ -148,6 +196,129 @@ export function resourceLookup(r: ResourceItem): { url: string; kind: ResourceLo
 export interface ResourceReviewIn {
   status: ResourceReviewStatus
   note?: string | null
+}
+
+// ── Opening a library entry inside the portal ──────────────────────────────
+//
+// Three outcomes, and the UI has to be honest about which one it is holding:
+//
+//   'youtube'    the row's file_url is a YouTube link we can parse an id out
+//                of, so the video can play in-app.
+//   'pdf'        the row's file_url points at a PDF, so it can be framed.
+//   'reference'  everything else — the 32 books and 30 papers, which have no
+//                file at all, plus any stored link this portal cannot display.
+//
+// Nothing here reaches outside `file_url`. No DOI, ISBN, publisher URL or
+// open-access mirror is ever constructed: these are commercially published
+// works and the library holds metadata, not copies.
+
+/**
+ * A YouTube id is exactly 11 characters from a fixed alphabet. Anything else
+ * is not an id and this returns null rather than guessing — a wrong id would
+ * quietly play a *different* video inside a screen whose whole purpose is
+ * checking that entries are what they claim to be.
+ */
+const YOUTUBE_ID = /^[A-Za-z0-9_-]{11}$/
+
+const YOUTUBE_HOSTS = new Set([
+  'youtube.com',
+  'm.youtube.com',
+  'music.youtube.com',
+  'youtube-nocookie.com',
+  'youtu.be',
+])
+
+/** The video id inside a YouTube URL, or null if this is not one. */
+export function youtubeVideoId(rawUrl: string): string | null {
+  let u: URL
+  try {
+    u = new URL(rawUrl)
+  } catch {
+    return null
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null
+  const host = u.hostname.toLowerCase().replace(/^www\./, '')
+  if (!YOUTUBE_HOSTS.has(host)) return null
+
+  const segments = u.pathname.split('/').filter(Boolean)
+
+  // youtu.be/<id>
+  if (host === 'youtu.be') {
+    const id = segments[0]
+    return id && YOUTUBE_ID.test(id) ? id : null
+  }
+
+  // youtube.com/watch?v=<id>
+  const v = u.searchParams.get('v')
+  if (v && YOUTUBE_ID.test(v)) return v
+
+  // /embed/<id>, /v/<id>, /shorts/<id>, /live/<id>
+  if (segments.length >= 2 && ['embed', 'v', 'shorts', 'live'].includes(segments[0].toLowerCase())) {
+    const id = segments[1]
+    if (YOUTUBE_ID.test(id)) return id
+  }
+
+  return null
+}
+
+/**
+ * Whether a URL names a PDF.
+ *
+ * The row carries no content type, and a page cannot read a cross-origin
+ * response header without fetching it, so the path extension is the only
+ * signal available here. A PDF served from an extensionless URL therefore
+ * falls through to the reference view instead of being framed on a guess —
+ * under-claiming costs a click, over-claiming shows an empty grey box.
+ */
+export function isPdfUrl(rawUrl: string): boolean {
+  try {
+    const u = new URL(rawUrl)
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return false
+    return /\.pdf$/i.test(decodeURIComponent(u.pathname))
+  } catch {
+    return false
+  }
+}
+
+export type ResourceViewerTarget =
+  | { kind: 'youtube'; videoId: string; embedUrl: string; sourceUrl: string }
+  | { kind: 'pdf'; url: string }
+  /**
+   * `unviewableFile` is a stored link this portal cannot render inline — not
+   * the same thing as an entry that has no file at all, which is `null`.
+   *
+   * `fileIsWebAddress` says whether that stored text is even an http(s)
+   * address. When it is false the panel must not offer to open it anywhere,
+   * and must not describe it as a link: it is some other string sitting in the
+   * link column, which is a data problem the reviewer should see named.
+   */
+  | { kind: 'reference'; unviewableFile: string | null; fileIsWebAddress: boolean }
+
+/** How a library entry can be opened inside the portal. */
+export function resourceViewer(r: ResourceItem): ResourceViewerTarget {
+  const file = typeof r.file_url === 'string' && r.file_url.trim() ? r.file_url.trim() : null
+  if (!file) return { kind: 'reference', unviewableFile: null, fileIsWebAddress: false }
+
+  const videoId = youtubeVideoId(file)
+  if (videoId) {
+    return {
+      kind: 'youtube',
+      videoId,
+      // Built only from the id parsed out of the stored URL, on the
+      // privacy-preserving host: youtube-nocookie.com does not set the
+      // tracking cookie until playback actually starts, which is what a
+      // clinical setting should default to. `rel=0` keeps the end-screen
+      // suggestions to the same channel rather than the open catalogue.
+      embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?rel=0`,
+      // The stored URL itself, so "open on YouTube" goes exactly where the
+      // database says and nowhere else.
+      sourceUrl: file,
+    }
+  }
+
+  if (isPdfUrl(file)) return { kind: 'pdf', url: file }
+
+  return { kind: 'reference', unviewableFile: file, fileIsWebAddress: webUrl(file) !== null }
 }
 
 // ── Patient portal (/me/*) ────────────────────────────────────────────────

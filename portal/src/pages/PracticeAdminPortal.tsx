@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import apiClient from '../services/api'
 import type { PracticeSummary, ResourceItem, ResourceReviewStatus } from '../services/api'
-import { resourceReviewStatus, resourceLookup } from '../services/api'
+import { resourceReviewStatus, resourceLookup, resourceViewer } from '../services/api'
 import { sourceMetaOf, addedByLabel } from '../types/patient'
 import type { SourceMeta } from '../types/patient'
 import { useSampleDataHidden } from '../hooks/useSampleDataHidden'
@@ -46,6 +46,9 @@ import {
   SearchCheck,
   RotateCcw,
   StickyNote,
+  X,
+  Download,
+  Info,
 } from 'lucide-react'
 
 type View = 'dashboard' | 'clinicians' | 'patients' | 'patientDetail' | 'assessments' | 'content' | 'access' | 'billing' | 'settings'
@@ -2417,24 +2420,87 @@ function DecisionButton({
 }
 
 /**
- * One library entry, with its link and its review controls.
+ * The link an entry can be opened through, and what that link honestly is.
  *
- * Nothing optimistic happens here. The card only ever shows what came back from
- * the server: on success the parent swaps in the returned row, and on failure
- * the old state stays put under an error line, so a save that did not happen
- * can never look like one that did.
+ * Shared by the card and the viewer panel so the two can never drift into
+ * describing the same row differently.
  */
-function ResourceReviewCard({
+function ResourceLookupBlock({ resource }: { resource: ResourceItem }) {
+  const lookup = resourceLookup(resource)
+  const host = lookup && lookup.url ? hostOf(lookup.url) : null
+
+  if (!lookup) {
+    return (
+      <div className="text-[0.7812rem] text-organic-neutral-600 leading-snug">
+        No link. This entry has no stored URL and the server returned no lookup for it, so there is nothing to
+        open from here.
+      </div>
+    )
+  }
+
+  // Something is stored in the link field, but it is not a web address. No
+  // link is rendered for it — a `javascript:` or `data:` value in an href runs
+  // in this portal's own origin the moment it is clicked. It is shown as plain
+  // text instead, because an entry carrying this is a finding in its own right
+  // and silently hiding it would make a poisoned row look like a clean one.
+  if (lookup.kind === 'blocked') {
+    return (
+      <div className="text-[0.7812rem] leading-snug">
+        <div className="text-organic-danger font-semibold inline-flex items-center gap-1.5">
+          <AlertTriangle size={13} /> Link not opened
+        </div>
+        <div className="text-organic-neutral-600 mt-1">
+          This entry stores something in its link field that is not a web address, so the portal will not open it
+          and has not fetched anything from it. Stored value:
+        </div>
+        <code className="block mt-1 text-organic-neutral-700 bg-organic-neutral-100 rounded-organic-tile px-2 py-1 break-all">
+          {lookup.stored}
+        </code>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <a
+        href={lookup.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[0.8125rem] font-semibold text-organic-accent-700 inline-flex items-center gap-1.5"
+      >
+        {lookup.kind === 'source' ? <ExternalLink size={14} /> : <SearchCheck size={14} />}
+        {lookup.kind === 'source' ? 'Open source' : 'Search for this'}
+        {host && <span className="font-normal text-organic-neutral-500">· {host}</span>}
+      </a>
+      <div className="text-[0.7812rem] text-organic-neutral-600 mt-1 leading-snug">
+        {lookup.kind === 'source'
+          ? 'The link stored with this entry.'
+          : 'No link is stored for this entry, so this opens a search built from its title and author. Check that what comes back is really this work before confirming it.'}
+      </div>
+    </>
+  )
+}
+
+/**
+ * The review decision controls: badge, who and when, note, and the buttons.
+ *
+ * Nothing optimistic happens here. The controls only ever show what came back
+ * from the server: on success the parent swaps in the returned row, and on
+ * failure the old state stays put under an error line, so a save that did not
+ * happen can never look like one that did.
+ *
+ * Mounted twice for the same row — once on the card, once in the viewer panel
+ * when it is open — so that a decision can be made from either place.
+ */
+function ResourceReviewControls({
   resource,
   reviewerName,
   reviewerLookupAvailable,
-  keptAfterFilterChange,
   onSaved,
 }: {
   resource: ResourceItem
   reviewerName: (id: string) => string | null
   reviewerLookupAvailable: boolean
-  keptAfterFilterChange: boolean
   onSaved: (updated: ResourceItem) => void
 }) {
   const [note, setNote] = useState(resource.review_note || '')
@@ -2442,18 +2508,21 @@ function ResourceReviewCard({
   const [saving, setSaving] = useState<ResourceReviewStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const tags = Array.isArray(resource.tags) ? resource.tags : []
-  const Icon = CATEGORY_META[resource.category]?.icon || FileText
-  const slug = topicOf(tags)
+  // The card and the panel hold the same row. When one of them saves a note,
+  // the stored text changes under the other, and the stale copy would otherwise
+  // sit in its editor waiting to be re-submitted over the top of the new one.
+  // This follows the server's value, which is the only version that exists.
+  useEffect(() => {
+    setNote(resource.review_note || '')
+  }, [resource.review_note])
+
   const status = resourceReviewStatus(resource)
-  const lookup = resourceLookup(resource)
-  const host = lookup ? hostOf(lookup.url) : null
   const savedNote = resource.review_note || ''
   const noteDirty = note.trim() !== savedNote.trim()
 
   // The server sends a clinician id, not a name. It is resolved against the
-  // clinician list; when that cannot be done the card says so rather than
-  // printing a raw uuid or, worse, guessing at a person.
+  // clinician list; when that cannot be done it says so rather than printing a
+  // raw uuid or, worse, guessing at a person.
   const who = resource.reviewed_by
     ? reviewerLookupAvailable
       ? reviewerName(resource.reviewed_by) || 'someone not in the clinician list'
@@ -2481,7 +2550,7 @@ function ResourceReviewCard({
         setError('That decision was not saved — the server rejected the request. Nothing has changed.')
       } else {
         // No answer came back at all. Whether the write landed is unknown, and
-        // this card must not claim otherwise in either direction.
+        // this must not claim otherwise in either direction.
         setError(
           'The server could not be reached, so it is not known whether this decision was saved. Reload the page to see what it actually holds before deciding again.',
         )
@@ -2492,24 +2561,164 @@ function ResourceReviewCard({
   }
 
   return (
-    <div className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm flex flex-col gap-3">
-      <div className="flex justify-between items-start gap-2">
-        <div className="w-[46px] h-[46px] rounded-organic-tile bg-organic-accent-100 grid place-items-center flex-none">
-          <Icon size={22} className="text-organic-accent-700" />
+    <div className="flex flex-col gap-2">
+      <ReviewBadge status={status} />
+
+      {/* Shown for UNREVIEWED too when the row carries a reviewer stamp: that
+          only happens when somebody cleared a decision, and hiding it would
+          leave the screen claiming nothing was ever recorded. */}
+      {status && (status !== 'UNREVIEWED' || who !== null || when !== null) && (
+        <div className="text-[0.7812rem] text-organic-neutral-600 leading-snug">
+          {REVIEW_STYLE[status].verb}
+          {who ? ` by ${who}` : ''}
+          {when ? ` · ${when}` : ''}
         </div>
-        <span className="text-[0.7812rem] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-200 text-organic-neutral-700">
-          {resource.category}
-        </span>
-      </div>
-
-      <div>
-        <div className="font-bold text-[0.9375rem] leading-tight">{resource.title}</div>
-        {resource.author && <div className="text-xs text-organic-neutral-600 mt-1">{resource.author}</div>}
-      </div>
-
-      {resource.description && (
-        <p className="text-[0.8125rem] text-organic-neutral-700 leading-relaxed line-clamp-4">{resource.description}</p>
       )}
+
+      {!noteOpen && savedNote && (
+        <div className="text-[0.7812rem] text-organic-neutral-700 bg-organic-neutral-100 rounded-organic-tile px-3 py-2 leading-snug whitespace-pre-wrap">
+          {savedNote}
+        </div>
+      )}
+
+      {noteOpen && (
+        <div>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+            placeholder="What did you find? (optional)"
+            className="w-full text-[0.8125rem] p-2.5 bg-organic-neutral-100 border border-organic-neutral-300/60 rounded-organic-tile resize-y"
+          />
+          <div className="text-[0.7812rem] text-organic-neutral-600 mt-1 leading-snug">
+            {status && status !== 'UNREVIEWED'
+              ? 'Saved when you pick a decision below, or with “Save note”.'
+              : 'Saved when you pick a decision below.'}
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        {DECISIONS.map((d) => (
+          <DecisionButton
+            key={d}
+            status={d}
+            active={status === d}
+            busy={saving === d}
+            disabled={saving !== null}
+            onClick={() => submit(d)}
+          />
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setNoteOpen((v) => !v)}
+          className="text-[0.7812rem] font-semibold text-organic-accent-700 inline-flex items-center gap-1"
+        >
+          <StickyNote size={13} /> {noteOpen ? 'Hide note' : savedNote ? 'Edit note' : 'Add a note'}
+        </button>
+        {noteOpen && noteDirty && status && status !== 'UNREVIEWED' && (
+          <button
+            type="button"
+            onClick={() => submit(status)}
+            disabled={saving !== null}
+            className="text-[0.7812rem] font-semibold text-organic-accent-700 disabled:opacity-60"
+          >
+            {saving ? 'Saving…' : 'Save note'}
+          </button>
+        )}
+        {status && status !== 'UNREVIEWED' && (
+          <button
+            type="button"
+            onClick={() => submit('UNREVIEWED')}
+            disabled={saving !== null}
+            className="text-[0.7812rem] text-organic-neutral-600 inline-flex items-center gap-1 disabled:opacity-60"
+          >
+            <RotateCcw size={12} /> Clear decision
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <div className="text-[0.7812rem] text-organic-danger bg-organic-danger/10 border border-organic-danger/30 rounded-organic-tile px-3 py-2 leading-snug">
+          <AlertTriangle size={13} className="inline-block mr-1 -mt-0.5" />
+          {error}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** What the card's "open this" affordance promises, per what the panel can do. */
+function openLabelFor(resource: ResourceItem): string {
+  const viewer = resourceViewer(resource)
+  if (viewer.kind === 'youtube') return 'Watch in the portal'
+  if (viewer.kind === 'pdf') return 'Read in the portal'
+  return 'Open the reference'
+}
+
+/**
+ * One library entry: a summary that opens the viewer panel, its link, and its
+ * review controls.
+ */
+function ResourceReviewCard({
+  resource,
+  reviewerName,
+  reviewerLookupAvailable,
+  keptAfterFilterChange,
+  onOpen,
+  onSaved,
+}: {
+  resource: ResourceItem
+  reviewerName: (id: string) => string | null
+  reviewerLookupAvailable: boolean
+  keptAfterFilterChange: boolean
+  onOpen: () => void
+  onSaved: (updated: ResourceItem) => void
+}) {
+  const tags = Array.isArray(resource.tags) ? resource.tags : []
+  const Icon = CATEGORY_META[resource.category]?.icon || FileText
+  const slug = topicOf(tags)
+  const openLabel = openLabelFor(resource)
+
+  return (
+    <div className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm flex flex-col gap-3">
+      {/* The summary is the button that opens the viewer. Only phrasing content
+          inside it, so it stays a valid — and keyboard-reachable — control. */}
+      <button
+        type="button"
+        onClick={onOpen}
+        className="text-left flex flex-col items-start gap-3 group"
+        aria-label={`${openLabel}: ${resource.title}`}
+      >
+        <span className="flex justify-between items-start gap-2 w-full">
+          <span className="w-[46px] h-[46px] rounded-organic-tile bg-organic-accent-100 grid place-items-center flex-none">
+            <Icon size={22} className="text-organic-accent-700" />
+          </span>
+          <span className="text-[0.7812rem] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-200 text-organic-neutral-700">
+            {resource.category}
+          </span>
+        </span>
+
+        <span className="block">
+          <span className="block font-bold text-[0.9375rem] leading-tight group-hover:underline">
+            {resource.title}
+          </span>
+          {resource.author && <span className="block text-xs text-organic-neutral-600 mt-1">{resource.author}</span>}
+        </span>
+
+        {resource.description && (
+          <span className="block text-[0.8125rem] text-organic-neutral-700 leading-relaxed line-clamp-4">
+            {resource.description}
+          </span>
+        )}
+
+        <span className="text-[0.7812rem] font-semibold text-organic-accent-700 inline-flex items-center gap-1">
+          {openLabel} <ChevronRight size={13} />
+        </span>
+      </button>
 
       {/* What the ingest recorded: topic, and whether an audit ever ran. */}
       <div className="flex items-center gap-1.5 flex-wrap mt-auto">
@@ -2523,125 +2732,361 @@ function ResourceReviewCard({
 
       {/* The link. Its label states what it actually is. */}
       <div className="pt-2.5 border-t border-organic-neutral-300/50">
-        {lookup ? (
-          <>
-            <a
-              href={lookup.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[0.8125rem] font-semibold text-organic-accent-700 inline-flex items-center gap-1.5"
-            >
-              {lookup.kind === 'source' ? <ExternalLink size={14} /> : <SearchCheck size={14} />}
-              {lookup.kind === 'source' ? 'Open source' : 'Search for this'}
-              {host && <span className="font-normal text-organic-neutral-500">· {host}</span>}
-            </a>
-            <div className="text-[0.7812rem] text-organic-neutral-600 mt-1 leading-snug">
-              {lookup.kind === 'source'
-                ? 'The link stored with this entry.'
-                : 'No link is stored for this entry, so this opens a search built from its title and author. Check that what comes back is really this work before confirming it.'}
-            </div>
-          </>
-        ) : (
-          <div className="text-[0.7812rem] text-organic-neutral-600 leading-snug">
-            No link. This entry has no stored URL and the server returned no lookup for it, so there is nothing to
-            open from here.
-          </div>
-        )}
+        <ResourceLookupBlock resource={resource} />
       </div>
 
       {/* What a reviewer concluded. Separate block, separate fact. */}
       <div className="pt-2.5 border-t border-organic-neutral-300/50 flex flex-col gap-2">
-        <ReviewBadge status={status} />
-
-        {/* Shown for UNREVIEWED too when the row carries a reviewer stamp: that
-            only happens when somebody cleared a decision, and hiding it would
-            leave the card claiming nothing was ever recorded. */}
-        {status && (status !== 'UNREVIEWED' || who !== null || when !== null) && (
-          <div className="text-[0.7812rem] text-organic-neutral-600 leading-snug">
-            {REVIEW_STYLE[status].verb}
-            {who ? ` by ${who}` : ''}
-            {when ? ` · ${when}` : ''}
-          </div>
-        )}
-
-        {!noteOpen && savedNote && (
-          <div className="text-[0.7812rem] text-organic-neutral-700 bg-organic-neutral-100 rounded-organic-tile px-3 py-2 leading-snug whitespace-pre-wrap">
-            {savedNote}
-          </div>
-        )}
-
-        {noteOpen && (
-          <div>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={3}
-              placeholder="What did you find? (optional)"
-              className="w-full text-[0.8125rem] p-2.5 bg-organic-neutral-100 border border-organic-neutral-300/60 rounded-organic-tile resize-y"
-            />
-            <div className="text-[0.7812rem] text-organic-neutral-600 mt-1 leading-snug">
-              {status && status !== 'UNREVIEWED'
-                ? 'Saved when you pick a decision below, or with “Save note”.'
-                : 'Saved when you pick a decision below.'}
-            </div>
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          {DECISIONS.map((d) => (
-            <DecisionButton
-              key={d}
-              status={d}
-              active={status === d}
-              busy={saving === d}
-              disabled={saving !== null}
-              onClick={() => submit(d)}
-            />
-          ))}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setNoteOpen((v) => !v)}
-            className="text-[0.7812rem] font-semibold text-organic-accent-700 inline-flex items-center gap-1"
-          >
-            <StickyNote size={13} /> {noteOpen ? 'Hide note' : savedNote ? 'Edit note' : 'Add a note'}
-          </button>
-          {noteOpen && noteDirty && status && status !== 'UNREVIEWED' && (
-            <button
-              type="button"
-              onClick={() => submit(status)}
-              disabled={saving !== null}
-              className="text-[0.7812rem] font-semibold text-organic-accent-700 disabled:opacity-60"
-            >
-              {saving ? 'Saving…' : 'Save note'}
-            </button>
-          )}
-          {status && status !== 'UNREVIEWED' && (
-            <button
-              type="button"
-              onClick={() => submit('UNREVIEWED')}
-              disabled={saving !== null}
-              className="text-[0.7812rem] text-organic-neutral-600 inline-flex items-center gap-1 disabled:opacity-60"
-            >
-              <RotateCcw size={12} /> Clear decision
-            </button>
-          )}
-        </div>
-
-        {error && (
-          <div className="text-[0.7812rem] text-organic-danger bg-organic-danger/10 border border-organic-danger/30 rounded-organic-tile px-3 py-2 leading-snug">
-            <AlertTriangle size={13} className="inline-block mr-1 -mt-0.5" />
-            {error}
-          </div>
-        )}
+        <ResourceReviewControls
+          resource={resource}
+          reviewerName={reviewerName}
+          reviewerLookupAvailable={reviewerLookupAvailable}
+          onSaved={onSaved}
+        />
 
         {keptAfterFilterChange && (
           <div className="text-[0.7812rem] text-organic-neutral-500 leading-snug">
             Kept on screen so you can see what was saved — it no longer matches the review filter.
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Viewer panel ───────────────────────────────────────────────────────────
+
+/**
+ * A library entry opened for review: the thing itself where that is possible,
+ * its metadata, and the review controls, so a decision can be made without
+ * leaving the panel.
+ *
+ * Three cases, and the panel is explicit about which one it is in. The one
+ * thing it never does is frame a page that refuses to be framed — Google
+ * Books and Scholar both answer `X-Frame-Options: SAMEORIGIN`, so an in-app
+ * frame would render an empty box, which reads as a broken screen and teaches
+ * the reviewer to distrust everything else on it.
+ */
+function ResourceViewerPanel({
+  resource,
+  reviewerName,
+  reviewerLookupAvailable,
+  onClose,
+  onSaved,
+}: {
+  resource: ResourceItem
+  reviewerName: (id: string) => string | null
+  reviewerLookupAvailable: boolean
+  onClose: () => void
+  onSaved: (updated: ResourceItem) => void
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  const tags = Array.isArray(resource.tags) ? resource.tags : []
+  const slug = topicOf(tags)
+  const Icon = CATEGORY_META[resource.category]?.icon || FileText
+  const viewer = resourceViewer(resource)
+  const lookup = resourceLookup(resource)
+
+  // Where the viewer above already sends her. The lookup block is only worth
+  // repeating when it points somewhere else — but a blocked link (url === null)
+  // is a warning, not a destination, so it is never suppressed by matching the
+  // viewer's own null.
+  const viewerUrl =
+    viewer.kind === 'youtube' ? viewer.sourceUrl : viewer.kind === 'pdf' ? viewer.url : null
+  const showLookup =
+    lookup === null ? viewer.kind === 'reference' : lookup.url === null ? true : lookup.url !== viewerUrl
+  // Whether a search is actually on offer below. The reference copy must not
+  // point at "the search below" when the server returned no lookup: a promised
+  // link that is not there reads as a broken screen, and the honest line is
+  // that nothing was computed rather than that something is waiting.
+  const lookupIsSearch = lookup !== null && lookup.url !== null && lookup.kind === 'search'
+
+  const facts: [string, string][] = [
+    ['Type', categoryLabel(resource.category)],
+    ['Topic', slug ? humanTopic(slug) : 'Not recorded'],
+    ['Author', resource.author || 'Not recorded'],
+  ]
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex justify-end" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={resource.title}
+        className="bg-organic-bg w-full max-w-[760px] h-screen overflow-y-auto shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-7">
+          <div className="flex justify-between items-start gap-3 mb-5">
+            <div className="flex items-start gap-3">
+              <div className="w-[46px] h-[46px] rounded-organic-tile bg-organic-accent-100 grid place-items-center flex-none">
+                <Icon size={22} className="text-organic-accent-700" />
+              </div>
+              <div>
+                <h2 className="text-[1.5rem] font-heading text-organic-text leading-tight">{resource.title}</h2>
+                <p className="text-sm text-organic-neutral-600 mt-0.5">
+                  {resource.author || 'Author not recorded'} · {categoryLabel(resource.category)}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="text-organic-neutral-500 hover:text-organic-neutral-800 flex-none"
+            >
+              <X size={22} />
+            </button>
+          </div>
+
+          {/* ── 1. Video ─────────────────────────────────────────────────── */}
+          {viewer.kind === 'youtube' && (
+            <section className="mb-5">
+              <div className="rounded-organic-card overflow-hidden bg-organic-neutral-900 aspect-video">
+                <iframe
+                  key={viewer.videoId}
+                  src={viewer.embedUrl}
+                  title={`Video: ${resource.title}`}
+                  className="w-full h-full block border-0"
+                  // Only what playback needs. `allow-same-origin` is scoped to
+                  // youtube-nocookie.com, not to this app: a cross-origin frame
+                  // still cannot reach this page's DOM, storage or cookies, and
+                  // the player will not start without it.
+                  sandbox="allow-scripts allow-same-origin allow-presentation"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allow="encrypted-media; picture-in-picture; fullscreen"
+                  allowFullScreen
+                  loading="lazy"
+                />
+              </div>
+              <div className="mt-2.5 text-[0.8125rem] text-organic-neutral-700 leading-relaxed">
+                <div className="flex items-start gap-2">
+                  <Info size={15} className="text-organic-neutral-500 flex-none mt-0.5" />
+                  <div>
+                    Playback is served by <strong className="font-semibold">YouTube</strong>, not by this practice: no
+                    copy is stored, hosted or proxied here, and loading this panel tells YouTube that someone at this
+                    practice opened the video. It is streamed from the host YouTube calls privacy-enhanced, which
+                    YouTube states does not record viewing information until playback starts — that is YouTube&apos;s
+                    account of its own service, not something this practice can verify. If the player shows an error
+                    instead of the video, the embed was refused: usually because the uploader disallowed embedding, but
+                    a removed or private video looks the same from here. Open it on YouTube below to see which.
+                  </div>
+                </div>
+                <a
+                  href={viewer.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 text-[0.8125rem] font-semibold text-organic-accent-700 inline-flex items-center gap-1.5"
+                >
+                  <ExternalLink size={14} /> Open on YouTube
+                  <span className="font-normal text-organic-neutral-500">· the link stored with this entry</span>
+                </a>
+              </div>
+            </section>
+          )}
+
+          {/* ── 2. PDF ───────────────────────────────────────────────────── */}
+          {viewer.kind === 'pdf' && (
+            <section className="mb-5">
+              <div className="relative rounded-organic-card overflow-hidden border border-organic-neutral-300/60 bg-organic-neutral-100 h-[58vh] min-h-[360px]">
+                {/* Sits *behind* the frame, so the failure is never a silent
+                    grey rectangle. A frame that renders nothing — the host sent
+                    Content-Disposition: attachment, or the browser declined to
+                    display a PDF inline — stays transparent and this shows
+                    through; a PDF that does render paints over it. The page
+                    cannot detect either case from the outside (a blocked frame
+                    still fires `load`), so the fallback is always mounted
+                    rather than switched on by a check that would lie. */}
+                <div className="absolute inset-0 grid place-items-center p-6 text-center pointer-events-none">
+                  <div className="text-[0.8125rem] text-organic-neutral-600 leading-relaxed max-w-[420px]">
+                    <FileText size={26} className="mx-auto mb-2 text-organic-neutral-400" />
+                    If you can read this, the document did not open here. That can be the host refusing to be displayed
+                    inside another page, your browser declining to render a PDF in a restricted frame, or the file not
+                    being reachable at all — this panel cannot tell which. Open it with the links below before drawing
+                    any conclusion about the entry.
+                  </div>
+                </div>
+                <iframe
+                  src={viewer.url}
+                  title={`Document: ${resource.title}`}
+                  className="w-full h-full block border-0 relative"
+                  // A PDF viewer is a scripted document in every current
+                  // browser, so scripts are the one thing it needs. Nothing
+                  // else is granted, and without `allow-same-origin` the frame
+                  // sits in an opaque origin of its own.
+                  sandbox="allow-scripts"
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
+                />
+              </div>
+              <div className="mt-2.5 text-[0.8125rem] text-organic-neutral-700 leading-relaxed">
+                <div className="flex items-start gap-2">
+                  <Info size={15} className="text-organic-neutral-500 flex-none mt-0.5" />
+                  <div>
+                    Some browsers and some hosts refuse to display a PDF inside another page, and this panel frames it
+                    under restrictions that some PDF viewers will not run under.{' '}
+                    <strong className="font-semibold">
+                      If the area above shows a message rather than the document, it did not load here
+                    </strong>{' '}
+                    — which of those reasons applies is not something this panel can detect from the inside, so it says
+                    so in place of the document rather than leaving an empty box, and does not blame the entry. Use one
+                    of the links below instead.
+                  </div>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-4">
+                  <a
+                    href={viewer.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[0.8125rem] font-semibold text-organic-accent-700 inline-flex items-center gap-1.5"
+                  >
+                    <ExternalLink size={14} /> Open in a new tab
+                  </a>
+                  <a
+                    href={viewer.url}
+                    download
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[0.8125rem] font-semibold text-organic-accent-700 inline-flex items-center gap-1.5"
+                  >
+                    <Download size={14} /> Download a copy
+                  </a>
+                </div>
+                <div className="text-[0.7812rem] text-organic-neutral-600 mt-1.5 leading-snug">
+                  Whether it saves or simply opens is decided by your browser and by the host serving it — for a file on
+                  another site the download request is usually ignored and it opens instead. Both links go to the URL
+                  stored with this entry, {hostOf(viewer.url) || 'an external host'}, and nothing is copied to this
+                  practice by using them.
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* ── 3. Reference only ────────────────────────────────────────── */}
+          {viewer.kind === 'reference' && (
+            <section className="mb-5 bg-organic-surface rounded-organic-card p-5">
+              <div className="flex items-start gap-3">
+                <LibraryBig size={20} className="text-organic-accent-700 flex-none mt-0.5" />
+                <div className="text-[0.8125rem] text-organic-neutral-700 leading-relaxed">
+                  {viewer.unviewableFile === null ? (
+                    <>
+                      <h3 className="font-heading text-[1.0625rem] text-organic-text mb-1.5">
+                        A reference, not a copy
+                      </h3>
+                      <p>
+                        The library holds a <strong className="font-semibold">reference</strong> to this work — its
+                        title, author, topic and description — and nothing more. It is a commercially published work,
+                        so no full text is stored, hosted or proxied by this practice, and there is nothing to play or
+                        read inside the app.
+                      </p>
+                      <p className="mt-2">
+                        {lookupIsSearch ? (
+                          <>
+                            Reach it the way you normally would: through your institutional library, the publisher, or
+                            the search below. A search page cannot be shown inside this panel either — the search
+                            engines refuse to be embedded in another site, so a frame here would render an empty box
+                            rather than results. The search is a way of looking for the work, not the work itself.
+                          </>
+                        ) : (
+                          <>
+                            Reach it the way you normally would: through your institutional library or the publisher.
+                            No search link is offered for this entry either — the server returned none, and this screen
+                            does not invent one.
+                          </>
+                        )}
+                      </p>
+                    </>
+                  ) : viewer.fileIsWebAddress ? (
+                    <>
+                      <h3 className="font-heading text-[1.0625rem] text-organic-text mb-1.5">
+                        Stored link, not displayable here
+                      </h3>
+                      <p>
+                        This entry has a stored link, but it is neither a video this portal can play nor a PDF it can
+                        frame, so there is nothing to show inside the panel. Open it in a new tab to see what it is.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="font-heading text-[1.0625rem] text-organic-text mb-1.5">
+                        The stored link is not a web address
+                      </h3>
+                      <p>
+                        This entry has something in its link field, but it is not an <code>http</code> or{' '}
+                        <code>https</code> address. Nothing has been loaded from it and no link to it is offered
+                        anywhere on this screen. Treat the entry as unverifiable until the stored value is corrected —
+                        it is shown as text below so you can see what it says.
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Where the entry can be reached, when the viewer above has not
+              already offered it. */}
+          {showLookup && (
+            <section className="mb-5 bg-organic-surface rounded-organic-card p-5">
+              <ResourceLookupBlock resource={resource} />
+            </section>
+          )}
+
+          {/* ── What the library records about the entry ─────────────────── */}
+          <section className="mb-5 bg-organic-surface rounded-organic-card p-5">
+            <h3 className="font-heading text-[1.0625rem] mb-3">What the library records</h3>
+            <dl className="grid grid-cols-3 gap-x-5 gap-y-2.5 mb-4">
+              {facts.map(([label, value]) => (
+                <div key={label}>
+                  <dt className="text-xs text-organic-neutral-600">{label}</dt>
+                  <dd className="text-sm text-organic-text">{value}</dd>
+                </div>
+              ))}
+            </dl>
+            <div>
+              <div className="text-xs text-organic-neutral-600 mb-1">Description</div>
+              {resource.description ? (
+                <p className="text-[0.8125rem] text-organic-neutral-700 leading-relaxed whitespace-pre-wrap">
+                  {resource.description}
+                </p>
+              ) : (
+                <p className="text-[0.8125rem] text-organic-neutral-600 leading-relaxed">
+                  No description is stored for this entry.
+                </p>
+              )}
+            </div>
+          </section>
+
+          {/* ── The collector's claim. Not the reviewer's decision. ──────── */}
+          <section className="mb-5 bg-organic-surface rounded-organic-card p-5">
+            <h3 className="font-heading text-[1.0625rem] mb-2.5">Citation audit</h3>
+            <ProvenanceBadge provenance={provenanceOf(tags)} />
+            <p className="text-[0.8125rem] text-organic-neutral-700 leading-relaxed mt-2.5">
+              {PROVENANCE_STYLE[provenanceOf(tags)].title}
+            </p>
+            <p className="text-[0.7812rem] text-organic-neutral-600 leading-snug mt-1.5">
+              This is what was recorded when the entry was collected. It is not a review decision — that is yours, and
+              it is below. Neither one sets the other.
+            </p>
+          </section>
+
+          {/* ── Her decision, in the same place as the thing itself. ─────── */}
+          <section className="bg-organic-surface rounded-organic-card p-5">
+            <h3 className="font-heading text-[1.0625rem] mb-2.5">Your review</h3>
+            <ResourceReviewControls
+              resource={resource}
+              reviewerName={reviewerName}
+              reviewerLookupAvailable={reviewerLookupAvailable}
+              onSaved={onSaved}
+            />
+          </section>
+        </div>
       </div>
     </div>
   )
@@ -2668,6 +3113,9 @@ function ContentView({ clinicians }: { clinicians: ClinicianRow[] }) {
   // the instant it is saved would hide the very thing the reviewer just did, so
   // it stays on screen (labelled) until the filter is changed again.
   const [justReviewed, setJustReviewed] = useState<string[]>([])
+  // The entry open in the viewer panel, held by id rather than by value so the
+  // panel always renders the current server row — including one it just saved.
+  const [openId, setOpenId] = useState<string | null>(null)
 
   useEffect(() => {
     apiClient
@@ -2742,6 +3190,11 @@ function ContentView({ clinicians }: { clinicians: ClinicianRow[] }) {
   // hold. Counted, not assumed from the media type.
   const searchOnly = inScope.filter((r) => resourceLookup(r)?.kind === 'search').length
   const noLink = inScope.filter((r) => resourceLookup(r) === null).length
+  // Rows holding something in the link field that is not a web address. Counted
+  // separately rather than folded into `noLink`: "nothing was stored" and "what
+  // was stored cannot be opened" are different facts, and leaving the second out
+  // of the summary would let a poisoned row pass a skim as a clean one.
+  const blockedLink = inScope.filter((r) => resourceLookup(r)?.kind === 'blocked').length
 
   // Every count above is over `inScope`, which the Review filter deliberately
   // does not narrow: they describe the body of work being checked, not the
@@ -2759,6 +3212,9 @@ function ContentView({ clinicians }: { clinicians: ClinicianRow[] }) {
     return acc
   }, {})
   const groupOrder = Object.keys(grouped).sort()
+
+  // Read from the live list, not from a copy taken when the panel opened.
+  const openResource = openId ? withTags.find((r) => r.id === openId) || null : null
 
   if (loading) return <div className="text-sm text-organic-neutral-600 py-8">Loading the content library…</div>
   if (error) return <div className="text-sm text-organic-accent-800 bg-organic-accent-100 rounded-organic-tile px-3.5 py-2.5">{error}</div>
@@ -2907,6 +3363,14 @@ function ContentView({ clinicians }: { clinicians: ClinicianRow[] }) {
                 server.
               </div>
             )}
+            {blockedLink > 0 && (
+              <div className="mt-1.5 text-organic-danger">
+                {blockedLink} of the {inScope.length} {itemWord(inScope.length)} {scopeLabel}{' '}
+                {blockedLink === 1 ? 'holds' : 'hold'} something in the link field that is not a web address, so no
+                link is offered for {blockedLink === 1 ? 'it' : 'them'} and nothing has been loaded from{' '}
+                {blockedLink === 1 ? 'it' : 'them'}. The stored value is shown as text on the card.
+              </div>
+            )}
             {review !== 'All' && (
               <div className="mt-1.5 text-organic-neutral-500">
                 These counts are not narrowed by the Review filter — they cover every review state, not only the cards
@@ -2932,12 +3396,23 @@ function ContentView({ clinicians }: { clinicians: ClinicianRow[] }) {
                 reviewerName={reviewerName}
                 reviewerLookupAvailable={clinicians.length > 0}
                 keptAfterFilterChange={!reviewMatches(r)}
+                onOpen={() => setOpenId(r.id)}
                 onSaved={onSaved}
               />
             ))}
           </div>
         </div>
       ))}
+
+      {openResource && (
+        <ResourceViewerPanel
+          resource={openResource}
+          reviewerName={reviewerName}
+          reviewerLookupAvailable={clinicians.length > 0}
+          onClose={() => setOpenId(null)}
+          onSaved={onSaved}
+        />
+      )}
     </div>
   )
 }
