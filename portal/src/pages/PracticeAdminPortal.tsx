@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import apiClient from '../services/api'
 import type { PracticeSummary, ResourceItem } from '../services/api'
+import { sourceMetaOf, addedByLabel } from '../types/patient'
+import type { SourceMeta } from '../types/patient'
 import { useSampleDataHidden } from '../hooks/useSampleDataHidden'
 import { SampleGate } from '../components/SampleGate'
 import { TextSizeControl } from '../components/TextSizeControl'
@@ -114,6 +116,12 @@ interface Patient {
   risk: 'High' | 'Med' | 'Low'
   status: string
   therapistId?: string
+  // Provenance, straight off PatientOut. `origin` is derived from `source`
+  // alone; `createdBy` is a clinician UUID that is resolved against the
+  // clinician list at render time, never guessed.
+  origin: SourceMeta
+  createdBy: string | null
+  sourceDetail: string | null
 }
 
 interface ClinicianRow {
@@ -149,7 +157,54 @@ function toPatientRow(api: any, clinicians: ClinicianRow[]): Patient {
     risk: toRiskLabel(api.risk),
     status: api.status || 'Active',
     therapistId: api.therapist_id,
+    origin: sourceMetaOf(api.source),
+    createdBy: api.created_by || null,
+    sourceDetail: api.source_detail || null,
   }
+}
+
+/** Marker shown in the registry's Origin column. */
+function OriginCell({ origin }: { origin: SourceMeta }) {
+  // Only records that are not people get a chip. Real ones stay quiet: a badge
+  // on every row is noise, and noise is what let ten seeded records hide in
+  // plain sight in the first place.
+  if (origin.kind === 'test') {
+    return (
+      <span
+        title={origin.title}
+        className="text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-pill inline-flex items-center gap-1 bg-organic-neutral-300 text-organic-neutral-800 border border-dashed border-organic-neutral-600"
+      >
+        <FlaskConical size={13} />
+        {origin.label}
+      </span>
+    )
+  }
+  if (origin.kind === 'unrecognised') {
+    return (
+      <span
+        title={origin.title}
+        className="text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-pill inline-flex items-center gap-1 bg-organic-neutral-200 text-organic-neutral-700"
+      >
+        <AlertTriangle size={13} />
+        {origin.label}
+      </span>
+    )
+  }
+  if (origin.kind === 'unrecorded') {
+    return (
+      <span title={origin.title} className="text-[0.7812rem] text-organic-neutral-500 italic">
+        {origin.label}
+      </span>
+    )
+  }
+  // 'real' — MANUAL carries no label at all, BULK_UPLOAD a quiet word.
+  if (!origin.label) return null
+  return (
+    <span title={origin.title} className="text-[0.7812rem] text-organic-neutral-500 inline-flex items-center gap-1">
+      <Upload size={12} />
+      {origin.label}
+    </span>
+  )
 }
 
 const RISK_STYLE: Record<Patient['risk'], { color: string; bg: string }> = {
@@ -519,24 +574,40 @@ function PatientsTable({ patients, onOpenPatient }: { patients: Patient[]; onOpe
           <th className="text-left text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Clinician</th>
           <th className="text-left text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Last session</th>
           <th className="text-left text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Risk</th>
+          <th className="text-left text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Origin</th>
         </tr>
       </thead>
       <tbody>
-        {patients.map((p) => (
-          <tr key={p.id} onClick={() => onOpenPatient(p.id)} className="cursor-pointer">
-            <td className="px-2 py-3 border-b border-organic-text/[0.08]">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-organic-accent-200 grid place-items-center text-[0.7812rem] font-bold text-organic-accent-800">{p.initials}</div>
-                <span className="font-semibold">{p.name}</span>
-              </div>
-            </td>
-            <td className="px-2 py-3 border-b border-organic-text/[0.08] text-organic-neutral-700">{p.clinician}</td>
-            <td className="px-2 py-3 border-b border-organic-text/[0.08] text-organic-neutral-700">{p.last}</td>
-            <td className="px-2 py-3 border-b border-organic-text/[0.08]">
-              <span className={`text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-pill ${RISK_STYLE[p.risk].bg} ${RISK_STYLE[p.risk].color}`}>{p.risk}</span>
-            </td>
-          </tr>
-        ))}
+        {patients.map((p) => {
+          // A record that is not a person is set apart by more than a chip:
+          // the row is tinted and the avatar drops the accent colour, so it
+          // reads as different at a glance without having to be read.
+          const isTest = p.origin.kind === 'test'
+          return (
+            <tr key={p.id} onClick={() => onOpenPatient(p.id)} className={`cursor-pointer ${isTest ? 'bg-organic-neutral-200/70' : ''}`}>
+              <td className="px-2 py-3 border-b border-organic-text/[0.08]">
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className={`w-8 h-8 rounded-full grid place-items-center text-[0.7812rem] font-bold ${
+                      isTest ? 'bg-organic-neutral-300 text-organic-neutral-700' : 'bg-organic-accent-200 text-organic-accent-800'
+                    }`}
+                  >
+                    {p.initials}
+                  </div>
+                  <span className={`font-semibold ${isTest ? 'text-organic-neutral-700' : ''}`}>{p.name}</span>
+                </div>
+              </td>
+              <td className="px-2 py-3 border-b border-organic-text/[0.08] text-organic-neutral-700">{p.clinician}</td>
+              <td className="px-2 py-3 border-b border-organic-text/[0.08] text-organic-neutral-700">{p.last}</td>
+              <td className="px-2 py-3 border-b border-organic-text/[0.08]">
+                <span className={`text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-pill ${RISK_STYLE[p.risk].bg} ${RISK_STYLE[p.risk].color}`}>{p.risk}</span>
+              </td>
+              <td className="px-2 py-3 border-b border-organic-text/[0.08]">
+                <OriginCell origin={p.origin} />
+              </td>
+            </tr>
+          )
+        })}
       </tbody>
     </table>
   )
@@ -618,15 +689,25 @@ function PatientsView({
 }) {
   const [filter, setFilter] = useState<'All' | 'High risk' | 'Intake'>('All')
   const [showImport, setShowImport] = useState(false)
+  // Off by default: hiding rows is a decision for the admin to make, and the
+  // markers already say which rows are which. Only SEED/SYSTEM are hidden —
+  // a `source` value this build does not recognise is never assumed fake, so
+  // it stays visible either way.
+  const [hideTestRecords, setHideTestRecords] = useState(false)
   const byRiskOrStatus = patients.filter((p) => (filter === 'All' ? true : filter === 'High risk' ? p.risk === 'High' : p.status === 'Intake'))
-  const filtered = caseloadFilter ? byRiskOrStatus.filter((p) => p.therapistId === caseloadFilter) : byRiskOrStatus
+  const byCaseload = caseloadFilter ? byRiskOrStatus.filter((p) => p.therapistId === caseloadFilter) : byRiskOrStatus
+  const filtered = hideTestRecords ? byCaseload.filter((p) => p.origin.kind !== 'test') : byCaseload
   const caseloadClinician = caseloadFilter ? clinicians.find((c) => c.id === caseloadFilter) : null
 
-  // The risk/status pills and the caseload filter both run over the rows this
-  // page happens to hold — the API has no filter for either — so whenever one
-  // is on, the counts below have to say so rather than read like practice-wide
-  // totals.
-  const clientFiltered = filter !== 'All' || caseloadFilter !== null
+  // Counted over the whole page rather than the filtered view, so the notice
+  // reports what is on the page and not what is left after hiding it.
+  const testOnPage = patients.filter((p) => p.origin.kind === 'test').length
+
+  // The risk/status pills, the caseload filter and the test-record filter all
+  // run over the rows this page happens to hold — the API has no filter for
+  // any of them — so whenever one is on, the counts below have to say so
+  // rather than read like practice-wide totals.
+  const clientFiltered = filter !== 'All' || caseloadFilter !== null || hideTestRecords
 
   const first = patients.length === 0 ? 0 : offset + 1
   const last = offset + patients.length
@@ -649,7 +730,7 @@ function PatientsView({
         </div>
       )}
       <div className="flex justify-between items-center gap-3 flex-wrap mb-4">
-        <div className="inline-flex gap-2">
+        <div className="inline-flex gap-2 flex-wrap">
           {(['All', 'High risk', 'Intake'] as const).map((f) => (
             <button
               key={f}
@@ -659,6 +740,16 @@ function PatientsView({
               {f}
             </button>
           ))}
+          <button
+            onClick={() => setHideTestRecords(!hideTestRecords)}
+            aria-pressed={hideTestRecords}
+            title="Hides records whose origin is a seed script or the system itself. Real patient records — imported or entered by hand — are never hidden by this."
+            className={`text-xs px-4 py-1.5 rounded-organic-pill font-semibold inline-flex items-center gap-1.5 ${
+              hideTestRecords ? 'bg-organic-accent text-organic-accent-100' : 'bg-organic-surface text-organic-neutral-700 border border-organic-neutral-300/60'
+            }`}
+          >
+            <FlaskConical size={13} /> Hide test &amp; system records
+          </button>
         </div>
         <div className="flex gap-2">
           <button
@@ -681,6 +772,26 @@ function PatientsView({
           }}
         />
       )}
+      {/* Only ever states what is on this page — the API cannot filter or count
+          by origin, so a practice-wide claim would be a guess. */}
+      {!error && !loading && testOnPage > 0 && (
+        <div className="flex items-center gap-2 bg-organic-neutral-200 text-organic-neutral-800 text-[0.8125rem] rounded-organic-tile px-3.5 py-2 mb-3.5 flex-wrap">
+          <FlaskConical size={15} className="flex-none text-organic-neutral-600" />
+          {hideTestRecords ? (
+            <span>
+              {testOnPage} {testOnPage === 1 ? 'test or system record is' : 'test or system records are'} hidden on this page.
+            </span>
+          ) : (
+            <span>
+              {testOnPage} of the {patients.length} {patients.length === 1 ? 'row' : 'rows'} on this page{' '}
+              {testOnPage === 1 ? 'is a test or system record, not a real patient' : 'are test or system records, not real patients'}.
+            </span>
+          )}
+          <button onClick={() => setHideTestRecords(!hideTestRecords)} className="ml-auto text-xs underline">
+            {hideTestRecords ? 'Show them' : 'Hide them'}
+          </button>
+        </div>
+      )}
       <div className="bg-organic-surface rounded-organic-card p-[22px] pt-2 shadow-organic-sm">
         {error ? (
           <div className="text-sm text-organic-accent-800 py-3">{error}</div>
@@ -689,6 +800,12 @@ function PatientsView({
         ) : patients.length === 0 ? (
           <div className="text-sm text-organic-neutral-600 py-3">
             {offset > 0 ? 'No patients on this page.' : 'No patients registered yet.'}
+          </div>
+        ) : filtered.length === 0 ? (
+          // The page did return rows; the filters in use just hid all of them.
+          // Saying "no patients" here would misreport the registry.
+          <div className="text-sm text-organic-neutral-600 py-3">
+            None of the {patients.length} {patients.length === 1 ? 'row' : 'rows'} on this page match the filters in use.
           </div>
         ) : (
           <PatientsTable patients={filtered} onOpenPatient={onOpenPatient} />
@@ -766,6 +883,15 @@ function PatientDetailView({
   const [reassigning, setReassigning] = useState(false)
   const [reassignError, setReassignError] = useState<string | null>(null)
 
+  // `created_by` is a clinician UUID, resolved against the clinician list this
+  // page already loaded. An id that is not in that list stays unnamed — it is
+  // never matched to the nearest plausible clinician — and if the list itself
+  // failed to load, that is reported as a failed lookup rather than as nobody
+  // having added the record.
+  const addedByName = patient.createdBy ? clinicians.find((c) => c.id === patient.createdBy)?.fullName || null : null
+  const addedBy = addedByLabel(patient.createdBy, () => addedByName, clinicians.length > 0)
+  const addedByUnresolved = addedByName === null
+
   // Transferring a patient between clinicians had no error handling: on a
   // 403/404/500 the promise rejected unhandled, the select snapped back, and
   // nothing told anyone. A failed care transfer looked exactly like a
@@ -794,7 +920,15 @@ function PatientDetailView({
           <ArrowLeft size={18} />
         </button>
         <div className="flex items-center gap-3.5 flex-1">
-          <div className="w-[52px] h-[52px] rounded-full bg-organic-accent-200 grid place-items-center font-bold text-base text-organic-accent-800">{patient.initials}</div>
+          {/* Same muting as the registry row, so a test record does not look
+              like a person here either. */}
+          <div
+            className={`w-[52px] h-[52px] rounded-full grid place-items-center font-bold text-base ${
+              patient.origin.kind === 'test' ? 'bg-organic-neutral-300 text-organic-neutral-700' : 'bg-organic-accent-200 text-organic-accent-800'
+            }`}
+          >
+            {patient.initials}
+          </div>
           <div>
             <div className="flex items-center gap-2.5">
               <span className="font-heading text-[1.375rem]">{patient.name}</span>
@@ -825,6 +959,12 @@ function PatientDetailView({
           {reassignError}
         </div>
       )}
+      {patient.origin.warning && (
+        <div className="flex items-start gap-2.5 bg-organic-neutral-200 border border-dashed border-organic-neutral-600 text-organic-neutral-800 text-sm rounded-organic-tile px-3.5 py-2.5 mb-3.5">
+          <FlaskConical size={16} className="mt-0.5 flex-none text-organic-neutral-600" />
+          <span>{patient.origin.warning} Nothing recorded against it describes a person on this practice&apos;s caseload.</span>
+        </div>
+      )}
       <div className="grid grid-cols-[2fr_1fr] gap-4">
         <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
           <h4 className="text-base font-heading mb-2">Documents</h4>
@@ -834,6 +974,44 @@ function PatientDetailView({
           </p>
         </div>
         <aside className="flex flex-col gap-3.5">
+          {/* Read-only. This is a record of what happened to the row, not a
+              property of the patient, so there is nothing here to edit. */}
+          <div className="bg-organic-surface rounded-organic-tile p-5 shadow-organic-sm">
+            <h4 className="text-base font-heading mb-3">Record origin</h4>
+            <div className="flex flex-col gap-3">
+              <div>
+                <div className="text-[0.7812rem] text-organic-neutral-500 mb-0.5">How this record was added</div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span
+                    title={patient.origin.title}
+                    className={`text-[0.8438rem] ${patient.origin.kind === 'unrecorded' ? 'text-organic-neutral-500 italic' : 'text-organic-text'}`}
+                  >
+                    {patient.origin.detail}
+                  </span>
+                  {/* The phrase above already says how a real record arrived;
+                      the chip is repeated here only where it is a warning. */}
+                  {(patient.origin.kind === 'test' || patient.origin.kind === 'unrecognised') && (
+                    <OriginCell origin={patient.origin} />
+                  )}
+                </div>
+              </div>
+              <div>
+                <div className="text-[0.7812rem] text-organic-neutral-500 mb-0.5">Added by</div>
+                <div
+                  title={patient.createdBy ? `Recorded against clinician ID ${patient.createdBy}` : undefined}
+                  className={`text-[0.8438rem] ${addedByUnresolved ? 'text-organic-neutral-500 italic' : 'text-organic-text'}`}
+                >
+                  {addedBy}
+                </div>
+              </div>
+              {patient.sourceDetail && (
+                <div>
+                  <div className="text-[0.7812rem] text-organic-neutral-500 mb-0.5">Note recorded with the record</div>
+                  <div className="text-[0.8438rem] text-organic-neutral-700 leading-relaxed">{patient.sourceDetail}</div>
+                </div>
+              )}
+            </div>
+          </div>
           <div className="bg-gradient-to-br from-organic-accent-100 to-organic-surface rounded-organic-tile p-5 shadow-organic-sm">
             <div className="flex items-center gap-2 mb-3">
               <Sparkles size={17} className="text-organic-accent-700" />

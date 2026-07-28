@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import apiClient from '../services/api'
 import type { NextAppointmentIn } from '../services/api'
+import { sourceMetaOf, addedByLabel } from '../types/patient'
 import { useSampleDataHidden } from '../hooks/useSampleDataHidden'
 import { SegmentedControl } from '../components/OrganicUI'
 import { TextSizeControl } from '../components/TextSizeControl'
@@ -36,6 +37,7 @@ import {
   History,
   ClipboardList,
   ArrowRight,
+  FlaskConical,
 } from 'lucide-react'
 
 type WorkspaceView = 'caseload' | 'scheduler' | 'chart' | 'scribe' | 'plan'
@@ -2466,6 +2468,11 @@ type PatientDetail = {
   emergency_contact_phone: string | null
   consent_ai_analysis: boolean
   wellbeing_status: string | null
+  // Provenance. Read-only everywhere: it records what happened to the row, not
+  // anything about the patient, so it is never part of an edit or a PATCH.
+  source: string | null
+  created_by: string | null
+  source_detail: string | null
 }
 type SessionNote = {
   id: string
@@ -2649,6 +2656,43 @@ function PatientProfileCard({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // `created_by` is a clinician UUID; turning it into a name needs the
+  // practice's clinician list. Until that list arrives the id is not dressed up
+  // as a name, and a lookup that fails says so rather than being reported as an
+  // unknown clinician — "we could not check" and "it was nobody we know" are
+  // different statements.
+  const [clinicianNames, setClinicianNames] = useState<Record<string, string> | null>(null)
+  const [lookupFailed, setLookupFailed] = useState(false)
+  const createdBy = detail?.created_by || null
+
+  useEffect(() => {
+    let cancelled = false
+    if (createdBy && clinicianNames === null && !lookupFailed) {
+      apiClient
+        .getClinicians()
+        .then((rows: any[]) => {
+          if (cancelled) return
+          const names: Record<string, string> = {}
+          for (const r of rows || []) if (r?.id && r?.full_name) names[r.id] = r.full_name
+          setClinicianNames(names)
+        })
+        .catch(() => {
+          if (!cancelled) setLookupFailed(true)
+        })
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [createdBy])
+
+  const origin = sourceMetaOf(detail?.source)
+  const lookupReady = clinicianNames !== null
+  const addedBy =
+    createdBy && !lookupReady && !lookupFailed
+      ? 'Looking up…'
+      : addedByLabel(createdBy, (id) => clinicianNames?.[id], lookupReady)
+  const addedByNamed = !!(createdBy && clinicianNames?.[createdBy])
+
   const startEdit = () => {
     if (!detail) return
     setDraft(draftFrom(detail))
@@ -2776,6 +2820,64 @@ function PatientProfileCard({
             </dd>
           </div>
         </dl>
+      )}
+
+      {/* Provenance sits below the demographics and outside the edit form on
+          purpose: it is a record of how this row came to exist, not a fact
+          about the patient, so there is nothing here to correct. It is never
+          copied into the draft and never reaches the PATCH. */}
+      {detail && !draft && (
+        <div className="mt-4 pt-3.5 border-t border-organic-neutral-300/50">
+          <div className="flex items-baseline gap-2 mb-2.5">
+            <h4 className="text-[0.7812rem] font-semibold tracking-wide uppercase text-organic-neutral-600">Record origin</h4>
+            <span className="text-[0.7812rem] text-organic-neutral-500">Read-only</span>
+          </div>
+
+          {origin.warning && (
+            <div className="flex items-start gap-2.5 bg-organic-neutral-200 border border-dashed border-organic-neutral-600 text-organic-neutral-800 text-[0.8438rem] rounded-organic-tile px-3.5 py-2.5 mb-3">
+              <FlaskConical size={15} className="mt-0.5 flex-none text-organic-neutral-600" />
+              <span>{origin.warning}</span>
+            </div>
+          )}
+
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-3.5">
+            <div>
+              <dt className={DT_CLASS}>How this record was added</dt>
+              <dd className="flex items-center gap-2 flex-wrap">
+                <span
+                  title={origin.title}
+                  className={`text-[0.8438rem] ${origin.kind === 'unrecorded' ? 'text-organic-neutral-500 italic' : 'text-organic-text'}`}
+                >
+                  {origin.detail}
+                </span>
+                {origin.kind === 'test' && (
+                  <span
+                    title={origin.title}
+                    className="text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-pill inline-flex items-center gap-1 bg-organic-neutral-300 text-organic-neutral-800 border border-dashed border-organic-neutral-600"
+                  >
+                    <FlaskConical size={13} />
+                    {origin.label}
+                  </span>
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt className={DT_CLASS}>Added by</dt>
+              <dd
+                title={createdBy ? `Recorded against clinician ID ${createdBy}` : undefined}
+                className={`text-[0.8438rem] ${addedByNamed ? 'text-organic-text' : 'text-organic-neutral-500 italic'}`}
+              >
+                {addedBy}
+              </dd>
+            </div>
+            {detail.source_detail && (
+              <div className="sm:col-span-2">
+                <dt className={DT_CLASS}>Note recorded with the record</dt>
+                <dd className="text-[0.8438rem] text-organic-neutral-700 leading-relaxed">{detail.source_detail}</dd>
+              </div>
+            )}
+          </dl>
+        </div>
       )}
 
       {detail && draft && (
