@@ -456,6 +456,29 @@ class ApiClient {
 
   // ── Care plan (clinician-facing) ─────────────────────────────────────
   /** GET /patients/{id}/careplans — every plan for the patient, newest first. */
+  // ── Bulk patient import ──────────────────────────────────────────────
+  /** Per-row outcome of POST /patients/bulk-upload. Row numbers match the
+   *  source file: header = row 1, first patient = row 2. */
+  async bulkUploadPatients(file: File): Promise<{
+    created: number
+    failed: number
+    errors: { row: number; error: string }[]
+  }> {
+    const form = new FormData()
+    form.append('file', file)
+    const response = await this.client.post('/patients/bulk-upload', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  }
+
+  /** GET /patients/bulk-template — header-only CSV, for anyone who would rather
+   *  not use the spreadsheet form. */
+  async downloadPatientTemplate(): Promise<Blob> {
+    const response = await this.client.get('/patients/bulk-template', { responseType: 'blob' })
+    return response.data
+  }
+
   async getPatientCarePlans(patientId: string) {
     const response = await this.client.get(`/patients/${patientId}/careplans`)
     return response.data

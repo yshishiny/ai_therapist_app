@@ -370,6 +370,7 @@ export default function PracticeAdminPortal() {
             loading={patientsLoading}
             error={patientsError}
             onGoToOffset={goToPatientPage}
+            onReload={() => goToPatientPage(patientOffset)}
           />
         )}
         {view === 'patientDetail' &&
@@ -598,6 +599,7 @@ function PatientsView({
   loading,
   error,
   onGoToOffset,
+  onReload,
 }: {
   patients: Patient[]
   clinicians: ClinicianRow[]
@@ -611,8 +613,11 @@ function PatientsView({
   loading: boolean
   error: string | null
   onGoToOffset: (offset: number) => void
+  /** Re-fetch the current page after an import adds rows. */
+  onReload: () => void
 }) {
   const [filter, setFilter] = useState<'All' | 'High risk' | 'Intake'>('All')
+  const [showImport, setShowImport] = useState(false)
   const byRiskOrStatus = patients.filter((p) => (filter === 'All' ? true : filter === 'High risk' ? p.risk === 'High' : p.status === 'Intake'))
   const filtered = caseloadFilter ? byRiskOrStatus.filter((p) => p.therapistId === caseloadFilter) : byRiskOrStatus
   const caseloadClinician = caseloadFilter ? clinicians.find((c) => c.id === caseloadFilter) : null
@@ -655,10 +660,27 @@ function PatientsView({
             </button>
           ))}
         </div>
-        <button className="rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm px-5 py-2.5 inline-flex items-center gap-2">
-          <UserPlus size={16} /> Register patient
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowImport(true)}
+            className="rounded-organic-pill border border-organic-neutral-300/60 bg-organic-surface text-organic-neutral-800 font-heading text-sm px-5 py-2.5 inline-flex items-center gap-2"
+          >
+            <Upload size={16} /> Import from form
+          </button>
+          <button className="rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm px-5 py-2.5 inline-flex items-center gap-2">
+            <UserPlus size={16} /> Register patient
+          </button>
+        </div>
       </div>
+      {showImport && (
+        <ImportPatientsModal
+          onClose={() => setShowImport(false)}
+          onImported={() => {
+            setShowImport(false)
+            onReload()
+          }}
+        />
+      )}
       <div className="bg-organic-surface rounded-organic-card p-[22px] pt-2 shadow-organic-sm">
         {error ? (
           <div className="text-sm text-organic-accent-800 py-3">{error}</div>
@@ -1356,6 +1378,140 @@ function AssessmentReviewPanel({
               {saving ? 'Publishing…' : 'Approve & publish'}
             </button>
           </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+
+/**
+ * Bulk patient import.
+ *
+ * Takes the completed intake workbook (or a CSV/JSON export of it) and posts it
+ * to /patients/bulk-upload. The import is partial by design: valid rows are
+ * created and invalid ones are reported back with the row number from the
+ * source file, so a single bad date does not reject a whole clinic's list.
+ */
+function ImportPatientsModal({ onClose, onImported }: { onClose: () => void; onImported: () => void }) {
+  const [file, setFile] = useState<File | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [result, setResult] = useState<{ created: number; failed: number; errors: { row: number; error: string }[] } | null>(null)
+
+  const upload = async () => {
+    if (!file) return
+    setBusy(true)
+    setError(null)
+    try {
+      setResult(await apiClient.bulkUploadPatients(file))
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail
+      setError(typeof detail === 'string' ? detail : 'The file could not be imported.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center p-6" onClick={onClose}>
+      <div
+        className="bg-organic-bg rounded-organic-card w-full max-w-[620px] max-h-[85vh] overflow-y-auto p-7 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-[1.375rem] font-heading text-organic-text mb-1.5">Import patients</h2>
+        <p className="text-sm text-organic-neutral-600 mb-5">
+          Upload the completed intake form. Accepts the .xlsx form directly, or a .csv / .json
+          export of it. Up to 200 patients per file.
+        </p>
+
+        {!result && (
+          <>
+            <label className="block bg-organic-surface border border-dashed border-organic-neutral-300 rounded-organic-tile p-6 text-center cursor-pointer mb-4">
+              <input
+                type="file"
+                accept=".xlsx,.xlsm,.csv,.json"
+                className="hidden"
+                onChange={(e) => {
+                  setFile(e.target.files?.[0] || null)
+                  setError(null)
+                }}
+              />
+              <Upload size={22} className="text-organic-neutral-500 mx-auto mb-2" />
+              <div className="text-sm font-semibold text-organic-text">
+                {file ? file.name : 'Choose the completed form'}
+              </div>
+              <div className="text-xs text-organic-neutral-600 mt-0.5">.xlsx, .csv or .json</div>
+            </label>
+
+            <p className="text-xs text-organic-neutral-600 mb-4">
+              The file contains identifiable patient information. Delete your copy once the
+              import has completed.
+            </p>
+
+            {error && <div className="text-sm text-organic-accent-800 mb-3">{error}</div>}
+
+            <div className="flex gap-2">
+              <button
+                onClick={upload}
+                disabled={!file || busy}
+                className="rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm px-5 py-2.5 disabled:opacity-50"
+              >
+                {busy ? 'Importing…' : 'Import'}
+              </button>
+              <button
+                onClick={onClose}
+                className="rounded-organic-pill border border-organic-neutral-300/60 text-organic-neutral-700 font-heading text-sm px-5 py-2.5"
+              >
+                Cancel
+              </button>
+            </div>
+          </>
+        )}
+
+        {result && (
+          <>
+            <div className="bg-organic-surface rounded-organic-tile p-4 mb-4">
+              <div className="text-sm text-organic-text">
+                <strong>{result.created}</strong> patient{result.created === 1 ? '' : 's'} added
+                {result.failed > 0 && (
+                  <>
+                    {' · '}
+                    <strong className="text-organic-accent-800">{result.failed}</strong> row
+                    {result.failed === 1 ? '' : 's'} not imported
+                  </>
+                )}
+              </div>
+            </div>
+
+            {result.errors.length > 0 && (
+              <div className="mb-4">
+                <div className="text-sm font-semibold mb-2">
+                  These rows were skipped — the rest were imported.
+                </div>
+                <div className="flex flex-col gap-1.5 max-h-[240px] overflow-y-auto">
+                  {result.errors.map((e) => (
+                    <div key={e.row} className="text-[0.8125rem] bg-organic-accent-100 rounded-organic-tile px-3 py-2">
+                      <span className="font-semibold">Row {e.row}</span> — {e.error}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-organic-neutral-600 mt-2">
+                  Row numbers match the form: the header is row 1, so the first patient is row 2.
+                  Correct those rows and import the file again — the patients already added are
+                  not duplicated by name, so re-importing a corrected file is safe only for the
+                  rows that failed. Remove the successful rows before re-uploading.
+                </p>
+              </div>
+            )}
+
+            <button
+              onClick={onImported}
+              className="rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm px-5 py-2.5"
+            >
+              Done
+            </button>
+          </>
         )}
       </div>
     </div>

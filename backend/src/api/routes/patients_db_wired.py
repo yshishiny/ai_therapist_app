@@ -1,7 +1,7 @@
 import csv
 import io
 import json
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 
@@ -26,12 +26,6 @@ router = APIRouter(prefix='/patients', tags=['patients'])
 
 BULK_TEMPLATE_COLUMNS = [
     'full_name', 'gender', 'dob', 'diagnosis', 'risk', 'status', 'phone', 'email', 'therapist_email',
-]
-_BULK_TEMPLATE_EXAMPLE_ROWS = [
-    ['Example Patient One', 'Female', '1990-01-15', 'Generalized Anxiety', 'Low', 'Active',
-     '+1-555-0100', 'patient.one@example.com', ''],
-    ['Example Patient Two', 'Male', '1985-06-30', 'Adjustment Disorder', 'Med', 'Intake',
-     '+1-555-0101', 'patient.two@example.com', 'clinician@example.com'],
 ]
 BULK_UPLOAD_MAX_ROWS = 200
 
@@ -68,11 +62,14 @@ async def download_bulk_template(
     context: RequestContext = Depends(get_clinician_context),
     _perm=require_permission('patients.manage'),
 ):
+    # Header only, no sample rows. This template used to ship two "Example
+    # Patient" rows, which the importer cannot distinguish from real ones -- so
+    # downloading it and uploading it back unchanged created two fictional
+    # patients in a clinical system. Worked examples live on the Instructions
+    # sheet of the intake workbook instead, where they cannot be imported.
     buffer = io.StringIO()
     writer = csv.writer(buffer, lineterminator='\r\n')
     writer.writerow(BULK_TEMPLATE_COLUMNS)
-    for example_row in _BULK_TEMPLATE_EXAMPLE_ROWS:
-        writer.writerow(example_row)
     return Response(
         content=buffer.getvalue(),
         media_type='text/csv',
@@ -95,6 +92,63 @@ def _normalize_row(raw_row: dict) -> dict:
     }
 
 
+def _parse_xlsx_rows(raw: bytes) -> list[dict]:
+    """Read the 'Patients' sheet of the intake workbook into row dicts.
+
+    Deliberately reads only the sheet named 'Patients' when one exists, so the
+    Instructions sheet -- which carries worked examples -- can never be mistaken
+    for data. Dates are stringified back to YYYY-MM-DD: Excel silently converts
+    a typed date into a datetime, and the row validator expects the text form.
+    """
+    try:
+        from openpyxl import load_workbook
+    except ImportError as exc:  # pragma: no cover - dependency is declared
+        raise HTTPException(
+            status_code=400,
+            detail='Spreadsheet upload is unavailable on this server; please upload a .csv instead.',
+        ) from exc
+
+    try:
+        wb = load_workbook(io.BytesIO(raw), data_only=True, read_only=True)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f'The spreadsheet could not be read: {exc}') from exc
+
+    ws = wb['Patients'] if 'Patients' in wb.sheetnames else wb[wb.sheetnames[0]]
+
+    rows_iter = ws.iter_rows(values_only=True)
+    try:
+        header_row = next(rows_iter)
+    except StopIteration:
+        raise HTTPException(status_code=400, detail='The spreadsheet is empty.') from None
+
+    header = [str(h).strip().lower() if h is not None else '' for h in header_row]
+    if 'full_name' not in header:
+        raise HTTPException(
+            status_code=400,
+            detail="The spreadsheet's first row is not the template header (no 'full_name' column). "
+                   "Use the 'Patients' sheet of the intake form without renaming its columns.",
+        )
+
+    out: list[dict] = []
+    for values in rows_iter:
+        if values is None or all(v is None or str(v).strip() == '' for v in values):
+            continue  # a blank pre-formatted row, not a patient
+        row: dict = {}
+        for key, value in zip(header, values):
+            if not key:
+                continue
+            if value is None:
+                row[key] = None
+            elif isinstance(value, datetime):
+                row[key] = value.date().isoformat()
+            elif isinstance(value, date):
+                row[key] = value.isoformat()
+            else:
+                row[key] = str(value).strip()
+        out.append(row)
+    return out
+
+
 def _parse_bulk_rows(filename: str, content_type: str | None, raw: bytes) -> list:
     """Return the list of raw data rows (dicts for CSV; anything for JSON --
     non-dict entries become per-row errors later). Raises HTTPException for
@@ -102,8 +156,18 @@ def _parse_bulk_rows(filename: str, content_type: str | None, raw: bytes) -> lis
     name = (filename or '').lower()
     is_csv = name.endswith('.csv') or content_type in ('text/csv', 'application/csv')
     is_json = name.endswith('.json') or content_type in ('application/json', 'text/json')
-    if not is_csv and not is_json:
-        raise HTTPException(status_code=400, detail='Upload a .csv or .json file.')
+    is_xlsx = name.endswith(('.xlsx', '.xlsm')) or content_type in (
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel.sheet.macroEnabled.12',
+    )
+    if not is_csv and not is_json and not is_xlsx:
+        raise HTTPException(status_code=400, detail='Upload a .xlsx, .csv or .json file.')
+
+    # The intake form we send clinicians is a workbook, so accept it directly
+    # rather than making them re-save it as CSV -- a conversion step is one more
+    # place for a column to be dropped or a date to be silently reformatted.
+    if is_xlsx:
+        return _parse_xlsx_rows(raw)
 
     try:
         text = raw.decode('utf-8-sig')
