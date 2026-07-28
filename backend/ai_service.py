@@ -47,12 +47,13 @@ _CLAUDE_URL = "https://api.anthropic.com/v1/messages"
 class AiService:
     """Thin async wrapper around Gemini / OpenAI chat completions."""
 
-    def __init__(self, provider: Optional[str] = None):
+    def __init__(self, provider: Optional[str] = None, timeout: float = 240.0):
         self._provider = (provider or _PROVIDER).lower()
-        # Structuring a long OCR'd document can genuinely take a couple of
-        # minutes; this class is currently only called from background
-        # tasks (never a user-blocking request), so a generous timeout is safe.
-        self._client = httpx.AsyncClient(timeout=240.0)
+        # 240s suits the background work this started out serving -- structuring
+        # a long OCR'd document genuinely takes minutes. It is far too long for
+        # anything a person is waiting on, so the patient companion passes a
+        # short timeout instead. Callers on a request path must do the same.
+        self._client = httpx.AsyncClient(timeout=timeout)
 
     # ── Public interface ──────────────────────────────────────────────────────
 

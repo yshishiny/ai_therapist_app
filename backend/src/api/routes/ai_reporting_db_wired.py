@@ -7,6 +7,9 @@ from backend.src.core.dependencies import (
     get_clinician_context,
     get_patient_context,
 )
+from backend.ai_service import AiService
+from backend.core.dependencies_access import DB
+from backend.patient_chat.service import PatientChatService
 from backend.src.schemas.ai_reporting import AiChatMessageIn, ReportGenerationRequest
 from backend.src.services.ai_reporting_service_db import AiReportingServiceDb
 
@@ -32,11 +35,30 @@ async def generate_clinical_synthesis(
 @router.post('/me/ai-chat')
 async def patient_ai_chat(
     body: AiChatMessageIn,
+    db: DB,
     context: RequestContext = Depends(get_patient_context),
-    service: AiReportingServiceDb = Depends(get_ai_reporting_service),
 ):
-    return await service.patient_ai_chat(
+    """The patient companion.
+
+    Every message is screened for crisis language before the model sees it, and
+    a crisis signal raises a risk flag against the patient so their clinician
+    is told -- see backend/patient_chat/.
+    """
+    service = PatientChatService(db, AiService('claude', timeout=25.0))
+    return await service.reply(
         patient_id=context.patient_id,
-        conversation_id=body.conversation_id,
+        org_id=context.org_id,
         message=body.message,
+        conversation_id=body.conversation_id,
     )
+
+
+@router.get('/me/ai-chat')
+async def patient_ai_chat_history(
+    db: DB,
+    context: RequestContext = Depends(get_patient_context),
+):
+    """The stored conversation, so it survives a reload. Previously the chat
+    was held in browser memory only and vanished on refresh."""
+    service = PatientChatService(db, AiService('claude', timeout=25.0))
+    return await service.history(patient_id=context.patient_id)
