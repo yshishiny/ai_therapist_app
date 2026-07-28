@@ -8,12 +8,14 @@ from backend.src.core.dependencies import (
     get_clinician_context,
 )
 from backend.src.schemas.admin import (
+    REVIEW_STATUSES,
     AssessmentQuestionIn,
     AssessmentQuestionOut,
     ContactIn,
     ContactOut,
     ResourceIn,
     ResourceOut,
+    ResourceReviewIn,
 )
 from backend.src.services.admin_service_db import AdminServiceDb
 
@@ -56,6 +58,41 @@ async def create_resource(
         user_id=context.user_id,
         body=body,
     )
+
+
+@router.patch('/resources/{resource_id}/review', response_model=ResourceOut)
+async def review_resource(
+    resource_id: str,
+    body: ResourceReviewIn,
+    context: RequestContext = Depends(get_clinician_context),
+    _perm=require_permission('admin_content.manage'),
+    service: AdminServiceDb = Depends(get_admin_service),
+):
+    """Record a clinician's citation-check decision on one library item.
+
+    Gated like the other admin resource mutations. Org-scoped: an item that
+    belongs to another practice is a 404, not a 403.
+    """
+    _require_admin(context)
+    # Validated here rather than left to the database: an unrecognised string
+    # would otherwise land in the column and make every review count wrong.
+    review_status = (body.status or '').strip().upper()
+    if review_status not in REVIEW_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"status must be one of: {', '.join(REVIEW_STATUSES)}.",
+        )
+    note = body.note.strip() if body.note else None
+    resource = await service.update_resource_review(
+        org_id=context.org_id,
+        resource_id=resource_id,
+        status=review_status,
+        note=note or None,
+        reviewed_by=context.user_id,
+    )
+    if resource is None:
+        raise HTTPException(status_code=404, detail='Resource not found.')
+    return resource
 
 
 @router.post('/contacts', response_model=ContactOut, status_code=status.HTTP_201_CREATED)

@@ -30,6 +30,23 @@ class AdminServiceDb:
             tags=body.tags,
         )
 
+    async def update_resource_review(
+        self,
+        org_id: str,
+        resource_id: str,
+        status: str,
+        note: str | None,
+        reviewed_by: str,
+    ) -> dict | None:
+        """The status is validated in the route; this is a passthrough."""
+        return await self.repository.update_resource_review(
+            org_id=org_id,
+            resource_id=resource_id,
+            status=status,
+            note=note,
+            reviewed_by=reviewed_by,
+        )
+
     async def list_contacts(self, org_id: str) -> list[dict]:
         return await self.repository.list_contacts(org_id=org_id)
 

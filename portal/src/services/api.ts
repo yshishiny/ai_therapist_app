@@ -48,6 +48,40 @@ function toPatientsPage(data: any, requested?: { limit?: number; offset?: number
   }
 }
 
+/**
+ * The reviewer's decision about one library entry.
+ *
+ * This is NOT the same fact as the `verified` / `unverified` provenance tag on
+ * `tags`. That tag records whether an automated citation audit ever ran; this
+ * records what a named clinician concluded after looking at the source herself.
+ * An item can be citation-checked and still rejected, or never checked and
+ * confirmed by hand. Neither value may be derived from the other.
+ */
+export type ResourceReviewStatus = 'UNREVIEWED' | 'CONFIRMED' | 'NEEDS_CORRECTION' | 'REJECTED'
+
+export const RESOURCE_REVIEW_STATUSES: ResourceReviewStatus[] = [
+  'UNREVIEWED',
+  'CONFIRMED',
+  'NEEDS_CORRECTION',
+  'REJECTED',
+]
+
+/**
+ * What `lookup_url` actually points at.
+ *
+ *   'source'  the row carried a real URL (`file_url`) and this is it.
+ *   'search'  the row had no URL, so the server built a search query from the
+ *             title and author. It is a search, not the item, and the UI must
+ *             say so — the result may be a different work, an edition mismatch,
+ *             or nothing at all.
+ *
+ * Only the 29 videos in the seeded library have a `file_url`; every book and
+ * paper reaches the world through a search. Presenting a search as if it were
+ * the source inside a citation-checking screen would defeat the exercise, so
+ * this field is never dropped and never assumed.
+ */
+export type ResourceLookupKind = 'source' | 'search'
+
 /** A row of the practice content library (GET /admin/resources). */
 export interface ResourceItem {
   id: string
@@ -59,6 +93,61 @@ export interface ResourceItem {
   /** Topic slug, media word, and the provenance marker ('verified' / 'unverified'). */
   tags: string[]
   created_at: string
+  // ── Review state (migration 022) ────────────────────────────────────────
+  // Optional on the wire: a server build that predates the review migration
+  // omits them entirely, and "the server did not say" must stay tellable apart
+  // from "the server said UNREVIEWED". Read them through the helpers below.
+  review_status?: string | null
+  reviewed_by?: string | null
+  reviewed_at?: string | null
+  review_note?: string | null
+  /** Where to send the reviewer. Server-computed; never fabricated client-side. */
+  lookup_url?: string | null
+  lookup_kind?: string | null
+}
+
+/**
+ * The review decision the server actually reported, or `null` when it reported
+ * none. `null` is not a synonym for UNREVIEWED — it means this build of the API
+ * has no opinion to give, and the UI shows that rather than inventing a state.
+ */
+export function resourceReviewStatus(r: ResourceItem): ResourceReviewStatus | null {
+  const raw = r.review_status
+  if (typeof raw !== 'string') return null
+  const upper = raw.toUpperCase() as ResourceReviewStatus
+  return RESOURCE_REVIEW_STATUSES.includes(upper) ? upper : null
+}
+
+/**
+ * Resolves the link to open, and what that link honestly is.
+ *
+ * The server sends both halves. When it sends neither (older build), the only
+ * fallback is the row's own `file_url`, which is a real source by definition.
+ * No search URL is synthesised here: if the server did not compute one, the
+ * card says so instead of guessing at a link and calling it a lookup.
+ *
+ * When a URL arrives with no readable `lookup_kind`, it is treated as a search
+ * unless it is literally the row's `file_url` — the failure mode of
+ * under-claiming is a reviewer double-checking something she did not need to;
+ * the failure mode of over-claiming is a fabricated citation passing as
+ * confirmed.
+ */
+export function resourceLookup(r: ResourceItem): { url: string; kind: ResourceLookupKind } | null {
+  const url = typeof r.lookup_url === 'string' && r.lookup_url.trim() ? r.lookup_url.trim() : null
+  if (!url) {
+    const file = typeof r.file_url === 'string' && r.file_url.trim() ? r.file_url.trim() : null
+    return file ? { url: file, kind: 'source' } : null
+  }
+  const raw = typeof r.lookup_kind === 'string' ? r.lookup_kind.toLowerCase() : null
+  if (raw === 'source') return { url, kind: 'source' }
+  if (raw === 'search') return { url, kind: 'search' }
+  return { url, kind: url === r.file_url ? 'source' : 'search' }
+}
+
+/** Body of PATCH /admin/resources/{id}/review. */
+export interface ResourceReviewIn {
+  status: ResourceReviewStatus
+  note?: string | null
 }
 
 // ── Patient portal (/me/*) ────────────────────────────────────────────────
@@ -373,10 +462,28 @@ class ApiClient {
   }
 
   // Content library. The rows are the ingested knowledge-base entries; each
-  // carries its topic slug and its provenance marker inside `tags`.
+  // carries its topic slug and its provenance marker inside `tags`, plus its
+  // review state and the link to open (see ResourceItem).
   async getResources(): Promise<ResourceItem[]> {
     const response = await this.client.get<ResourceItem[]>('/admin/resources')
     return Array.isArray(response.data) ? response.data : []
+  }
+
+  /**
+   * Records one reviewer's decision about one library entry.
+   *
+   * The server stamps `reviewed_by` from the caller's token and `reviewed_at`
+   * from its own clock — neither is sent from here, so the audit trail cannot
+   * be dictated by the client. It answers with the updated row, which is what
+   * the card then renders: the screen shows the saved state, never the state
+   * that was merely requested.
+   */
+  async reviewResource(resourceId: string, body: ResourceReviewIn): Promise<ResourceItem> {
+    const response = await this.client.patch<ResourceItem>(
+      `/admin/resources/${resourceId}/review`,
+      { status: body.status, note: body.note ?? null },
+    )
+    return response.data
   }
 
   async uploadAssessmentJson(file: File) {

@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import apiClient from '../services/api'
-import type { PracticeSummary, ResourceItem } from '../services/api'
+import type { PracticeSummary, ResourceItem, ResourceReviewStatus } from '../services/api'
+import { resourceReviewStatus, resourceLookup } from '../services/api'
 import { sourceMetaOf, addedByLabel } from '../types/patient'
 import type { SourceMeta } from '../types/patient'
 import { useSampleDataHidden } from '../hooks/useSampleDataHidden'
@@ -41,6 +42,10 @@ import {
   Calendar,
   CalendarClock,
   FileEdit,
+  Ban,
+  SearchCheck,
+  RotateCcw,
+  StickyNote,
 } from 'lucide-react'
 
 type View = 'dashboard' | 'clinicians' | 'patients' | 'patientDetail' | 'assessments' | 'content' | 'access' | 'billing' | 'settings'
@@ -440,7 +445,7 @@ export default function PracticeAdminPortal() {
             <div className="text-sm text-organic-neutral-600">Loading…</div>
           ))}
         {view === 'assessments' && <AssessmentsView />}
-        {view === 'content' && <ContentView />}
+        {view === 'content' && <ContentView clinicians={clinicians} />}
         {view === 'access' && <AccessView />}
         {view === 'billing' && <BillingView />}
         {view === 'settings' && <SettingsView />}
@@ -2186,18 +2191,30 @@ function ImportPatientsModal({ onClose, onImported }: { onClose: () => void; onI
 // GET /admin/resources has been serving the ingested knowledge base all along
 // and had no caller: this view rendered six invented rows ("Grounding &
 // Breathing (Audio)", "DBT Skills — Distress Tolerance") with invented access
-// labels. It now reads the real table.
+// labels. It now reads the real table, and is where the library gets reviewed.
 //
-// The provenance marker is the part that matters clinically. Each ingested
-// topic library is tagged either:
+// TWO DIFFERENT FACTS LIVE ON EVERY CARD. They are never merged.
 //
-//   verified    an audit independently re-checked a sample of that topic's
-//               citations against live sources
-//   unverified  that check never ran, so the citations behind these items have
-//               NOT been independently confirmed
+//   Provenance  — from `tags`. Whether an automated citation audit ever ran
+//                 over that topic at all:
+//                   verified    an audit re-checked a sample of that topic's
+//                               citations against live sources
+//                   unverified  that check never ran, so the citations behind
+//                               these items have NOT been confirmed
+//   Review      — from `review_status`. What a named clinician concluded after
+//                 opening the source herself and deciding.
 //
-// A reading list that was never checked must not look like one that was, so
-// every card states which it is and the header counts how many are unchecked.
+// An audit having run is not a verdict, and a verdict is not an audit. An item
+// can be citation-checked and still be wrong about its author; an unchecked one
+// can be perfectly sound. So confirming an item does not turn its provenance
+// marker green, and the marker does not pre-fill the decision.
+//
+// THE LINK. Only videos carry a `file_url`; every book and paper in the seeded
+// library has none. The server therefore returns `lookup_url` together with
+// `lookup_kind` saying what that URL is — the item itself, or a search built
+// from its title and author. A search is labelled as a search, every time. A
+// fabricated citation link inside a citation-checking screen would defeat the
+// whole exercise, so nothing here invents a DOI, an ISBN or a publisher page.
 
 type Provenance = 'verified' | 'unverified' | 'unrecorded'
 
@@ -2273,12 +2290,384 @@ function FilterPill({ label, count, active, onClick }: { label: string; count: n
   )
 }
 
-function ContentView() {
+// ── Review decisions ────────────────────────────────────────────────────────
+//
+// Deliberately a different visual family from ProvenanceBadge: bordered tiles,
+// prefixed "Review", so a reviewer never mistakes "an audit ran" for "someone
+// decided". The two badges sit in different blocks on the card for the same
+// reason.
+
+const REVIEW_STYLE: Record<
+  ResourceReviewStatus,
+  { label: string; action: string; verb: string; icon: typeof Check; className: string; title: string }
+> = {
+  UNREVIEWED: {
+    label: 'Not yet reviewed',
+    action: 'Clear decision',
+    verb: 'Set back to not reviewed',
+    icon: FileText,
+    className: 'bg-organic-neutral-100 text-organic-neutral-700 border border-dashed border-organic-neutral-400',
+    // Not "nobody has ever looked at it": a decision that was made and then
+    // cleared lands back here, and the row still carries who cleared it.
+    title: 'No review decision is recorded for this entry.',
+  },
+  CONFIRMED: {
+    label: 'Confirmed',
+    action: 'Confirm',
+    verb: 'Confirmed',
+    icon: Check,
+    className: 'bg-organic-accent-2-100 text-organic-accent-2-800 border border-organic-accent-2-400',
+    title: 'A reviewer opened the source and confirmed this entry as it stands.',
+  },
+  NEEDS_CORRECTION: {
+    label: 'Needs correction',
+    action: 'Needs correction',
+    verb: 'Marked as needing correction',
+    icon: FileEdit,
+    className: 'bg-organic-accent-100 text-organic-accent-800 border border-organic-accent-400',
+    title: 'A reviewer found something wrong that should be fixed rather than dropped.',
+  },
+  REJECTED: {
+    label: 'Rejected',
+    action: 'Reject',
+    verb: 'Rejected',
+    icon: Ban,
+    className: 'bg-organic-danger/10 text-organic-danger border border-organic-danger/40',
+    title: 'A reviewer judged this entry unusable — it should not be given to a patient.',
+  },
+}
+
+function ReviewBadge({ status }: { status: ResourceReviewStatus | null }) {
+  if (status === null) {
+    return (
+      <span
+        title="This server build did not return a review state for the entry, so none is shown. It is not the same as “not yet reviewed”."
+        className="text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-tile inline-flex items-center gap-1 bg-organic-neutral-100 text-organic-neutral-600 border border-dashed border-organic-neutral-400"
+      >
+        <AlertTriangle size={13} /> Review state not reported
+      </span>
+    )
+  }
+  const style = REVIEW_STYLE[status]
+  const Icon = style.icon
+  return (
+    <span
+      title={style.title}
+      className={`text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-tile inline-flex items-center gap-1 ${style.className}`}
+    >
+      <Icon size={13} /> Review: {style.label}
+    </span>
+  )
+}
+
+/** Absolute instant → a readable local stamp, or null if it is not a real date. */
+function formatReviewedAt(iso: string | null | undefined): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+/** Hostname of a real URL, shown so the reviewer can see where a link goes. */
+function hostOf(url: string): string | null {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return null
+  }
+}
+
+const DECISIONS: ResourceReviewStatus[] = ['CONFIRMED', 'NEEDS_CORRECTION', 'REJECTED']
+
+function DecisionButton({
+  status,
+  active,
+  busy,
+  disabled,
+  onClick,
+}: {
+  status: ResourceReviewStatus
+  active: boolean
+  busy: boolean
+  disabled: boolean
+  onClick: () => void
+}) {
+  const style = REVIEW_STYLE[status]
+  const Icon = style.icon
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={style.title}
+      className={`text-[0.7812rem] font-semibold px-3 py-1.5 rounded-organic-pill inline-flex items-center gap-1.5 disabled:opacity-60 ${
+        active ? style.className : 'bg-organic-neutral-100 text-organic-neutral-700 border border-organic-neutral-300/60'
+      }`}
+    >
+      <Icon size={13} />
+      {busy ? 'Saving…' : style.action}
+    </button>
+  )
+}
+
+/**
+ * One library entry, with its link and its review controls.
+ *
+ * Nothing optimistic happens here. The card only ever shows what came back from
+ * the server: on success the parent swaps in the returned row, and on failure
+ * the old state stays put under an error line, so a save that did not happen
+ * can never look like one that did.
+ */
+function ResourceReviewCard({
+  resource,
+  reviewerName,
+  reviewerLookupAvailable,
+  keptAfterFilterChange,
+  onSaved,
+}: {
+  resource: ResourceItem
+  reviewerName: (id: string) => string | null
+  reviewerLookupAvailable: boolean
+  keptAfterFilterChange: boolean
+  onSaved: (updated: ResourceItem) => void
+}) {
+  const [note, setNote] = useState(resource.review_note || '')
+  const [noteOpen, setNoteOpen] = useState(false)
+  const [saving, setSaving] = useState<ResourceReviewStatus | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const tags = Array.isArray(resource.tags) ? resource.tags : []
+  const Icon = CATEGORY_META[resource.category]?.icon || FileText
+  const slug = topicOf(tags)
+  const status = resourceReviewStatus(resource)
+  const lookup = resourceLookup(resource)
+  const host = lookup ? hostOf(lookup.url) : null
+  const savedNote = resource.review_note || ''
+  const noteDirty = note.trim() !== savedNote.trim()
+
+  // The server sends a clinician id, not a name. It is resolved against the
+  // clinician list; when that cannot be done the card says so rather than
+  // printing a raw uuid or, worse, guessing at a person.
+  const who = resource.reviewed_by
+    ? reviewerLookupAvailable
+      ? reviewerName(resource.reviewed_by) || 'someone not in the clinician list'
+      : 'someone this portal could not name'
+    : null
+  const when = formatReviewedAt(resource.reviewed_at)
+
+  const submit = async (next: ResourceReviewStatus) => {
+    setSaving(next)
+    setError(null)
+    try {
+      const updated = await apiClient.reviewResource(resource.id, {
+        status: next,
+        note: note.trim() ? note.trim() : null,
+      })
+      setNote(updated.review_note || '')
+      setNoteOpen(false)
+      onSaved(updated)
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail
+      if (typeof detail === 'string') {
+        setError(detail)
+      } else if (err?.response) {
+        // The server answered and refused. Nothing was written.
+        setError('That decision was not saved — the server rejected the request. Nothing has changed.')
+      } else {
+        // No answer came back at all. Whether the write landed is unknown, and
+        // this card must not claim otherwise in either direction.
+        setError(
+          'The server could not be reached, so it is not known whether this decision was saved. Reload the page to see what it actually holds before deciding again.',
+        )
+      }
+    } finally {
+      setSaving(null)
+    }
+  }
+
+  return (
+    <div className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm flex flex-col gap-3">
+      <div className="flex justify-between items-start gap-2">
+        <div className="w-[46px] h-[46px] rounded-organic-tile bg-organic-accent-100 grid place-items-center flex-none">
+          <Icon size={22} className="text-organic-accent-700" />
+        </div>
+        <span className="text-[0.7812rem] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-200 text-organic-neutral-700">
+          {resource.category}
+        </span>
+      </div>
+
+      <div>
+        <div className="font-bold text-[0.9375rem] leading-tight">{resource.title}</div>
+        {resource.author && <div className="text-xs text-organic-neutral-600 mt-1">{resource.author}</div>}
+      </div>
+
+      {resource.description && (
+        <p className="text-[0.8125rem] text-organic-neutral-700 leading-relaxed line-clamp-4">{resource.description}</p>
+      )}
+
+      {/* What the ingest recorded: topic, and whether an audit ever ran. */}
+      <div className="flex items-center gap-1.5 flex-wrap mt-auto">
+        {slug && (
+          <span className="text-[0.7812rem] px-2.5 py-0.5 rounded-organic-pill bg-organic-accent-100 text-organic-accent-800">
+            {humanTopic(slug)}
+          </span>
+        )}
+        <ProvenanceBadge provenance={provenanceOf(tags)} />
+      </div>
+
+      {/* The link. Its label states what it actually is. */}
+      <div className="pt-2.5 border-t border-organic-neutral-300/50">
+        {lookup ? (
+          <>
+            <a
+              href={lookup.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[0.8125rem] font-semibold text-organic-accent-700 inline-flex items-center gap-1.5"
+            >
+              {lookup.kind === 'source' ? <ExternalLink size={14} /> : <SearchCheck size={14} />}
+              {lookup.kind === 'source' ? 'Open source' : 'Search for this'}
+              {host && <span className="font-normal text-organic-neutral-500">· {host}</span>}
+            </a>
+            <div className="text-[0.7812rem] text-organic-neutral-600 mt-1 leading-snug">
+              {lookup.kind === 'source'
+                ? 'The link stored with this entry.'
+                : 'No link is stored for this entry, so this opens a search built from its title and author. Check that what comes back is really this work before confirming it.'}
+            </div>
+          </>
+        ) : (
+          <div className="text-[0.7812rem] text-organic-neutral-600 leading-snug">
+            No link. This entry has no stored URL and the server returned no lookup for it, so there is nothing to
+            open from here.
+          </div>
+        )}
+      </div>
+
+      {/* What a reviewer concluded. Separate block, separate fact. */}
+      <div className="pt-2.5 border-t border-organic-neutral-300/50 flex flex-col gap-2">
+        <ReviewBadge status={status} />
+
+        {/* Shown for UNREVIEWED too when the row carries a reviewer stamp: that
+            only happens when somebody cleared a decision, and hiding it would
+            leave the card claiming nothing was ever recorded. */}
+        {status && (status !== 'UNREVIEWED' || who !== null || when !== null) && (
+          <div className="text-[0.7812rem] text-organic-neutral-600 leading-snug">
+            {REVIEW_STYLE[status].verb}
+            {who ? ` by ${who}` : ''}
+            {when ? ` · ${when}` : ''}
+          </div>
+        )}
+
+        {!noteOpen && savedNote && (
+          <div className="text-[0.7812rem] text-organic-neutral-700 bg-organic-neutral-100 rounded-organic-tile px-3 py-2 leading-snug whitespace-pre-wrap">
+            {savedNote}
+          </div>
+        )}
+
+        {noteOpen && (
+          <div>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={3}
+              placeholder="What did you find? (optional)"
+              className="w-full text-[0.8125rem] p-2.5 bg-organic-neutral-100 border border-organic-neutral-300/60 rounded-organic-tile resize-y"
+            />
+            <div className="text-[0.7812rem] text-organic-neutral-600 mt-1 leading-snug">
+              {status && status !== 'UNREVIEWED'
+                ? 'Saved when you pick a decision below, or with “Save note”.'
+                : 'Saved when you pick a decision below.'}
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          {DECISIONS.map((d) => (
+            <DecisionButton
+              key={d}
+              status={d}
+              active={status === d}
+              busy={saving === d}
+              disabled={saving !== null}
+              onClick={() => submit(d)}
+            />
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setNoteOpen((v) => !v)}
+            className="text-[0.7812rem] font-semibold text-organic-accent-700 inline-flex items-center gap-1"
+          >
+            <StickyNote size={13} /> {noteOpen ? 'Hide note' : savedNote ? 'Edit note' : 'Add a note'}
+          </button>
+          {noteOpen && noteDirty && status && status !== 'UNREVIEWED' && (
+            <button
+              type="button"
+              onClick={() => submit(status)}
+              disabled={saving !== null}
+              className="text-[0.7812rem] font-semibold text-organic-accent-700 disabled:opacity-60"
+            >
+              {saving ? 'Saving…' : 'Save note'}
+            </button>
+          )}
+          {status && status !== 'UNREVIEWED' && (
+            <button
+              type="button"
+              onClick={() => submit('UNREVIEWED')}
+              disabled={saving !== null}
+              className="text-[0.7812rem] text-organic-neutral-600 inline-flex items-center gap-1 disabled:opacity-60"
+            >
+              <RotateCcw size={12} /> Clear decision
+            </button>
+          )}
+        </div>
+
+        {error && (
+          <div className="text-[0.7812rem] text-organic-danger bg-organic-danger/10 border border-organic-danger/30 rounded-organic-tile px-3 py-2 leading-snug">
+            <AlertTriangle size={13} className="inline-block mr-1 -mt-0.5" />
+            {error}
+          </div>
+        )}
+
+        {keptAfterFilterChange && (
+          <div className="text-[0.7812rem] text-organic-neutral-500 leading-snug">
+            Kept on screen so you can see what was saved — it no longer matches the review filter.
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+type ReviewFilter = 'All' | ResourceReviewStatus
+
+const REVIEW_FILTERS: { key: ReviewFilter; label: string }[] = [
+  { key: 'All', label: 'All' },
+  { key: 'UNREVIEWED', label: 'Needs review' },
+  { key: 'CONFIRMED', label: 'Confirmed' },
+  { key: 'NEEDS_CORRECTION', label: 'Needs correction' },
+  { key: 'REJECTED', label: 'Rejected' },
+]
+
+function ContentView({ clinicians }: { clinicians: ClinicianRow[] }) {
   const [resources, setResources] = useState<ResourceItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [category, setCategory] = useState<string>('All')
   const [topic, setTopic] = useState<string>('All')
+  const [review, setReview] = useState<ReviewFilter>('All')
+  // Ids decided during this visit. A card that stops matching the review filter
+  // the instant it is saved would hide the very thing the reviewer just did, so
+  // it stays on screen (labelled) until the filter is changed again.
+  const [justReviewed, setJustReviewed] = useState<string[]>([])
 
   useEffect(() => {
     apiClient
@@ -2290,16 +2679,78 @@ function ContentView() {
 
   const withTags = resources.map((r) => ({ ...r, tags: Array.isArray(r.tags) ? r.tags : [] }))
 
+  const reviewerName = (id: string) => clinicians.find((c) => c.id === id)?.fullName || null
+
+  const setReviewFilter = (next: ReviewFilter) => {
+    setReview(next)
+    setJustReviewed([])
+  }
+
+  const onSaved = (updated: ResourceItem) => {
+    setResources((prev) =>
+      prev.map((r) => {
+        if (r.id !== updated.id) return r
+        const merged = { ...r, ...updated }
+        // `lookup_url` is computed, and whether the PATCH response recomputes it
+        // is the server's business. If it came back empty, the one GET already
+        // sent is kept — losing a card's link as a side effect of reviewing it
+        // would be the one thing this screen cannot afford. Nothing is
+        // synthesised: an absent lookup stays absent.
+        if (!updated.lookup_url) {
+          merged.lookup_url = r.lookup_url
+          merged.lookup_kind = r.lookup_kind
+        }
+        return merged
+      }),
+    )
+    setJustReviewed((prev) => (prev.includes(updated.id) ? prev : [...prev, updated.id]))
+  }
+
   const topicMatches = (r: ResourceItem) => topic === 'All' || topicOf(r.tags) === topic
   const categoryMatches = (r: ResourceItem) => category === 'All' || r.category === category
+  // Strict membership — what the filter counts mean.
+  const reviewMatches = (r: ResourceItem) => review === 'All' || resourceReviewStatus(r) === review
+  // What is actually rendered, including anything just decided.
+  const reviewVisible = (r: ResourceItem) => reviewMatches(r) || justReviewed.includes(r.id)
 
   const categories = Array.from(new Set(withTags.map((r) => r.category))).sort()
   const topics = Array.from(
     new Set(withTags.map((r) => topicOf(r.tags)).filter((t): t is string => t !== null)),
   ).sort()
 
-  const visible = withTags.filter((r) => categoryMatches(r) && topicMatches(r))
-  const unchecked = visible.filter((r) => provenanceOf(r.tags) !== 'verified')
+  const visible = withTags.filter((r) => categoryMatches(r) && topicMatches(r) && reviewVisible(r))
+  // Everything the Type/Topic filters allow, whatever its review state — the
+  // denominator the citation-check line and the progress line are counted over.
+  const inScope = withTags.filter((r) => categoryMatches(r) && topicMatches(r))
+  // Kept apart on purpose. 'unverified' is a recorded fact — the audit never ran
+  // for that topic. 'unrecorded' is the absence of one — nothing was written
+  // down either way. Rolling the second into the first would report an absent
+  // record as a failed check, which is more than the data says.
+  const notChecked = inScope.filter((r) => provenanceOf(r.tags) === 'unverified').length
+  const provUnrecorded = inScope.filter((r) => provenanceOf(r.tags) === 'unrecorded').length
+
+  // Progress is counted, never assumed. Rows whose review state the server did
+  // not report are excluded from both halves of the fraction and reported
+  // separately: "did not say" is not "not reviewed".
+  const stated = inScope.filter((r) => resourceReviewStatus(r) !== null)
+  const decided = stated.filter((r) => resourceReviewStatus(r) !== 'UNREVIEWED')
+  const unstated = inScope.length - stated.length
+  const pct = stated.length > 0 ? Math.round((decided.length / stated.length) * 100) : 0
+  const countOf = (s: ResourceReviewStatus) => stated.filter((r) => resourceReviewStatus(r) === s).length
+
+  // How many items are reached by a search rather than by a link we actually
+  // hold. Counted, not assumed from the media type.
+  const searchOnly = inScope.filter((r) => resourceLookup(r)?.kind === 'search').length
+  const noLink = inScope.filter((r) => resourceLookup(r) === null).length
+
+  // Every count above is over `inScope`, which the Review filter deliberately
+  // does not narrow: they describe the body of work being checked, not the
+  // cards that happen to be on screen. So they must not be captioned "in view"
+  // — with a Review filter active that would name a set the reader is not
+  // looking at. This says which set they are actually over.
+  const scopeLabel =
+    category === 'All' && topic === 'All' ? 'in the library' : 'matching the Type and Topic filters'
+  const itemWord = (n: number) => (n === 1 ? 'item' : 'items')
 
   // Grouped by category so a category filter of "All" still reads as a library
   // rather than one undifferentiated wall of cards.
@@ -2320,12 +2771,17 @@ function ContentView() {
       <div className="flex flex-col gap-2.5 mb-4">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[0.7812rem] uppercase tracking-wide text-organic-neutral-500 w-[62px]">Type</span>
-          <FilterPill label="All" count={withTags.filter(topicMatches).length} active={category === 'All'} onClick={() => setCategory('All')} />
+          <FilterPill
+            label="All"
+            count={withTags.filter((r) => topicMatches(r) && reviewMatches(r)).length}
+            active={category === 'All'}
+            onClick={() => setCategory('All')}
+          />
           {categories.map((c) => (
             <FilterPill
               key={c}
               label={categoryLabel(c)}
-              count={withTags.filter((r) => r.category === c && topicMatches(r)).length}
+              count={withTags.filter((r) => r.category === c && topicMatches(r) && reviewMatches(r)).length}
               active={category === c}
               onClick={() => setCategory(c)}
             />
@@ -2334,16 +2790,80 @@ function ContentView() {
         {topics.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[0.7812rem] uppercase tracking-wide text-organic-neutral-500 w-[62px]">Topic</span>
-            <FilterPill label="All" count={withTags.filter(categoryMatches).length} active={topic === 'All'} onClick={() => setTopic('All')} />
+            <FilterPill
+              label="All"
+              count={withTags.filter((r) => categoryMatches(r) && reviewMatches(r)).length}
+              active={topic === 'All'}
+              onClick={() => setTopic('All')}
+            />
             {topics.map((t) => (
               <FilterPill
                 key={t}
                 label={humanTopic(t)}
-                count={withTags.filter((r) => topicOf(r.tags) === t && categoryMatches(r)).length}
+                count={withTags.filter((r) => topicOf(r.tags) === t && categoryMatches(r) && reviewMatches(r)).length}
                 active={topic === t}
                 onClick={() => setTopic(t)}
               />
             ))}
+          </div>
+        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[0.7812rem] uppercase tracking-wide text-organic-neutral-500 w-[62px]">Review</span>
+          {REVIEW_FILTERS.map((f) => (
+            <FilterPill
+              key={f.key}
+              label={f.label}
+              count={
+                f.key === 'All'
+                  ? inScope.length
+                  : inScope.filter((r) => resourceReviewStatus(r) === f.key).length
+              }
+              active={review === f.key}
+              onClick={() => setReviewFilter(f.key)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Progress. Counted from the rows actually loaded — no target is assumed
+          and no number is carried over from anywhere else. */}
+      <div className="bg-organic-surface rounded-organic-tile p-4 shadow-organic-sm mb-3">
+        {stated.length > 0 ? (
+          <>
+            <div className="flex justify-between items-baseline gap-3 flex-wrap mb-2">
+              <div className="font-heading text-lg">
+                {decided.length} of {stated.length} reviewed
+              </div>
+              <div className="text-[0.7812rem] text-organic-neutral-600">
+                Confirmed {countOf('CONFIRMED')} · Needs correction {countOf('NEEDS_CORRECTION')} · Rejected{' '}
+                {countOf('REJECTED')} · Not yet reviewed {countOf('UNREVIEWED')}
+              </div>
+            </div>
+            <div className="h-2 rounded-organic-pill bg-organic-neutral-200 overflow-hidden">
+              <div className="h-full bg-organic-accent" style={{ width: `${pct}%` }} />
+            </div>
+            {(category !== 'All' || topic !== 'All') && (
+              <div className="text-[0.7812rem] text-organic-neutral-600 mt-1.5">
+                Counted over the {inScope.length} {itemWord(inScope.length)} matching the Type and Topic filters, not
+                the whole library.
+              </div>
+            )}
+            {review !== 'All' && (
+              <div className="text-[0.7812rem] text-organic-neutral-600 mt-1.5">
+                The Review filter does not narrow this — progress spans every review state, not only the cards on
+                screen.
+              </div>
+            )}
+            {unstated > 0 && (
+              <div className="text-[0.7812rem] text-organic-neutral-600 mt-1.5">
+                {unstated} more {unstated === 1 ? 'item' : 'items'} came back without a review state, so{' '}
+                {unstated === 1 ? 'it is' : 'they are'} not counted here.
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-[0.8125rem] text-organic-neutral-700">
+            The server did not return a review state for any of these items, so no review progress can be shown.
           </div>
         )}
       </div>
@@ -2352,13 +2872,45 @@ function ContentView() {
         <div className="flex items-start gap-2.5">
           <ShieldCheck size={17} className="text-organic-accent-2-600 flex-none mt-0.5" />
           <div>
+            Each card carries two separate facts, and neither one sets the other.{' '}
             <strong className="font-semibold">Citations checked</strong> means an audit independently re-checked a sample
-            of that topic&apos;s citations against live sources. <strong className="font-semibold">Citations NOT checked</strong>{' '}
-            means that check never ran — treat those entries as unconfirmed and verify anything you pass to a patient.
-            {unchecked.length > 0 && (
+            of that topic&apos;s citations against live sources; <strong className="font-semibold">Citations NOT checked</strong>{' '}
+            means that check never ran. <strong className="font-semibold">Review</strong> is what a clinician concluded
+            after opening the source herself. Confirming an entry does not make it citation-checked, and a
+            citation-checked entry can still be wrong.
+            {notChecked > 0 && (
               <div className="mt-1.5 text-organic-accent-800">
-                {unchecked.length} of the {visible.length} {visible.length === 1 ? 'item' : 'items'} shown{' '}
-                {unchecked.length === 1 ? 'has' : 'have'} not been through a citation check.
+                {notChecked} of the {inScope.length} {itemWord(inScope.length)} {scopeLabel}{' '}
+                {notChecked === 1 ? 'is marked as never having been' : 'are marked as never having been'} through a
+                citation check.
+              </div>
+            )}
+            {provUnrecorded > 0 && (
+              <div className="mt-1.5 text-organic-neutral-600">
+                A further {provUnrecorded} {itemWord(provUnrecorded)} {provUnrecorded === 1 ? 'carries' : 'carry'} no
+                provenance marker at all, so there is no record of whether {provUnrecorded === 1 ? 'it was' : 'they were'}{' '}
+                checked — that is not the same as knowing {provUnrecorded === 1 ? 'it was' : 'they were'} not.
+              </div>
+            )}
+            {searchOnly > 0 && (
+              <div className="mt-1.5 text-organic-neutral-600">
+                {searchOnly} of the {inScope.length} {itemWord(inScope.length)} {scopeLabel}{' '}
+                {searchOnly === 1 ? 'has' : 'have'} no stored link, so the button opens a{' '}
+                <strong className="font-semibold">search</strong> built from the title and author instead of the item
+                itself. A search result is not proof that the entry is real — read what comes back before confirming.
+              </div>
+            )}
+            {noLink > 0 && (
+              <div className="mt-1.5 text-organic-neutral-600">
+                {noLink} of the {inScope.length} {itemWord(inScope.length)} {scopeLabel}{' '}
+                {noLink === 1 ? 'has' : 'have'} nothing to open at all: no stored link, and no lookup returned by the
+                server.
+              </div>
+            )}
+            {review !== 'All' && (
+              <div className="mt-1.5 text-organic-neutral-500">
+                These counts are not narrowed by the Review filter — they cover every review state, not only the cards
+                on screen.
               </div>
             )}
           </div>
@@ -2373,47 +2925,16 @@ function ContentView() {
             {categoryLabel(cat)} · {grouped[cat].length}
           </h3>
           <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
-            {grouped[cat].map((r) => {
-              const Icon = CATEGORY_META[r.category]?.icon || FileText
-              const slug = topicOf(r.tags)
-              return (
-                <div key={r.id} className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm flex flex-col gap-3">
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="w-[46px] h-[46px] rounded-organic-tile bg-organic-accent-100 grid place-items-center flex-none">
-                      <Icon size={22} className="text-organic-accent-700" />
-                    </div>
-                    <span className="text-[0.7812rem] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-200 text-organic-neutral-700">
-                      {r.category}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="font-bold text-[0.9375rem] leading-tight">{r.title}</div>
-                    {r.author && <div className="text-xs text-organic-neutral-600 mt-1">{r.author}</div>}
-                  </div>
-                  {r.description && (
-                    <p className="text-[0.8125rem] text-organic-neutral-700 leading-relaxed line-clamp-4">{r.description}</p>
-                  )}
-                  <div className="flex items-center gap-1.5 flex-wrap mt-auto">
-                    {slug && (
-                      <span className="text-[0.7812rem] px-2.5 py-0.5 rounded-organic-pill bg-organic-accent-100 text-organic-accent-800">
-                        {humanTopic(slug)}
-                      </span>
-                    )}
-                    <ProvenanceBadge provenance={provenanceOf(r.tags)} />
-                  </div>
-                  {r.file_url && (
-                    <a
-                      href={r.file_url}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      className="text-[0.8125rem] font-semibold text-organic-accent-700 inline-flex items-center gap-1.5 pt-2.5 border-t border-organic-neutral-300/50"
-                    >
-                      <ExternalLink size={14} /> Open resource
-                    </a>
-                  )}
-                </div>
-              )
-            })}
+            {grouped[cat].map((r) => (
+              <ResourceReviewCard
+                key={r.id}
+                resource={r}
+                reviewerName={reviewerName}
+                reviewerLookupAvailable={clinicians.length > 0}
+                keptAfterFilterChange={!reviewMatches(r)}
+                onSaved={onSaved}
+              />
+            ))}
           </div>
         </div>
       ))}

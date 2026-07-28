@@ -2,6 +2,15 @@ import json
 import uuid
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import quote_plus
+
+# Every column a resource is returned with, in one place: the list, the create
+# and the review update all hand their rows to the same mapper, so they must
+# all select the same thing.
+_RESOURCE_COLUMNS = (
+    "id, title, author, category, description, file_url, tags, created_at, "
+    "review_status, reviewed_by, reviewed_at, review_note"
+)
 
 
 class AdminRepositoryDbReal:
@@ -12,10 +21,78 @@ class AdminRepositoryDbReal:
         if self.db is None:
             return []
         rows = await self.db.fetch(
-            "SELECT id, title, author, category, description, file_url, tags, created_at FROM resources WHERE org_id = $1 ORDER BY created_at DESC",
+            f"SELECT {_RESOURCE_COLUMNS} FROM resources WHERE org_id = $1 ORDER BY created_at DESC",
             uuid.UUID(org_id),
         )
         return [self._resource_row(r) for r in rows]
+
+    async def update_resource_review(
+        self,
+        org_id: str,
+        resource_id: str,
+        status: str,
+        note: str | None,
+        reviewed_by: str,
+    ) -> dict | None:
+        """Record one clinician's citation-check decision on one library item.
+
+        Returns None when the resource is not in this org -- or when the id is
+        not a UUID at all -- so the route answers 404 instead of leaking
+        whether another practice holds that row.
+
+        The caller is responsible for validating `status`; the column has a
+        CHECK constraint as a backstop, not as the error path.
+        """
+        if self.db is None:
+            return None
+        try:
+            resource_uuid = uuid.UUID(resource_id)
+        except ValueError:
+            return None
+        row = await self.db.fetchrow(
+            f"""UPDATE resources
+                   SET review_status = $1,
+                       review_note   = $2,
+                       reviewed_by   = $3,
+                       reviewed_at   = $4
+                 WHERE id = $5 AND org_id = $6
+             RETURNING {_RESOURCE_COLUMNS}""",
+            status,
+            note,
+            uuid.UUID(reviewed_by),
+            datetime.now(timezone.utc),
+            resource_uuid,
+            uuid.UUID(org_id),
+        )
+        return self._resource_row(row) if row else None
+
+    @staticmethod
+    def _lookup(
+        category: str | None,
+        title: str | None,
+        author: str | None,
+        file_url: str | None,
+    ) -> tuple[str, str]:
+        """(url, what that url actually is) for one library item.
+
+        Only the 29 videos carry a file_url. All 32 books and all 30 papers
+        have none, so the best we can honestly offer for those is a search --
+        and lookup_kind says so, for the UI to label. Do NOT substitute a
+        guessed DOI, ISBN or publisher page: a fabricated citation link inside
+        a citation-checking tool defeats the entire exercise.
+
+        Matches backend/export_library_for_review.py so the spreadsheet and the
+        app send a reviewer to the same place.
+        """
+        if file_url:
+            return file_url, "source"
+        query = " ".join(filter(None, [title, author]))
+        q = quote_plus(query[:250])
+        if category == "PAPER":
+            return f"https://scholar.google.com/scholar?q={q}", "search"
+        if category == "BOOK":
+            return f"https://www.google.com/search?tbm=bks&q={q}", "search"
+        return f"https://www.google.com/search?q={q}", "search"
 
     @staticmethod
     def _resource_row(row: Any) -> dict:
@@ -23,6 +100,15 @@ class AdminRepositoryDbReal:
         item["id"] = str(item["id"])
         tags = item.get("tags")
         item["tags"] = json.loads(tags) if isinstance(tags, str) else (tags or [])
+        # asyncpg hands back a UUID object, which pydantic's str field rejects.
+        if item.get("reviewed_by") is not None:
+            item["reviewed_by"] = str(item["reviewed_by"])
+        item["lookup_url"], item["lookup_kind"] = AdminRepositoryDbReal._lookup(
+            item.get("category"),
+            item.get("title"),
+            item.get("author"),
+            item.get("file_url"),
+        )
         return item
 
     async def create_resource(
@@ -39,11 +125,11 @@ class AdminRepositoryDbReal:
         """Create a new resource."""
         now = datetime.now(timezone.utc)
         row = await self.db.fetchrow(
-            """INSERT INTO resources
+            f"""INSERT INTO resources
                    (id, org_id, uploaded_by, title, author, category,
                     description, file_url, tags, created_at)
                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)
-               RETURNING id, title, author, category, description, file_url, tags, created_at""",
+               RETURNING {_RESOURCE_COLUMNS}""",
             uuid.uuid4(),
             uuid.UUID(org_id),
             uuid.UUID(user_id),
