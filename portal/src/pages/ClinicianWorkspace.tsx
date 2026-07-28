@@ -5,7 +5,6 @@ import { useAuthStore } from '../store/authStore'
 import apiClient from '../services/api'
 import type { NextAppointmentIn } from '../services/api'
 import { useSampleDataHidden } from '../hooks/useSampleDataHidden'
-import { SampleGate } from '../components/SampleGate'
 import { SegmentedControl } from '../components/OrganicUI'
 import { TextSizeControl } from '../components/TextSizeControl'
 import {
@@ -25,14 +24,9 @@ import {
   UsersRound,
   FileEdit,
   FileText,
-  PenLine,
-  Volume2,
-  BookOpen,
-  Footprints,
   CheckCircle2,
   Circle,
   Lock,
-  Check,
   LayoutDashboard,
   LogOut,
   Eye,
@@ -54,7 +48,7 @@ const NAV_ITEMS: { view: WorkspaceView; label: string; short: string; icon: type
   { view: 'scheduler', label: 'Scheduler', short: 'Week', icon: CalendarDays, ready: true },
   { view: 'chart', label: 'Patient chart', short: 'Chart', icon: FolderOpen, ready: true },
   { view: 'scribe', label: 'AI Scribe', short: 'Scribe', icon: Mic, ready: false },
-  { view: 'plan', label: 'Care plan', short: 'Plan', icon: ListChecks, ready: false },
+  { view: 'plan', label: 'Care plan', short: 'Plan', icon: ListChecks, ready: true },
 ]
 
 const SUBTITLES: Record<Exclude<WorkspaceView, 'caseload' | 'chart' | 'scheduler'>, string> = {
@@ -173,7 +167,7 @@ export default function ClinicianWorkspace() {
         {view === 'scheduler' && <SchedulerView onOpenPatient={openPatient} onWeekLabel={setSchedulerLabel} />}
         {view === 'chart' && <ChartView patient={chartPatient} onPickPatient={setChartPatient} />}
         {view === 'scribe' && <ScribeView />}
-        {view === 'plan' && <PlanView />}
+        {view === 'plan' && <PlanView patient={chartPatient} />}
       </main>
 
       {showNewSession && (
@@ -3187,98 +3181,186 @@ function ScribeView() {
 
 // ─── Care plan ──────────────────────────────────────────────────────────────
 
-const PHASES = [
-  { title: 'Phase 1 · Stabilize', detail: 'Weeks 1–3 · psychoeducation, safety plan', state: 'done' as const },
-  { title: 'Phase 2 · Skills', detail: 'Weeks 4–7 · CBT reframing, sleep hygiene', state: 'done' as const },
-  { title: 'Phase 3 · Exposure', detail: 'Weeks 8–10 · behavioral activation (current)', state: 'current' as const },
-  { title: 'Phase 4 · Consolidate', detail: 'Weeks 11–12 · relapse prevention', state: 'upcoming' as const },
-]
+type CarePlan = {
+  id: string
+  patient_id: string
+  status: string
+  main_track: string | null
+  goals: unknown[] | null
+  created_at: string
+}
 
-const HOMEWORK = [
-  { icon: PenLine, title: 'CBT thought record', meta: 'Daily · this week', done: true },
-  { icon: Volume2, title: 'Evening breathing', meta: 'Nightly · audio', done: true },
-  { icon: BookOpen, title: 'Read: Understanding worry', meta: 'By Friday', done: false },
-  { icon: Footprints, title: 'Morning walk log', meta: '3× this week', done: false },
-]
+type HomeworkTask = {
+  id: string
+  title: string
+  description: string | null
+  task_type: string | null
+  due_date: string | null
+  status: string
+  assigned_at: string | null
+}
 
-function PlanView() {
-  const [hideSampleData] = useSampleDataHidden()
-  return (
-    <SampleGate
-      hidden={hideSampleData}
-      placeholder={
-        <div className="text-sm text-organic-neutral-600 py-8">
-          Care plan details will appear here once a treatment plan is created for this patient.
-        </div>
-      }
-    >
-    <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-4">
-      <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-[1.1875rem] font-heading text-organic-text">Treatment plan · Maya O.</h3>
-          <span className="text-[0.7812rem] px-3 py-1 rounded-organic-pill bg-organic-accent-2-100 text-organic-accent-2-800 font-semibold">
-            CBT · 12 weeks
-          </span>
-        </div>
-        <div className="flex flex-col">
-          {PHASES.map((p, i) => (
-            <div key={p.title} className="flex gap-3.5">
-              <div className="flex flex-col items-center">
-                <div
-                  className={`w-7 h-7 rounded-full grid place-items-center flex-none ${
-                    p.state === 'done'
-                      ? 'bg-organic-accent-2-500 text-organic-accent-100'
-                      : p.state === 'current'
-                        ? 'bg-organic-accent text-organic-accent-100'
-                        : 'bg-organic-neutral-200 text-organic-neutral-500'
-                  }`}
-                >
-                  {p.state === 'done' ? (
-                    <Check size={14} />
-                  ) : p.state === 'current' ? (
-                    <span className="w-2 h-2 rounded-full bg-organic-accent-100" />
-                  ) : (
-                    <Lock size={14} />
-                  )}
-                </div>
-                {i < PHASES.length - 1 && <div className="w-0.5 flex-1 bg-organic-divider min-h-[18px] bg-organic-neutral-300" />}
-              </div>
-              <div className="pb-[18px]">
-                <div className="font-bold text-sm text-organic-text">{p.title}</div>
-                <div className="text-[0.7812rem] text-organic-neutral-600">{p.detail}</div>
-              </div>
-            </div>
-          ))}
-        </div>
+/** A goal may be stored as a bare string or as an object; render whichever it
+ *  is rather than printing "[object Object]" at a clinician. */
+function goalText(goal: unknown): string | null {
+  if (typeof goal === 'string') return goal.trim() || null
+  if (goal && typeof goal === 'object') {
+    const g = goal as Record<string, unknown>
+    for (const key of ['title', 'text', 'goal', 'description', 'name']) {
+      const v = g[key]
+      if (typeof v === 'string' && v.trim()) return v.trim()
+    }
+  }
+  return null
+}
+
+/**
+ * Care plan.
+ *
+ * This view used to render an invented plan for a named patient "Maya O." --
+ * four fabricated treatment phases with week ranges and completion states, and
+ * four homework items with adherence ticks -- shown regardless of which
+ * patient, if any, was open. It now reads the real care plan and homework
+ * endpoints for the selected patient.
+ *
+ * No care plans exist in the database yet, so an honest empty state is the
+ * normal result today. That is the correct thing to show: "no plan yet" is a
+ * true statement about a patient; an invented plan is not.
+ */
+function PlanView({ patient }: { patient: ChartPatientRef | null }) {
+  const [plans, setPlans] = useState<CarePlan[] | null>(null)
+  const [homework, setHomework] = useState<HomeworkTask[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!patient) {
+      setPlans(null)
+      setHomework(null)
+      setError(null)
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    Promise.all([
+      apiClient.getPatientCarePlans(patient.id),
+      apiClient.getPatientHomework(patient.id),
+    ])
+      .then(([p, h]: [CarePlan[], HomeworkTask[]]) => {
+        if (cancelled) return
+        setPlans(Array.isArray(p) ? p : [])
+        setHomework(Array.isArray(h) ? h : [])
+      })
+      .catch(() => {
+        // A failed request must never read as "this patient has no care plan".
+        if (!cancelled) {
+          setError('Could not load the care plan. This is not a record that none exists.')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [patient?.id])
+
+  if (!patient) {
+    return (
+      <div className="bg-organic-surface rounded-organic-card p-7 shadow-organic-sm max-w-[640px]">
+        <h3 className="text-[1.1875rem] font-heading mb-1.5">No patient selected</h3>
+        <p className="text-sm text-organic-neutral-600">
+          Open a patient from your caseload or the Patient chart, and their care plan
+          will appear here.
+        </p>
       </div>
+    )
+  }
 
+  const active = plans?.find((p) => (p.status || '').toUpperCase() === 'ACTIVE') || plans?.[0] || null
+  const goals = (active?.goals || []).map(goalText).filter((g): g is string => !!g)
+  const done = (homework || []).filter((t) => (t.status || '').toLowerCase() === 'completed').length
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4 max-w-[1100px]">
       <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
-        <div className="flex justify-between items-center mb-3.5">
-          <h3 className="text-lg font-heading text-organic-text">Assign homework</h3>
-          <button className="rounded-organic-pill bg-organic-accent text-organic-accent-100 text-[0.7812rem] font-heading px-3.5 py-2 hover:bg-organic-accent-600 transition-colors">
-            + Add
-          </button>
-        </div>
-        <div className="flex flex-col gap-2.5">
-          {HOMEWORK.map((h) => (
-            <div key={h.title} className="flex items-center gap-3 bg-organic-neutral-100 rounded-organic-tile p-3.5">
-              <div className="w-[38px] h-[38px] rounded-organic-tile bg-organic-accent-100 grid place-items-center flex-none">
-                <h.icon size={18} className="text-organic-accent-700" />
-              </div>
-              <div className="flex-1">
-                <div className="font-semibold text-[0.8438rem] text-organic-text">{h.title}</div>
-                <div className="text-[0.7812rem] text-organic-neutral-600">{h.meta}</div>
-              </div>
-              {h.done ? (
-                <CheckCircle2 size={17} className="text-organic-accent-2-600" />
-              ) : (
-                <Circle size={17} className="text-organic-neutral-400" />
+        <h3 className="text-[1.1875rem] font-heading mb-3">Care plan · {patient.name}</h3>
+
+        {loading && <div className="text-sm text-organic-neutral-600">Loading care plan…</div>}
+        {error && <div className="text-sm text-organic-accent-800">{error}</div>}
+
+        {!loading && !error && !active && (
+          <p className="text-sm text-organic-neutral-600">
+            No care plan has been created for {patient.name} yet.
+          </p>
+        )}
+
+        {!loading && !error && active && (
+          <>
+            <div className="flex items-center gap-2 mb-3.5">
+              <span className="text-[0.7812rem] px-2.5 py-0.5 rounded-organic-pill bg-organic-accent-200 text-organic-accent-800 font-semibold">
+                {active.status}
+              </span>
+              {active.main_track && (
+                <span className="text-sm text-organic-neutral-700">{active.main_track}</span>
               )}
             </div>
-          ))}
+            {goals.length > 0 ? (
+              <ul className="flex flex-col gap-2">
+                {goals.map((g, i) => (
+                  <li key={i} className="flex items-start gap-2.5 text-sm text-organic-neutral-800">
+                    <Circle size={15} className="text-organic-accent-500 flex-none mt-0.5" />
+                    <span>{g}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-organic-neutral-600">No goals recorded on this plan.</p>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
+        <div className="flex items-baseline justify-between mb-3">
+          <h3 className="text-[1.0625rem] font-heading">Homework</h3>
+          {homework && homework.length > 0 && (
+            <span className="text-[0.8125rem] text-organic-neutral-600">
+              {done} of {homework.length} done
+            </span>
+          )}
         </div>
+
+        {loading && <div className="text-sm text-organic-neutral-600">Loading…</div>}
+        {!loading && !error && homework && homework.length === 0 && (
+          <p className="text-sm text-organic-neutral-600">Nothing assigned yet.</p>
+        )}
+        {!loading && !error && homework && homework.length > 0 && (
+          <div className="flex flex-col gap-2.5">
+            {homework.map((t) => {
+              const complete = (t.status || '').toLowerCase() === 'completed'
+              return (
+                <div key={t.id} className="flex items-start gap-2.5">
+                  {complete ? (
+                    <CheckCircle2 size={17} className="text-organic-accent-600 flex-none mt-0.5" />
+                  ) : (
+                    <Circle size={17} className="text-organic-neutral-400 flex-none mt-0.5" />
+                  )}
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold text-organic-text">{t.title}</div>
+                    <div className="text-xs text-organic-neutral-600">
+                      {[t.task_type, t.due_date ? 'due ' + t.due_date : null, t.status]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
-    </SampleGate>
   )
 }

@@ -61,6 +61,95 @@ export interface ResourceItem {
   created_at: string
 }
 
+// ── Patient portal (/me/*) ────────────────────────────────────────────────
+// Every shape below is transcribed from the SQL the backend actually runs
+// (backend/src/repositories/patient_portal_repository_db_real.py), not from a
+// mock. The routes are all guarded by get_patient_context, so a token without a
+// patient_id gets 403 "Patient access only." from every one of them.
+
+/** GET /me/profile — the signed-in patient's own record. */
+export interface MyProfile {
+  id: string
+  full_name: string | null
+  gender: string | null
+  dob: string | null
+  /** `diagnosis` is returned twice by the server, under both names. */
+  primary_diagnosis: string | null
+  diagnosis: string | null
+  status: string | null
+  /** `risk` is returned twice by the server, under both names. */
+  risk_level: string | null
+  risk: string | null
+  therapist_id: string | null
+}
+
+/** GET /me/mood — one row per check-in. Both scores are 1–5 (DB CHECK). */
+export interface MoodEntry {
+  id: string
+  mood_score: number
+  energy_score: number
+  note: string | null
+  /** jsonb column; may arrive as an array or as its raw JSON text. */
+  emotions: unknown
+  logged_at: string
+}
+
+/** POST /me/mood body. Both scores are required by the server. */
+export interface MoodLogIn {
+  mood_score: number
+  energy_score: number
+  note?: string | null
+  emotions?: string[]
+}
+
+/**
+ * GET /me/assessments — scored results, newest first.
+ *
+ * `template_id` is the raw instrument identifier stored on the result row; the
+ * server sends no display name for it, so nothing may be substituted. There is
+ * no maximum-score field either, which is why no proportion bar can be drawn.
+ */
+export interface MyAssessmentResult {
+  id: string
+  template_id: string | null
+  score_total: number | null
+  severity_band: string | null
+  interpretation_text: string | null
+  taken_at: string | null
+}
+
+/** GET /me/homework — `status` is lower-cased by the service before it is sent. */
+export interface MyHomeworkTask {
+  id: string
+  title: string | null
+  description: string | null
+  task_type: string | null
+  status: string | null
+  due_date: string | null
+  assigned_at: string | null
+  patient_feedback: unknown
+}
+
+/**
+ * GET /me/sessions — at most 20 rows, newest scheduled_at first, past and
+ * future together. No clinician name is included, so none can be shown.
+ */
+export interface MySession {
+  id: string
+  session_type: string | null
+  scheduled_at: string | null
+  duration_minutes: number | null
+  status: string | null
+  summary_snippet: string | null
+}
+
+/** POST /me/ai-chat — the companion's reply to one message. */
+export interface AriaReply {
+  patient_id: string
+  conversation_id: string
+  reply: string
+}
+
 /** Practice-wide counters (GET /dashboard/summary). Every field is a COUNT(*). */
 export interface PracticeSummary {
   active_cases: number
@@ -70,6 +159,28 @@ export interface PracticeSummary {
   assessments_completed: number
   sessions_today: number
   sessions_remaining: number
+}
+
+/**
+ * Thrown when a 2xx reply is not the list the endpoint is documented to return.
+ *
+ * It must never be flattened to `[]`. On the patient app an empty list is
+ * rendered as a statement about the patient's own record — "No assessment
+ * results have been recorded for you yet" — so turning an unreadable reply into
+ * an empty list would state a clinical fact the server never sent. Callers see
+ * a rejection and show their failure state instead.
+ */
+export class MalformedResponseError extends Error {
+  readonly isMalformedResponse = true
+  constructor(endpoint: string) {
+    super(`${endpoint} did not return a list.`)
+    this.name = 'MalformedResponseError'
+  }
+}
+
+function expectList<T>(data: unknown, endpoint: string): T[] {
+  if (!Array.isArray(data)) throw new MalformedResponseError(endpoint)
+  return data as T[]
 }
 
 const processQueue = (error: any, token?: string) => {
@@ -343,6 +454,19 @@ class ApiClient {
     return response.data
   }
 
+  // ── Care plan (clinician-facing) ─────────────────────────────────────
+  /** GET /patients/{id}/careplans — every plan for the patient, newest first. */
+  async getPatientCarePlans(patientId: string) {
+    const response = await this.client.get(`/patients/${patientId}/careplans`)
+    return response.data
+  }
+
+  /** GET /patients/{id}/homework — assigned tasks. */
+  async getPatientHomework(patientId: string) {
+    const response = await this.client.get(`/patients/${patientId}/homework`)
+    return response.data
+  }
+
   async getPatientAssessments(patientId: string) {
     const response = await this.client.get(`/patients/${patientId}/assessments`)
     return response.data
@@ -421,6 +545,72 @@ class ApiClient {
   // org, so these are safe to render as fact.
   async getPracticeSummary(): Promise<PracticeSummary> {
     const response = await this.client.get<PracticeSummary>('/dashboard/summary')
+    return response.data
+  }
+
+  // ── Patient portal (/me/*) ──────────────────────────────────────────────
+  // These are the only endpoints the patient app is allowed to read from. They
+  // resolve the patient from the token, so none of them takes a patient id —
+  // there is no way for this client to ask for somebody else's record.
+
+  async getMyProfile(): Promise<MyProfile> {
+    const response = await this.client.get<MyProfile>('/me/profile')
+    return response.data
+  }
+
+  /** `days` is the look-back window the server filters on; it defaults to 30. */
+  async getMyMood(days = 30): Promise<MoodEntry[]> {
+    const response = await this.client.get<MoodEntry[]>('/me/mood', { params: { days } })
+    return expectList<MoodEntry>(response.data, 'GET /me/mood')
+  }
+
+  async logMyMood(body: MoodLogIn): Promise<{ id: string; status: string }> {
+    const response = await this.client.post('/me/mood', body)
+    return response.data
+  }
+
+  async getMyAssessments(): Promise<MyAssessmentResult[]> {
+    const response = await this.client.get<MyAssessmentResult[]>('/me/assessments')
+    return expectList<MyAssessmentResult>(response.data, 'GET /me/assessments')
+  }
+
+  async getMyHomework(): Promise<MyHomeworkTask[]> {
+    const response = await this.client.get<MyHomeworkTask[]>('/me/homework')
+    return expectList<MyHomeworkTask>(response.data, 'GET /me/homework')
+  }
+
+  /** Marks one task complete. The server sets status COMPLETED and stamps the time. */
+  async submitMyHomework(
+    taskId: string,
+    body?: { completion_notes?: string | null; helpfulness_rating?: number | null },
+  ): Promise<{ status: string }> {
+    const response = await this.client.post(`/me/homework/${taskId}/submit`, body ?? {})
+    return response.data
+  }
+
+  async getMySessions(upcomingOnly = false): Promise<MySession[]> {
+    const response = await this.client.get<MySession[]>('/me/sessions', {
+      params: upcomingOnly ? { upcoming_only: true } : undefined,
+    })
+    return expectList<MySession>(response.data, 'GET /me/sessions')
+  }
+
+  /**
+   * Asks the practice for a session. `preferred_date` must be YYYY-MM-DD — the
+   * server rejects anything else with a 400. The row lands with status
+   * 'requested'; it is a request, not a booking.
+   */
+  async requestMySession(body: { preferred_date?: string | null; notes?: string | null }) {
+    const response = await this.client.post('/me/sessions/request', body)
+    return response.data as { id: string; status: string; scheduled_at: string | null }
+  }
+
+  /** One turn of the patient AI companion. Pass the id back to stay in a thread. */
+  async sendAriaMessage(message: string, conversationId?: string | null): Promise<AriaReply> {
+    const response = await this.client.post<AriaReply>('/me/ai-chat', {
+      message,
+      conversation_id: conversationId ?? null,
+    })
     return response.data
   }
 
