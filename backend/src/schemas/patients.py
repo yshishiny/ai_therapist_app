@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class PatientOut(BaseModel):
@@ -42,6 +42,15 @@ class PatientListOut(BaseModel):
 
 
 class PatientCreateIn(BaseModel):
+    """A new patient.
+
+    `dob` stays a string because the repository writes it as one, but it is
+    validated here: previously any malformed value reached
+    `date.fromisoformat` unguarded and surfaced as a 500 with no indication
+    which field was wrong. A caller sending "1990-02-31" deserves to be told
+    that, not an Internal Server Error.
+    """
+
     full_name: str
     gender: str | None = None
     diagnosis: str = ''
@@ -50,6 +59,22 @@ class PatientCreateIn(BaseModel):
     phone: str | None = None
     email: str | None = None
     dob: str | None = None
+
+    @field_validator('dob')
+    @classmethod
+    def _dob_is_a_real_date(cls, value: str | None) -> str | None:
+        if value is None or not str(value).strip():
+            return None
+        text = str(value).strip()
+        try:
+            parsed = date.fromisoformat(text)
+        except ValueError:
+            raise ValueError("must be a real date in YYYY-MM-DD format") from None
+        if parsed > date.today():
+            raise ValueError("cannot be in the future")
+        if parsed.year < 1900:
+            raise ValueError("looks too far in the past to be right")
+        return text
 
 
 class PatientUpdateIn(BaseModel):

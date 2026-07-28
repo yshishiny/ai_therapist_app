@@ -21,7 +21,7 @@ class PatientRepositoryDbReal:
                        consent_ai_analysis, wellbeing_status
                 FROM patients
                 WHERE org_id = $1 AND therapist_id = $2
-                ORDER BY last_seen DESC NULLS LAST
+                ORDER BY last_seen DESC NULLS LAST, created_at DESC
                 LIMIT $3 OFFSET $4
                 """,
                 uuid.UUID(org_id),
@@ -38,7 +38,7 @@ class PatientRepositoryDbReal:
                        consent_ai_analysis, wellbeing_status
                 FROM patients
                 WHERE org_id = $1
-                ORDER BY last_seen DESC NULLS LAST
+                ORDER BY last_seen DESC NULLS LAST, created_at DESC
                 LIMIT $2 OFFSET $3
                 """,
                 uuid.UUID(org_id),

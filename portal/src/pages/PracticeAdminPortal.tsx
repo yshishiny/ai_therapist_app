@@ -689,6 +689,11 @@ function PatientsView({
 }) {
   const [filter, setFilter] = useState<'All' | 'High risk' | 'Intake'>('All')
   const [showImport, setShowImport] = useState(false)
+  const [showRegister, setShowRegister] = useState(false)
+  // The record created by the last successful submission, kept only to confirm
+  // it happened and to say what it was filed as. Until this existed the button
+  // was decorative, so there was no success state to report at all.
+  const [registered, setRegistered] = useState<RegisteredPatient | null>(null)
   // Off by default: hiding rows is a decision for the admin to make, and the
   // markers already say which rows are which. Only SEED/SYSTEM are hidden —
   // a `source` value this build does not recognise is never assumed fake, so
@@ -715,6 +720,16 @@ function PatientsView({
   // With a total we know exactly; without one, another page is possible only
   // if this one came back full.
   const hasNext = total === null ? patients.length === pageSize : last < total
+  // Whether a newly registered patient could be on a page other than this one.
+  // With no total reported we cannot rule it out, so we say so rather than
+  // promise the row is here.
+  const mayBeOffThisPage = total === null || total > pageSize
+  // ...and whether a filter would hide it even if it is. A new patient is filed
+  // Low risk / Active unless the admin chose otherwise, and assigned to
+  // whoever registered them, so the risk-and-status pills and the caseload
+  // filter can each drop the row that was just confirmed. The test-record
+  // filter cannot: a manually entered record is never test data.
+  const registrationMayBeFiltered = filter !== 'All' || caseloadFilter !== null
 
   return (
     <div>
@@ -758,7 +773,10 @@ function PatientsView({
           >
             <Upload size={16} /> Import from form
           </button>
-          <button className="rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm px-5 py-2.5 inline-flex items-center gap-2">
+          <button
+            onClick={() => setShowRegister(true)}
+            className="rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm px-5 py-2.5 inline-flex items-center gap-2"
+          >
             <UserPlus size={16} /> Register patient
           </button>
         </div>
@@ -771,6 +789,45 @@ function PatientsView({
             onReload()
           }}
         />
+      )}
+      {showRegister && (
+        <RegisterPatientModal
+          onClose={() => setShowRegister(false)}
+          onCreated={(created) => {
+            setShowRegister(false)
+            setRegistered(created)
+            onReload()
+          }}
+        />
+      )}
+      {registered && (
+        <div className="flex items-start gap-2 bg-organic-accent-2-100 text-organic-accent-2-800 text-[0.8125rem] rounded-organic-tile px-3.5 py-2 mb-3.5 flex-wrap">
+          <Check size={15} className="flex-none mt-0.5" />
+          <span className="flex-1 min-w-[260px]">
+            {registered.name} has been registered.
+            {/* Says what the record now holds for anything the admin did not
+                choose. The form warns beforehand; this is the same fact after
+                the event, when it has stopped being a warning and become the
+                content of a clinical record. */}
+            {defaultedNote(registered)}
+            {/* The registry is ordered by last session, nulls last, so a patient
+                with no sessions yet sorts to the end of it. Reloading the page
+                the admin happens to be on will not necessarily show them, and
+                claiming otherwise would send someone looking for a record they
+                cannot see. */}
+            {mayBeOffThisPage &&
+              ' Patients are listed most-recent-session first, so one with no sessions yet sits at the end of the registry — check the last page if they are not on this one.'}
+            {/* Without this the confirmation is contradicted by the table right
+                under it: a filtered view drops the new row, and the admin is
+                told the patient exists while looking at a list that does not
+                contain them. */}
+            {registrationMayBeFiltered &&
+              ' The list below is filtered, so the new record may not be shown until the filter is cleared.'}
+          </span>
+          <button onClick={() => setRegistered(null)} className="ml-auto text-xs underline">
+            Dismiss
+          </button>
+        </div>
       )}
       {/* Only ever states what is on this page — the API cannot filter or count
           by origin, so a practice-wide claim would be a guess. */}
@@ -1562,6 +1619,434 @@ function AssessmentReviewPanel({
   )
 }
 
+
+/**
+ * FastAPI reports a validation failure with `detail` as a LIST of objects, not
+ * a string. Assigning that list to error state and rendering it throws "Objects
+ * are not valid as a React child", which unmounts the portal to a blank screen:
+ * the admin loses the form they just filled in and is shown no reason why.
+ *
+ * `loc` is included because this form posts eight fields at once and a bare
+ * "invalid date format" would not say which one to fix. (Login.tsx carries the
+ * same helper for its two fields; neither page can import from the other yet,
+ * so the two are duplicated rather than shared — worth lifting into a module
+ * the next time a third caller needs it.)
+ */
+function errorText(err: any, fallback: string): string {
+  const detail = err?.response?.data?.detail
+  if (typeof detail === 'string' && detail.trim()) return detail
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((entry: any) => {
+        if (typeof entry === 'string') return entry
+        if (typeof entry?.msg !== 'string' || !entry.msg) return null
+        const field = Array.isArray(entry.loc) ? entry.loc[entry.loc.length - 1] : null
+        return typeof field === 'string' && field !== 'body' ? `${field}: ${entry.msg}` : entry.msg
+      })
+      .filter((message: any): message is string => typeof message === 'string' && message.length > 0)
+    if (messages.length) return messages.join('; ')
+  }
+  return fallback
+}
+
+/**
+ * What we can honestly tell the admin happened when the create failed.
+ *
+ * A 4xx means the server read the request and refused it: no record exists.
+ * A 5xx — or no response at all (timeout, dropped connection, the tab losing
+ * the network mid-request) — means no such thing. The INSERT may already have
+ * run and only the answer went missing. POST /patients has no idempotency key
+ * and no duplicate check, so reporting "nothing has been saved" on those
+ * invites a retry that files one person twice.
+ */
+function createFailureText(err: any): string {
+  const status = err?.response?.status
+  if (typeof status === 'number' && status >= 400 && status < 500) {
+    return errorText(err, 'The patient could not be registered. Nothing has been saved.')
+  }
+  const detail = errorText(err, '')
+  const serverSaid = detail && detail !== 'Internal Server Error' ? ` The server said: ${detail}` : ''
+  return (
+    'The server did not confirm the registration, so it is not known whether the patient was created.' +
+    ' Check the registry before trying again — registering twice creates two records for the same person.' +
+    serverSaid
+  )
+}
+
+/** What the server stored, for the confirmation the admin sees afterwards. */
+interface RegisteredPatient {
+  /** The name on the created record, as the server returned it. */
+  name: string
+  /**
+   * The value the record now carries for a clinical field the admin left
+   * unset, or null when they chose one (or the server did not say). Reported
+   * because these are defaults, not decisions — nobody assessed this patient
+   * as Low risk.
+   */
+  defaultedRisk: string | null
+  defaultedStatus: string | null
+}
+
+/**
+ * The sentence the confirmation adds when the new record carries a clinical
+ * value nobody chose. Risk is the one that matters: a record filed as Low risk
+ * is indistinguishable from one assessed and found to be, so the only place the
+ * difference survives is what the admin is told at the moment it happens.
+ */
+function defaultedNote({ defaultedRisk, defaultedStatus }: RegisteredPatient): string {
+  if (defaultedRisk && defaultedStatus) {
+    return ` Risk was not assessed and status was not set, so the record is filed as ${defaultedRisk} risk and ${defaultedStatus}.`
+  }
+  if (defaultedRisk) return ` Risk was not assessed, so the record is filed as ${defaultedRisk} risk.`
+  if (defaultedStatus) return ` Status was not set, so the record is filed as ${defaultedStatus}.`
+  return ''
+}
+
+// The vocabularies the rest of the product already stores. They are listed
+// rather than free-typed so the registry does not accumulate "F" / "female" /
+// "Female" as three different genders, or a risk level no filter matches.
+const GENDER_OPTIONS = ['Female', 'Male', 'Non-binary', 'Prefer not to say'] as const
+const RISK_OPTIONS = ['Low', 'Med', 'High'] as const
+const STATUS_OPTIONS = ['Active', 'Intake', 'Maintenance', 'Discharged'] as const
+
+const FIELD_CLASS =
+  'w-full min-h-[42px] px-4 text-sm bg-organic-surface border border-organic-neutral-300/60 rounded-organic-pill disabled:opacity-60'
+const LABEL_CLASS = 'block text-xs text-organic-neutral-700 mb-1.5'
+
+/**
+ * Today's date where the user is.
+ *
+ * NOT `new Date().toISOString().slice(0, 10)`: that is the UTC date, which is
+ * still yesterday for the first hours of every local day in any timezone ahead
+ * of it — so the practice would be told a date of birth of "today" is in the
+ * future.
+ */
+function localDateString(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+/**
+ * Why this date of birth cannot be sent, or null if it can.
+ *
+ * A shape check on its own is not enough. `^\d{4}-\d{2}-\d{2}$` happily accepts
+ * 1990-02-31, and the server hands the string straight to `date.fromisoformat`
+ * with no try/except (patient_repository_db_real.py), so an impossible date is
+ * a 500 with no usable message rather than a validation error naming the field.
+ * The range is re-checked here rather than left to `min`/`max` on the input,
+ * because where the browser has no native date control the field degrades to a
+ * plain text box and those attributes stop being enforced — which is the same
+ * place a typed year like 2190 would otherwise get through.
+ */
+function dobProblem(value: string, today: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return 'Enter the date of birth as YYYY-MM-DD.'
+  const [year, month, day] = value.split('-').map(Number)
+  const parsed = new Date(Date.UTC(year, month - 1, day))
+  const isRealDate =
+    parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day
+  if (!isRealDate) return `${value} is not a real date — check the month and day.`
+  if (value > today) return 'The date of birth cannot be in the future.'
+  if (value < '1900-01-01') return 'Enter a date of birth from 1900 onwards.'
+  return null
+}
+
+/**
+ * Register a single patient.
+ *
+ * The counterpart to the bulk import: a practice adding one patient had no way
+ * to do it from the portal at all, because the button this opens had no
+ * handler.
+ *
+ * Everything except the name is optional, and an optional field that was left
+ * alone is OMITTED from the request rather than sent as ''. The difference is
+ * not cosmetic — a stored empty string reads as "asked, and the answer was
+ * nothing", which is not what a blank box means — and `dob: ''` would reach
+ * `date.fromisoformat` on the server, which does not guard the call.
+ *
+ * `source` and `created_by` are stamped by the route (MANUAL / the caller), so
+ * the client must not send them; therapist_id is likewise fixed to the caller.
+ */
+function RegisterPatientModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void
+  onCreated: (created: RegisteredPatient) => void
+}) {
+  const [form, setForm] = useState({
+    full_name: '',
+    gender: '',
+    dob: '',
+    phone: '',
+    email: '',
+    diagnosis: '',
+    risk: '',
+    status: '',
+  })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  // The guard that actually holds. `saving` cannot be one: both handlers in a
+  // double-fire read it from the same render's closure, where it is still
+  // false, so checking it is no better than checking `disabled`. A ref is read
+  // at call time.
+  const inFlight = useRef(false)
+
+  const set =
+    (field: keyof typeof form) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const { value } = e.target
+      setForm((prev) => ({ ...prev, [field]: value }))
+      setError(null)
+    }
+
+  const fullName = form.full_name.trim()
+  const today = localDateString(new Date())
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    // `disabled` on the button is not the whole guard. A double-click can queue
+    // two submits before React has re-rendered the disabled state, and POST
+    // /patients has no idempotency key and no duplicate-name check: the second
+    // one silently creates a second record for the same person, which is then
+    // two half-histories of one patient for someone to find later.
+    if (inFlight.current || !fullName) return
+
+    // The server parses dob with `date.fromisoformat` and does not catch the
+    // ValueError, so anything it cannot read is a 500 with no usable message
+    // rather than a validation error. A date input normally yields a valid
+    // value; `dobProblem` is the check for when it does not — it rejects a
+    // well-shaped impossible date (1990-02-31) too, which a shape test alone
+    // would send straight through to that unguarded call.
+    if (form.dob) {
+      const problem = dobProblem(form.dob, today)
+      if (problem) {
+        setError(problem)
+        return
+      }
+    }
+
+    const payload: Record<string, string> = { full_name: fullName }
+    for (const field of ['gender', 'dob', 'phone', 'email', 'diagnosis', 'risk', 'status'] as const) {
+      const value = form[field].trim()
+      if (value) payload[field] = value
+    }
+
+    inFlight.current = true
+    setSaving(true)
+    setError(null)
+    // The confirmation reports the record the SERVER made, not the form that
+    // was typed: risk and status left unset come back carrying the defaults it
+    // applied, and the admin is told which value their record now holds.
+    let created: RegisteredPatient | null = null
+    try {
+      const row = await apiClient.createPatient(payload)
+      created = {
+        name: typeof row?.name === 'string' && row.name ? row.name : fullName,
+        defaultedRisk: !form.risk && typeof row?.risk === 'string' ? row.risk : null,
+        defaultedStatus: !form.status && typeof row?.status === 'string' ? row.status : null,
+      }
+    } catch (err: any) {
+      setError(createFailureText(err))
+      inFlight.current = false
+      setSaving(false)
+    }
+
+    // Handing off is OUTSIDE the try on purpose. `onCreated` closes this modal
+    // and re-fetches the registry; a throw from that re-fetch used to land in
+    // the catch above and be reported as a failed registration — telling the
+    // admin the patient may not exist, moments after the server confirmed it
+    // does, and re-enabling the button for a submit that would file them twice.
+    if (created) {
+      try {
+        onCreated(created)
+        // `saving` deliberately stays true: on success the parent unmounts this
+        // modal, and leaving the button disabled through that last frame closes
+        // the window in which a second click could post again.
+      } catch {
+        inFlight.current = false
+        setSaving(false)
+        setError(
+          `${created.name} has been registered, but the registry could not be refreshed. Close this and reload the page — do not register them again.`,
+        )
+      }
+    }
+  }
+
+  return (
+    // Dismissing by backdrop is disabled while the request is in flight: the
+    // patient would still be created, with nothing left on screen to say so.
+    <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center p-6" onClick={() => !saving && onClose()}>
+      <div
+        className="bg-organic-bg rounded-organic-card w-full max-w-[620px] max-h-[85vh] overflow-y-auto p-7 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-[1.375rem] font-heading text-organic-text mb-1.5">Register patient</h2>
+        <p className="text-sm text-organic-neutral-600 mb-5">
+          Only the full name is required. Anything left blank stays unrecorded and can be filled in later — except risk
+          and status, which every record must carry a value for; those two fall back to the value named on the field.
+        </p>
+
+        <form onSubmit={submit}>
+          <div className="mb-4">
+            <label className={LABEL_CLASS} htmlFor="reg-full-name">
+              Full name <span className="text-organic-accent-800">*</span>
+            </label>
+            <input
+              id="reg-full-name"
+              value={form.full_name}
+              onChange={set('full_name')}
+              disabled={saving}
+              required
+              autoFocus
+              autoComplete="off"
+              className={FIELD_CLASS}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div>
+              <label className={LABEL_CLASS} htmlFor="reg-gender">
+                Gender
+              </label>
+              <select id="reg-gender" value={form.gender} onChange={set('gender')} disabled={saving} className={FIELD_CLASS}>
+                <option value="">Not recorded</option>
+                {GENDER_OPTIONS.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={LABEL_CLASS} htmlFor="reg-dob">
+                Date of birth
+              </label>
+              <input
+                id="reg-dob"
+                type="date"
+                value={form.dob}
+                onChange={set('dob')}
+                disabled={saving}
+                min="1900-01-01"
+                max={today}
+                className={FIELD_CLASS}
+              />
+            </div>
+            <div>
+              <label className={LABEL_CLASS} htmlFor="reg-phone">
+                Phone
+              </label>
+              <input
+                id="reg-phone"
+                type="tel"
+                value={form.phone}
+                onChange={set('phone')}
+                disabled={saving}
+                autoComplete="off"
+                className={FIELD_CLASS}
+              />
+            </div>
+            <div>
+              <label className={LABEL_CLASS} htmlFor="reg-email">
+                Email
+              </label>
+              <input
+                id="reg-email"
+                type="email"
+                value={form.email}
+                onChange={set('email')}
+                disabled={saving}
+                autoComplete="off"
+                className={FIELD_CLASS}
+              />
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label className={LABEL_CLASS} htmlFor="reg-diagnosis">
+              Diagnosis or presenting problem
+            </label>
+            <input
+              id="reg-diagnosis"
+              value={form.diagnosis}
+              onChange={set('diagnosis')}
+              disabled={saving}
+              autoComplete="off"
+              className={FIELD_CLASS}
+            />
+          </div>
+
+          {/* Neither of these is pre-selected. The stored value each one falls
+              back to is named on the option itself, because that value is what
+              the record will carry and what the registry will show — an unset
+              risk is not stored as "unknown", it is stored as Low. */}
+          <div className="grid grid-cols-2 gap-3 mb-2">
+            <div>
+              <label className={LABEL_CLASS} htmlFor="reg-risk">
+                Risk level
+              </label>
+              <select id="reg-risk" value={form.risk} onChange={set('risk')} disabled={saving} className={FIELD_CLASS}>
+                <option value="">Not assessed — stored as Low</option>
+                {RISK_OPTIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={LABEL_CLASS} htmlFor="reg-status">
+                Status
+              </label>
+              <select id="reg-status" value={form.status} onChange={set('status')} disabled={saving} className={FIELD_CLASS}>
+                <option value="">Not set — stored as Active</option>
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <p className="text-xs text-organic-neutral-600 mb-4 leading-relaxed">
+            Risk is a clinical judgement, and the record has nowhere to say it was never made — leaving it unset files
+            this patient as Low risk alongside patients who were assessed and found to be. Set it only from an
+            assessment, and revise it on the patient&apos;s record once one exists.
+          </p>
+
+          <p className="text-xs text-organic-neutral-600 mb-4 leading-relaxed">
+            The patient is assigned to you as their clinician. If they belong to a colleague, reassign them from the
+            patient&apos;s record after registering.
+          </p>
+
+          {error && (
+            <div className="text-sm text-organic-accent-800 bg-organic-accent-100 rounded-organic-tile px-3.5 py-2.5 mb-3">
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={saving || !fullName}
+              className="rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm px-5 py-2.5 disabled:opacity-50"
+            >
+              {saving ? 'Registering…' : 'Register patient'}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="rounded-organic-pill border border-organic-neutral-300/60 text-organic-neutral-700 font-heading text-sm px-5 py-2.5 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
 
 /**
  * Bulk patient import.
