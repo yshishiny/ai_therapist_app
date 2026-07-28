@@ -4,6 +4,27 @@ import { useAuthStore } from '../store/authStore'
 
 const GOOGLE_CLIENT_ID = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID as string | undefined
 
+/**
+ * FastAPI reports a validation failure with `detail` as a LIST of objects, not
+ * a string. POST /auth/login validates `email` as an EmailStr, and the browser's
+ * own `type="email"` check is looser than that — "a@b" passes the input and is
+ * rejected by the server with a 422. Assigning that list straight to the error
+ * state and rendering it throws "Objects are not valid as a React child", which
+ * unmounts the login page to a blank screen: the user cannot sign in and is
+ * shown no reason why. Every message on this page goes through here.
+ */
+function errorText(err: any, fallback: string): string {
+  const detail = err?.response?.data?.detail
+  if (typeof detail === 'string' && detail.trim()) return detail
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((entry: any) => (typeof entry === 'string' ? entry : entry?.msg))
+      .filter((message: any): message is string => typeof message === 'string' && message.length > 0)
+    if (messages.length) return messages.join('; ')
+  }
+  return fallback
+}
+
 export default function LoginPage() {
   const navigate = useNavigate()
   const { login, loginWithGoogle, isLoading } = useAuthStore()
@@ -30,7 +51,7 @@ export default function LoginPage() {
       const role = useAuthStore.getState().user?.role
       navigate(role === 'patient' ? '/patient-app' : '/')
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Invalid credentials')
+      setError(errorText(err, 'Invalid credentials'))
     }
   }
 
@@ -49,7 +70,7 @@ export default function LoginPage() {
           const role = useAuthStore.getState().user?.role
           navigate(role === 'patient' ? '/patient-app' : '/')
         } catch (err: any) {
-          setError(err.response?.data?.detail || 'Google sign-in failed')
+          setError(errorText(err, 'Google sign-in failed'))
         }
       },
     })
