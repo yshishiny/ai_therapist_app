@@ -45,6 +45,28 @@ class PatientRepositoryDbReal:
             )
         return [self._row_to_dict(r) for r in rows]
 
+    async def count_patients(self, org_id: str, therapist_id: str | None = None) -> int:
+        """How many patients match the filters `list_patients` applies.
+
+        Deliberately mirrors that method's WHERE clause and nothing else: the
+        two must agree, or `total` will contradict `items` and paging will run
+        off the end of the list (or stop short of it).
+        """
+        if self.db is None:
+            return 0
+        if therapist_id is not None:
+            total = await self.db.fetchval(
+                "SELECT COUNT(*) FROM patients WHERE org_id = $1 AND therapist_id = $2",
+                uuid.UUID(org_id),
+                therapist_id,
+            )
+        else:
+            total = await self.db.fetchval(
+                "SELECT COUNT(*) FROM patients WHERE org_id = $1",
+                uuid.UUID(org_id),
+            )
+        return int(total or 0)
+
     async def get_patient(self, patient_id: str, org_id: str) -> dict | None:
         if self.db is None:
             return None

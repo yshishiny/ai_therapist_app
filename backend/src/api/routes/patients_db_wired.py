@@ -3,7 +3,7 @@ import io
 import json
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 
 from backend.core.dependencies_access import require_permission
 from backend.src.core.dependencies import (
@@ -15,6 +15,7 @@ from backend.src.core.dependencies import (
 from backend.src.schemas.patients import (
     PatientBulkUploadSummaryOut,
     PatientCreateIn,
+    PatientListOut,
     PatientOut,
     PatientUpdateIn,
 )
@@ -35,15 +36,25 @@ _BULK_TEMPLATE_EXAMPLE_ROWS = [
 BULK_UPLOAD_MAX_ROWS = 200
 
 
-@router.get('', response_model=list[PatientOut])
+@router.get('', response_model=PatientListOut)
 async def list_patients(
-    limit: int = 50,
-    offset: int = 0,
-    mine: bool = False,
+    limit: int = Query(50, ge=1, le=200, description='Page size.'),
+    offset: int = Query(0, ge=0, description='Rows to skip.'),
+    mine: bool = Query(False, description="Scope to the calling clinician's own caseload."),
     context: RequestContext = Depends(get_clinician_context),
     _perm=require_permission('patients.view'),
     service: PatientServiceDb = Depends(get_patient_service),
 ):
+    """One page of the organisation's patients, with the matching total.
+
+    RESPONSE SHAPE CHANGE: this returns `{items, total, limit, offset}`, not a
+    bare array. The endpoint has always been paged -- `limit` defaulted to 50
+    and silently truncated -- but returned no total, so a client receiving 50
+    patients could not tell whether that was the whole caseload or the first
+    page of nine. Every caller was updated in the same change.
+
+    GET /patients/{id} is unaffected and still returns a single object.
+    """
     therapist_id = context.user_id if mine else None
     return await service.list_patients(
         org_id=context.org_id, limit=limit, offset=offset, therapist_id=therapist_id

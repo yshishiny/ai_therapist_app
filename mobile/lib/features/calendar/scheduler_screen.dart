@@ -40,7 +40,9 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
         throw const ApiException(500, 'Failed to load scheduling data.');
       }
 
-      final patientList = (jsonDecode(patientsResp.body) as List<dynamic>)
+      // GET /patients returns {items, total, limit, offset}; listItems() also
+      // accepts the bare array older backends return.
+      final patientList = listItems(jsonDecode(patientsResp.body))
           .map((e) => _PatientOption.fromJson(e as Map<String, dynamic>))
           .toList();
       final patientMap = {for (final patient in patientList) patient.id: patient.name};

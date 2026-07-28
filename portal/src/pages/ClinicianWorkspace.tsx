@@ -1,7 +1,9 @@
 import { Fragment, useState, useEffect } from 'react'
+import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import apiClient from '../services/api'
+import type { NextAppointmentIn } from '../services/api'
 import { useSampleDataHidden } from '../hooks/useSampleDataHidden'
 import { SampleGate } from '../components/SampleGate'
 import { SegmentedControl } from '../components/OrganicUI'
@@ -36,6 +38,11 @@ import {
   LogOut,
   Eye,
   EyeOff,
+  Clock,
+  StickyNote,
+  History,
+  ClipboardList,
+  ArrowRight,
 } from 'lucide-react'
 
 type WorkspaceView = 'caseload' | 'scheduler' | 'chart' | 'scribe' | 'plan'
@@ -78,6 +85,11 @@ type ClinicianDashboard = {
   needs_review: NeedsReviewItem[]
   notes_due: NoteDueItem[]
 }
+
+// The server caps /patients at 200. A caseload larger than that needs real
+// paging here; until then take the maximum rather than the default 50, which
+// hid the least-recently-seen patients without saying so.
+const CASELOAD_LIMIT = 200
 
 const TODAY_LABEL = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
 
@@ -182,9 +194,11 @@ export default function ClinicianWorkspace() {
             setActiveSession(null)
             loadDashboard()
           }}
-          onFinished={() => {
+          onFinished={(finished) => {
             setActiveSession(null)
-            setView('chart')
+            // Land on the record of the patient who was just seen, not on
+            // whichever chart happened to be open before the session.
+            openPatient({ id: finished.patient_id, name: finished.patient_name })
             loadDashboard()
           }}
         />
@@ -212,12 +226,47 @@ type SessionAssessment = {
   unavailable?: boolean
   unavailable_reason?: string | null
 }
+// One previously recorded note as it arrives on the session payload. Every body
+// field is optional: a note may carry only free text, only SOAP sections, or —
+// legitimately — nothing at all.
+type HistoryNote = {
+  id: string
+  created_at: string
+  template?: string | null
+  subjective?: string | null
+  objective?: string | null
+  assessment?: string | null
+  plan?: string | null
+  free_text?: string | null
+  therapist_approved?: boolean | null
+}
+
+type HistoryAssessment = {
+  id?: string
+  assessment_id: string
+  raw_score: number | null
+  severity?: string | null
+  interpretation?: string | null
+  flagged?: boolean
+  created_at: string
+}
+
 type SessionData = {
   id: string
   patient_id: string
   patient_name: string
   status: string
   assessments: SessionAssessment[]
+  // Everything below arrives with the session contract. All optional on purpose:
+  // a session created by an older build simply carries none of them, and the
+  // view falls back to what it can prove rather than showing a made-up value.
+  started_at?: string | null
+  ended_at?: string | null
+  duration_minutes?: number | null
+  appointment_id?: string | null
+  next_appointment_id?: string | null
+  recent_notes?: HistoryNote[] | null
+  recent_assessments?: HistoryAssessment[] | null
 }
 
 function NewSessionModal({ onClose, onStarted }: { onClose: () => void; onStarted: (s: SessionData) => void }) {
@@ -230,13 +279,13 @@ function NewSessionModal({ onClose, onStarted }: { onClose: () => void; onStarte
   // patient_id is nullable in the widened AppointmentOut (a documentation/admin
   // block has no patient), so /appointments/current can legitimately hand back a
   // row with no patient to pre-fill from.
-  const [currentAppointment, setCurrentAppointment] = useState<{ patient_id: string | null } | null>(null)
+  const [currentAppointment, setCurrentAppointment] = useState<{ id: string; patient_id: string | null } | null>(null)
   const [selectedKeys, setSelectedKeys] = useState<string[]>([])
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([apiClient.getPatients({ mine: true }), apiClient.getAssessmentTemplates()])
+    Promise.all([apiClient.getPatients({ mine: true, limit: CASELOAD_LIMIT }), apiClient.getAssessmentTemplates()])
       .then(([p, t]: [SimplePatient[], TemplateOption[]]) => {
         setPatients(p)
         setTemplates(t)
@@ -248,7 +297,7 @@ function NewSessionModal({ onClose, onStarted }: { onClose: () => void; onStarte
     // the modal or falls back to anything but the manual picker below.
     apiClient
       .getCurrentAppointment()
-      .then((appt: { patient_id: string | null } | null) => setCurrentAppointment(appt))
+      .then((appt: { id: string; patient_id: string | null } | null) => setCurrentAppointment(appt))
       .catch(() => {})
   }, [])
 
@@ -272,10 +321,16 @@ function NewSessionModal({ onClose, onStarted }: { onClose: () => void; onStarte
     setStarting(true)
     setError(null)
     try {
-      const session = await apiClient.createClinicianSession(selectedPatient.id, selectedKeys)
+      // A session IS an appointment. When the clinician is starting the very
+      // appointment that is running right now, link the two rows — but only if
+      // that appointment really belongs to the patient they picked, otherwise
+      // the link would attach this session to somebody else's slot.
+      const linkedAppointmentId =
+        currentAppointment && currentAppointment.patient_id === selectedPatient.id ? currentAppointment.id : null
+      const session = await apiClient.createClinicianSession(selectedPatient.id, selectedKeys, linkedAppointmentId)
       onStarted(session)
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Could not start the session.')
+      setError(errorText(err, 'Could not start the session.'))
       setStarting(false)
     }
   }
@@ -400,6 +455,144 @@ function NewSessionModal({ onClose, onStarted }: { onClose: () => void; onStarte
 }
 
 // ─── Active session runner ──────────────────────────────────────────────────
+//
+// A session is the consultation itself: the patient is in the room. The
+// clinician needs their history to hand, writes a note as they go, may
+// administer assessments, and books the next appointment before the patient
+// leaves. Everything except the passage of time is optional — a session with no
+// assessments and no follow-up still records a duration and can record a note.
+
+type RunnerPhase = 'assessments' | 'wrapup' | 'recorded'
+
+type NoteDraft = {
+  template: 'FREE' | 'SOAP'
+  free_text: string
+  subjective: string
+  objective: string
+  assessment: string
+  plan: string
+}
+
+const EMPTY_NOTE: NoteDraft = {
+  template: 'FREE',
+  free_text: '',
+  subjective: '',
+  objective: '',
+  assessment: '',
+  plan: '',
+}
+
+const SOAP_FIELDS: { key: 'subjective' | 'objective' | 'assessment' | 'plan'; label: string; hint: string }[] = [
+  { key: 'subjective', label: 'Subjective', hint: 'What the patient reports' },
+  { key: 'objective', label: 'Objective', hint: 'What you observed' },
+  { key: 'assessment', label: 'Assessment', hint: 'Your clinical impression' },
+  { key: 'plan', label: 'Plan', hint: 'What happens next' },
+]
+
+// Only the fields belonging to the layout in use are sent, so switching layout
+// mid-session never posts leftover text from the layout that was abandoned.
+function noteBody(draft: NoteDraft): Record<string, string | null> {
+  if (draft.template === 'SOAP') {
+    return {
+      template: 'SOAP',
+      subjective: draft.subjective.trim() || null,
+      objective: draft.objective.trim() || null,
+      assessment: draft.assessment.trim() || null,
+      plan: draft.plan.trim() || null,
+    }
+  }
+  return { template: 'FREE', free_text: draft.free_text.trim() || null }
+}
+
+function noteIsEmpty(draft: NoteDraft) {
+  return !Object.entries(noteBody(draft)).some(([key, value]) => key !== 'template' && value)
+}
+
+// Cheap identity for "has this changed since it was last written to the chart".
+function noteFingerprint(draft: NoteDraft) {
+  return JSON.stringify(noteBody(draft))
+}
+
+// The layout that is NOT on screen. Switching FREE <-> SOAP keeps the abandoned
+// layout's text in state but stops `noteBody` from writing it, so that text has
+// to be tracked as unsaved work in its own right — otherwise closing or
+// finishing discards a fully written note with no warning at all.
+function otherLayout(draft: NoteDraft): NoteDraft {
+  return { ...draft, template: draft.template === 'SOAP' ? 'FREE' : 'SOAP' }
+}
+
+function layoutLabel(template: NoteDraft['template']) {
+  return template === 'SOAP' ? 'SOAP' : 'Free text'
+}
+
+// FastAPI reports a validation failure with `detail` as a LIST of objects.
+// Dropping that straight into JSX throws "Objects are not valid as a React
+// child", which unmounts the entire session view — taking the note being
+// written with it. Every message shown to the clinician goes through here.
+function errorText(err: any, fallback: string): string {
+  const detail = err?.response?.data?.detail
+  if (typeof detail === 'string' && detail.trim()) return detail
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((entry: any) => (typeof entry === 'string' ? entry : entry?.msg))
+      .filter((message: any): message is string => typeof message === 'string' && message.length > 0)
+    if (messages.length) return messages.join('; ')
+  }
+  return fallback
+}
+
+const DURATION_OPTIONS = [30, 45, 50, 60, 90]
+
+const NEXT_TYPE_OPTIONS = [
+  { value: 'FOLLOW_UP', label: 'Follow-up' },
+  { value: 'CBT', label: 'CBT' },
+  { value: 'ASSESSMENT', label: 'Assessment' },
+  { value: 'INTAKE', label: 'Intake' },
+  { value: 'GROUP', label: 'Group' },
+]
+
+function formatElapsed(totalSeconds: number) {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`
+}
+
+// The pickers are wall-clock in the clinician's timezone; the API takes absolute
+// instants. Building the Date from parts (rather than parsing "YYYY-MM-DDTHH:mm")
+// is what makes the conversion use the browser's real offset.
+function localInstant(dateValue: string, timeValue: string): Date | null {
+  const day = parseDateOnly(dateValue)
+  const time = /^(\d{1,2}):(\d{2})/.exec(timeValue)
+  if (!day || !time) return null
+  const hours = Number(time[1])
+  const minutes = Number(time[2])
+  if (hours > 23 || minutes > 59) return null
+  const instant = new Date(day.year, day.month - 1, day.day, hours, minutes, 0, 0)
+  return Number.isNaN(instant.getTime()) ? null : instant
+}
+
+function formatWhen(instant: Date) {
+  const date = instant.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+  const time = instant.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  return `${date} at ${time}`
+}
+
+// What the session actually put on the record, assembled from the responses
+// rather than from what was attempted. Each failure is carried separately so the
+// summary can admit to a part that did not go through.
+type FinishOutcome = {
+  elapsedSeconds: number
+  durationRecorded: number | null
+  notesSaved: number
+  noteFailed: boolean
+  assessmentsRecorded: number
+  assessmentsQueued: number
+  signedOff: boolean
+  signOffFailed: boolean
+  booking: { whenLabel: string; confirmed: boolean } | null
+}
 
 function SessionRunner({
   session,
@@ -408,39 +601,320 @@ function SessionRunner({
 }: {
   session: SessionData
   onClose: () => void
-  onFinished: () => void
+  onFinished: (session: SessionData) => void
 }) {
+  const assessments = session.assessments
+
+  // ── Assessment stepper ───────────────────────────────────────────────────
   const [index, setIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<number, number | string>>({})
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [results, setResults] = useState<any[]>([])
   const [lang, setLang] = useState<'en' | 'ar'>('en')
+  const [phase, setPhase] = useState<RunnerPhase>(assessments.length ? 'assessments' : 'wrapup')
 
-  const assessments = session.assessments
   const current = assessments[index]
-  const done = index >= assessments.length
+
+  // ── Patient in context ───────────────────────────────────────────────────
+  const [detail, setDetail] = useState<PatientDetail | null>(null)
+  const [history, setHistory] = useState<{ notes: HistoryNote[]; assessments: HistoryAssessment[] } | null>(null)
+  // Set only when a history fetch actually failed. Without this, a rejected
+  // request was flattened into an empty list and the panel rendered "No
+  // previous notes for this patient" — a clinical claim the app had no
+  // evidence for, made to the clinician's face while the patient sat there.
+  const [historyError, setHistoryError] = useState<{ notes: string | null; assessments: string | null }>({
+    notes: null,
+    assessments: null,
+  })
+  const [contextError, setContextError] = useState<string | null>(null)
+  const [startedAtIso, setStartedAtIso] = useState<string | null>(session.started_at ?? null)
+  const [linkedAppointmentId, setLinkedAppointmentId] = useState<string | null>(session.appointment_id ?? null)
+
+  useEffect(() => {
+    let dropped = false
+    // Demographics are not on the session payload, so the chart record is read
+    // alongside it — the same call the chart view makes.
+    Promise.all([apiClient.getClinicianSession(session.id).catch(() => null), apiClient.getPatient(session.patient_id)])
+      .then(async ([full, patient]: [SessionData | null, PatientDetail]) => {
+        if (dropped) return
+        setDetail(patient)
+        if (full?.started_at) setStartedAtIso(full.started_at)
+        if (full?.appointment_id) setLinkedAppointmentId(full.appointment_id)
+        // recent_notes / recent_assessments ride along with the session. When the
+        // payload does not carry them at all, the patient's own endpoints are read
+        // instead: an empty panel would read as "this patient has no history",
+        // which is a very different claim from "the session did not include it".
+        // `!= null` and not a truthiness test — a genuinely empty [] from the
+        // server is an answer, and must not trigger the fallback.
+        let notes: HistoryNote[] = []
+        let notesFailed: string | null = null
+        if (full?.recent_notes != null) {
+          notes = Array.isArray(full.recent_notes) ? full.recent_notes : []
+        } else {
+          try {
+            const fetched = await apiClient.getPatientSessions(session.patient_id)
+            notes = Array.isArray(fetched) ? fetched : []
+          } catch {
+            // Deliberately NOT an empty list: a failed read is not evidence
+            // that this patient has never been seen before.
+            notesFailed = 'Could not load previous notes. This is not a record that there are none.'
+          }
+        }
+
+        let records: HistoryAssessment[] = []
+        let recordsFailed: string | null = null
+        if (full?.recent_assessments != null) {
+          records = Array.isArray(full.recent_assessments) ? full.recent_assessments : []
+        } else {
+          try {
+            const fetched = await apiClient.getPatientAssessments(session.patient_id)
+            records = Array.isArray(fetched) ? fetched : []
+          } catch {
+            recordsFailed = 'Could not load previous results. This is not a record that there are none.'
+          }
+        }
+
+        if (dropped) return
+        setHistoryError({ notes: notesFailed, assessments: recordsFailed })
+        setHistory({ notes, assessments: records })
+      })
+      .catch(() => {
+        if (!dropped) setContextError('Could not load this patient’s record.')
+      })
+    return () => {
+      dropped = true
+    }
+  }, [session.id, session.patient_id])
+
+  // ── Elapsed time ─────────────────────────────────────────────────────────
+  const [openedAt] = useState(() => Date.now())
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  const [stoppedAtMs, setStoppedAtMs] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (stoppedAtMs !== null) return undefined
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [stoppedAtMs])
+
+  // Anchored on the start the server recorded when there is one, so reopening a
+  // session shows the real elapsed time rather than time-since-reopened. The
+  // moment this view opened is the only fallback — never a guessed duration.
+  const parsedStart = startedAtIso ? Date.parse(startedAtIso) : NaN
+  const startMs = Number.isFinite(parsedStart) ? parsedStart : openedAt
+  const elapsedSeconds = Math.max(0, Math.floor(((stoppedAtMs ?? nowMs) - startMs) / 1000))
+
+  // ── The note written during the session ──────────────────────────────────
+  // Held here, at the top of the session, so moving between assessments (or to
+  // the wrap-up and back) never unmounts it and never loses a half-written note.
+  const [note, setNote] = useState<NoteDraft>(EMPTY_NOTE)
+  const [savedNoteIds, setSavedNoteIds] = useState<string[]>([])
+  const [savedAt, setSavedAt] = useState<number | null>(null)
+  // Every version already written to the chart, not only the most recent one:
+  // text that was saved, moved away from and returned to is on the record
+  // already, and must not be reported as unsaved nor written a second time.
+  const [savedPrints, setSavedPrints] = useState<string[]>([])
+  const [savingNote, setSavingNote] = useState(false)
+  const [noteError, setNoteError] = useState<string | null>(null)
+  const [signOff, setSignOff] = useState(false)
+
+  const noteEmpty = noteIsEmpty(note)
+  const noteDirty = !noteEmpty && !savedPrints.includes(noteFingerprint(note))
+  // Text sitting in the layout that is not on screen. A save of the layout in
+  // front of the clinician never writes it, so it is unsaved work of its own.
+  const otherDraft = otherLayout(note)
+  const otherLayoutUnsaved = !noteIsEmpty(otherDraft) && !savedPrints.includes(noteFingerprint(otherDraft))
+  const unsavedWork = noteDirty || otherLayoutUnsaved
+
+  const setNoteField = (key: keyof NoteDraft, value: string) =>
+    setNote((prev) => ({ ...prev, [key]: value }))
+
+  // A tab closed or reloaded mid-consultation used to take the note with it in
+  // silence. The browser's own prompt is the only thing that can intercept that.
+  useEffect(() => {
+    if (!unsavedWork) return undefined
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [unsavedWork])
+
+  // `ok` and `id` are deliberately separate: a note can be safely on the chart
+  // while the response carries no id to sign off with. Conflating the two would
+  // let the summary claim the note was lost when it was not.
+  const saveNote = async (): Promise<{ ok: boolean; id: string | null }> => {
+    if (!noteDirty) return { ok: true, id: null }
+    setSavingNote(true)
+    setNoteError(null)
+    try {
+      const created = await apiClient.createSession(session.patient_id, noteBody(note))
+      const id = created?.id ? String(created.id) : ''
+      if (id) setSavedNoteIds((prev) => [...prev, id])
+      setSavedPrints((prev) => [...prev, noteFingerprint(note)])
+      setSavedAt(Date.now())
+      return { ok: true, id: id || null }
+    } catch (err: any) {
+      setNoteError(errorText(err, 'Could not save the note. It is still here — try again.'))
+      return { ok: false, id: null }
+    } finally {
+      setSavingNote(false)
+    }
+  }
+
+  // ── Next appointment ─────────────────────────────────────────────────────
+  const [bookNext, setBookNext] = useState(false)
+  const [nextDate, setNextDate] = useState('')
+  const [nextTime, setNextTime] = useState('')
+  const [nextDuration, setNextDuration] = useState(50)
+  const [nextType, setNextType] = useState('FOLLOW_UP')
+  const [nextLocation, setNextLocation] = useState('IN_PERSON')
+
+  const nextStart = bookNext ? localInstant(nextDate, nextTime) : null
+  const nextInPast = nextStart !== null && nextStart.getTime() < Date.now()
+
+  // ── Finishing ────────────────────────────────────────────────────────────
+  const [finishing, setFinishing] = useState(false)
+  const [finishError, setFinishError] = useState<string | null>(null)
+  const [outcome, setOutcome] = useState<FinishOutcome | null>(null)
+  const [confirmClose, setConfirmClose] = useState(false)
 
   const submitCurrent = async () => {
     if (!current) return
     setSubmitting(true)
+    setSubmitError(null)
     try {
       const result = await apiClient.submitAssessment(session.patient_id, current.template_key, answers, session.id)
       setResults((prev) => [...prev, { name: current.name, ...result }])
       setAnswers({})
-      setIndex((i) => i + 1)
-    } catch {
-      // leave the clinician on the same assessment to retry
+      advance()
+    } catch (err: any) {
+      // Stay on the same assessment so it can be retried, and say why.
+      setSubmitError(errorText(err, 'Could not record this assessment. Nothing was saved for it.'))
     } finally {
       setSubmitting(false)
     }
   }
 
-  const finish = async () => {
-    try {
-      await apiClient.completeClinicianSession(session.id)
-    } finally {
-      onFinished()
+  const advance = () => {
+    setSubmitError(null)
+    if (index + 1 >= assessments.length) {
+      setPhase('wrapup')
+      setIndex(assessments.length)
+    } else {
+      setIndex((i) => i + 1)
     }
+  }
+
+  const finish = async () => {
+    setFinishError(null)
+
+    let nextAppointment: NextAppointmentIn | undefined
+    let whenLabel = ''
+    if (bookNext) {
+      if (!nextStart) {
+        setFinishError('Pick a date and a time for the next appointment, or switch the follow-up off.')
+        return
+      }
+      const end = new Date(nextStart.getTime() + nextDuration * 60000)
+      nextAppointment = {
+        start_time: nextStart.toISOString(),
+        end_time: end.toISOString(),
+        appointment_type: nextType,
+        location: nextLocation,
+      }
+      whenLabel = formatWhen(nextStart)
+    }
+
+    setFinishing(true)
+    const stopAt = Date.now()
+    const seconds = Math.max(0, Math.floor((stopAt - startMs) / 1000))
+
+    // The note goes first. If completing the session then fails, the clinical
+    // text is already on the patient's chart rather than lost with the attempt.
+    let noteFailed = false
+    let savedNow = 0
+    let lastSavedId: string | null = null
+    if (noteDirty) {
+      const saved = await saveNote()
+      noteFailed = !saved.ok
+      if (saved.ok) savedNow = 1
+      lastSavedId = saved.id
+    }
+    // Ids are what sign-off needs; the count is what the summary reports, and a
+    // note saved without an id still counts as saved.
+    const noteIds = lastSavedId ? [...savedNoteIds, lastSavedId] : savedNoteIds
+    const notesSaved = savedNoteIds.length + savedNow
+
+    let signedOff = false
+    let signOffFailed = false
+    if (signOff && noteIds.length > 0) {
+      try {
+        await Promise.all(
+          noteIds.map((id) => apiClient.updatePatientSessionNote(session.patient_id, id, { therapist_approved: true })),
+        )
+        signedOff = true
+      } catch {
+        // The note itself is safely on the chart; only the sign-off failed, and
+        // the summary says exactly that rather than claiming it is done.
+        signOffFailed = true
+      }
+    }
+
+    let completed: SessionData | null = null
+    try {
+      completed = await apiClient.completeClinicianSession(session.id, {
+        duration_minutes: Math.round(seconds / 60),
+        ...(nextAppointment ? { next_appointment: nextAppointment } : {}),
+      })
+    } catch (err: any) {
+      setFinishing(false)
+      setFinishError(
+        errorText(err, 'Could not close the session. Anything already saved is on the chart — try finishing again.'),
+      )
+      return
+    }
+
+    setStoppedAtMs(stopAt)
+    setOutcome({
+      elapsedSeconds: seconds,
+      durationRecorded: typeof completed?.duration_minutes === 'number' ? completed.duration_minutes : null,
+      notesSaved,
+      noteFailed,
+      assessmentsRecorded: results.length,
+      assessmentsQueued: assessments.length,
+      signedOff,
+      signOffFailed,
+      booking: nextAppointment ? { whenLabel, confirmed: !!completed?.next_appointment_id } : null,
+    })
+    setPhase('recorded')
+    setFinishing(false)
+  }
+
+  // Saving from the wrap-up or from the post-finish rescue panel has to correct
+  // the summary as well, otherwise it goes on telling the clinician the note was
+  // lost after they have just put it on the chart.
+  const handleSaveNote = async () => {
+    const saved = await saveNote()
+    if (saved.ok) {
+      setOutcome((prev) => (prev ? { ...prev, notesSaved: prev.notesSaved + 1, noteFailed: false } : prev))
+    }
+    return saved
+  }
+
+  // Leaving the runner is `onClose` while the session is live and `onFinished`
+  // once it is recorded, so the confirm banner has to close whichever applies —
+  // it must never be a dead end that leaves the note stranded on screen.
+  const leave = () => (phase === 'recorded' ? onFinished(session) : onClose())
+
+  const requestClose = () => {
+    if (unsavedWork) {
+      setConfirmClose(true)
+      return
+    }
+    leave()
   }
 
   const questions = current?.definition_json?.questions || []
@@ -451,145 +925,894 @@ function SessionRunner({
       return typeof a === 'string' ? a.trim().length > 0 : a !== undefined
     })
 
+  const age = ageFrom(detail?.dob || null)
+  const identityBits = [age ? `${age} yrs` : null, detail?.gender, detail?.status].filter(Boolean) as string[]
+
+  const timerLabel = stoppedAtMs === null ? 'elapsed' : 'recorded'
+
   return (
     <div className="fixed inset-0 bg-organic-bg z-50 overflow-y-auto">
-      <div className="max-w-[720px] mx-auto px-8 py-10" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-        <div className="flex justify-between items-start mb-2">
-          <div>
-            <h2 className="text-[1.625rem] font-heading text-organic-text">Session with {session.patient_name}</h2>
-            <p className="text-sm text-organic-neutral-600">
-              {assessments.length === 0
-                ? 'No assessments queued — close whenever you\'re done.'
-                : done
-                ? 'All assessments completed'
-                : `Assessment ${index + 1} of ${assessments.length}: ${
-                    (lang === 'ar' && current.name_ar) || current.name
-                  }`}
-            </p>
-          </div>
-          <button onClick={onClose} className="text-organic-neutral-500 hover:text-organic-neutral-800 text-2xl leading-none">
-            &times;
-          </button>
-        </div>
-
-        {current?.definition_json?.instructions_ar && (
-          <div className="inline-flex bg-organic-neutral-100 border border-organic-neutral-300/60 rounded-organic-pill p-1 my-3">
-            {(['en', 'ar'] as const).map((l) => (
-              <button
-                key={l}
-                onClick={() => setLang(l)}
-                className={`font-heading text-[0.8125rem] px-4 py-1.5 rounded-organic-pill ${lang === l ? 'bg-organic-accent text-organic-neutral-100' : 'text-organic-neutral-700'}`}
-              >
-                {l === 'en' ? 'English' : 'العربية'}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* An instrument that cannot be resolved for this clinician used to
-            render as a step with zero questions -- nothing to answer, nothing
-            saved, and no indication anything was wrong. Say so, and let them
-            move past it rather than stranding the whole session. */}
-        {!done && current?.unavailable && (
-          <div className="mt-5 bg-organic-accent-100 rounded-organic-card p-5">
-            <div className="flex items-start gap-2.5">
-              <AlertTriangle size={18} className="text-organic-accent-700 flex-none mt-0.5" />
-              <div>
-                <h3 className="font-heading text-[1.0625rem] text-organic-accent-800 mb-1">
-                  {current.name} is unavailable
-                </h3>
-                <p className="text-sm text-organic-neutral-700 mb-3">
-                  {current.unavailable_reason ||
-                    'This instrument can no longer be opened. Nothing has been recorded for it.'}
-                </p>
-                <button
-                  onClick={() => setIndex((i) => i + 1)}
-                  className="rounded-organic-pill border border-organic-neutral-300/60 text-organic-neutral-700 font-heading text-sm px-4 py-2"
-                >
-                  Skip and continue
-                </button>
+      <div className="max-w-[1180px] mx-auto px-8 py-8">
+        {/* ── Who is in the room, and how long they have been ── */}
+        <div className="flex justify-between items-start gap-4 flex-wrap mb-5">
+          <div className="flex items-center gap-3.5">
+            <div className="w-[52px] h-[52px] rounded-full bg-organic-accent-200 grid place-items-center font-bold text-base text-organic-accent-800 flex-none">
+              {initialsOf(session.patient_name)}
+            </div>
+            <div>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h2 className="text-[1.625rem] font-heading text-organic-text leading-tight">
+                  {session.patient_name}
+                </h2>
+                {detail &&
+                  (detail.risk ? (
+                    <span
+                      className={`text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-pill ${riskStyle(detail.risk).bg} ${riskStyle(detail.risk).color}`}
+                    >
+                      {detail.risk} risk
+                    </span>
+                  ) : (
+                    <span className="text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-200 text-organic-neutral-700">
+                      Risk not recorded
+                    </span>
+                  ))}
+                {linkedAppointmentId && (
+                  <span className="text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-pill bg-organic-accent-2-200 text-organic-accent-2-800">
+                    Booked appointment
+                  </span>
+                )}
+              </div>
+              <div className="text-sm text-organic-neutral-600">
+                {detail
+                  ? identityBits.length
+                    ? identityBits.join(' · ')
+                    : 'Age, gender and status not recorded'
+                  : contextError
+                  ? 'Patient record unavailable'
+                  : 'Loading patient record…'}
+              </div>
+              <div className="text-sm text-organic-neutral-600">
+                {detail ? (
+                  detail.diagnosis ? (
+                    <>Diagnosis: {detail.diagnosis}</>
+                  ) : (
+                    <span className="italic text-organic-neutral-500">No diagnosis recorded</span>
+                  )
+                ) : null}
               </div>
             </div>
           </div>
+
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex items-center gap-2 bg-organic-surface border border-organic-neutral-300/60 rounded-organic-pill px-3.5 py-2">
+              <Clock size={16} className="text-organic-accent-700" />
+              <span className="font-heading text-sm text-organic-text tabular-nums">{formatElapsed(elapsedSeconds)}</span>
+              <span className="text-xs text-organic-neutral-600">{timerLabel}</span>
+            </span>
+            <button
+              onClick={requestClose}
+              title="Close the session view"
+              className="text-organic-neutral-500 hover:text-organic-neutral-800 text-2xl leading-none px-1"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+
+        {confirmClose && (
+          <div className="mb-4 bg-organic-accent-100 rounded-organic-card p-4 flex items-center gap-3 flex-wrap">
+            <AlertTriangle size={18} className="text-organic-accent-700 flex-none" />
+            <span className="text-sm text-organic-accent-800 flex-1 min-w-[260px]">
+              {noteDirty
+                ? 'Your session note has not been saved to the chart. Closing now discards it.'
+                : `You have text in the ${layoutLabel(otherDraft.template)} layout that was never saved. Only the layout on screen is written to the chart. Closing now discards it.`}
+              {noteDirty && otherLayoutUnsaved
+                ? ` You also have text in the ${layoutLabel(otherDraft.template)} layout — saving here does not include it.`
+                : ''}
+            </span>
+            {noteDirty && (
+              <button
+                onClick={async () => {
+                  const saved = await handleSaveNote()
+                  // Only leave once the chart really has it, and only if nothing
+                  // else is still unwritten.
+                  if (saved.ok && !otherLayoutUnsaved) leave()
+                }}
+                disabled={savingNote}
+                className="rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm px-4 py-2 disabled:opacity-50"
+              >
+                {savingNote ? 'Saving…' : 'Save note & close'}
+              </button>
+            )}
+            <button
+              onClick={leave}
+              className="rounded-organic-pill border border-organic-neutral-300/70 font-heading text-sm px-4 py-2 text-organic-text hover:bg-organic-neutral-100 transition-colors"
+            >
+              Discard & close
+            </button>
+            <button onClick={() => setConfirmClose(false)} className="text-sm text-organic-accent-700 underline">
+              Keep working
+            </button>
+          </div>
         )}
 
-        {!done && current && !current.unavailable && (
-          <div className="mt-5">
-            {current.definition_json?.instructions && (
-              <p className="text-sm text-organic-neutral-600 mb-5">
-                {lang === 'en' ? current.definition_json.instructions : current.definition_json.instructions_ar || current.definition_json.instructions}
-              </p>
-            )}
-            <div className="flex flex-col gap-4">
-              {questions.map((q: any, qi: number) => (
-                <div key={q.id} className="bg-organic-surface rounded-organic-tile p-4 shadow-organic-sm">
-                  <div className="text-sm font-semibold mb-2.5">
-                    {qi + 1}. {(lang === 'en' ? q.text : q.text_ar) || q.text}
+        {phase === 'recorded' && outcome ? (
+          <div className="flex flex-col gap-4 max-w-[720px]">
+            <SessionRecorded outcome={outcome} onDone={requestClose} />
+            {/* A note that failed to save at the finish line used to disappear
+                with the rest of the session view, leaving the clinician told to
+                "write it in the chart" from memory. It stays on screen, and
+                stays saveable, until it is actually on the record. */}
+            {unsavedWork && (
+              <>
+                <div className="bg-organic-accent-100 rounded-organic-card p-4 flex items-start gap-2.5">
+                  <AlertTriangle size={18} className="text-organic-accent-700 flex-none mt-0.5" />
+                  <div className="text-sm text-organic-accent-800">
+                    <div className="font-semibold">Your note is still here — it is not on the chart.</div>
+                    Nothing you typed has been thrown away. Save it from here, or copy it out, before you close.
                   </div>
-                  {q.options && q.options.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {q.options.map((opt: any) => (
+                </div>
+                <NotePanel
+                  note={note}
+                  onField={setNoteField}
+                  onSave={handleSaveNote}
+                  saving={savingNote}
+                  error={noteError}
+                  savedCount={savedNoteIds.length}
+                  savedAt={savedAt}
+                  dirty={noteDirty}
+                  empty={noteEmpty}
+                  otherLayoutUnsaved={otherLayoutUnsaved}
+                />
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4 items-start">
+            {/* ── Main column: assessments, then wrap-up ── */}
+            <div className="flex flex-col gap-4">
+              {phase === 'assessments' && current && (
+                <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
+                  <div className="flex justify-between items-start gap-3 flex-wrap mb-1">
+                    <h3 className="text-lg font-heading text-organic-text">
+                      Assessment {index + 1} of {assessments.length}: {(lang === 'ar' && current.name_ar) || current.name}
+                    </h3>
+                    <button
+                      onClick={() => setPhase('wrapup')}
+                      className="inline-flex items-center gap-1.5 text-sm text-organic-accent-700 underline"
+                    >
+                      Skip to wrap-up <ArrowRight size={14} />
+                    </button>
+                  </div>
+
+                  {current.definition_json?.instructions_ar && (
+                    <div className="inline-flex bg-organic-neutral-100 border border-organic-neutral-300/60 rounded-organic-pill p-1 my-3">
+                      {(['en', 'ar'] as const).map((l) => (
                         <button
-                          key={opt.value}
-                          onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: opt.value }))}
-                          className={`text-xs px-3 py-1.5 rounded-organic-pill border transition-colors ${
-                            answers[q.id] === opt.value
-                              ? 'bg-organic-accent text-organic-accent-100 border-organic-accent'
-                              : 'bg-organic-bg border-organic-neutral-300/60 text-organic-neutral-700'
+                          key={l}
+                          onClick={() => setLang(l)}
+                          className={`font-heading text-[0.8125rem] px-4 py-1.5 rounded-organic-pill ${
+                            lang === l ? 'bg-organic-accent text-organic-neutral-100' : 'text-organic-neutral-700'
                           }`}
                         >
-                          {(lang === 'en' ? opt.label : opt.label_ar) || opt.label}
+                          {l === 'en' ? 'English' : 'العربية'}
                         </button>
                       ))}
                     </div>
+                  )}
+
+                  {/* An instrument that cannot be resolved for this clinician used
+                      to render as a step with zero questions -- nothing to answer,
+                      nothing saved, and no indication anything was wrong. Say so,
+                      and let them move past it rather than stranding the session. */}
+                  {current.unavailable ? (
+                    <div className="mt-4 bg-organic-accent-100 rounded-organic-card p-5">
+                      <div className="flex items-start gap-2.5">
+                        <AlertTriangle size={18} className="text-organic-accent-700 flex-none mt-0.5" />
+                        <div>
+                          <h4 className="font-heading text-[1.0625rem] text-organic-accent-800 mb-1">
+                            {current.name} is unavailable
+                          </h4>
+                          <p className="text-sm text-organic-neutral-700 mb-3">
+                            {current.unavailable_reason ||
+                              'This instrument can no longer be opened. Nothing has been recorded for it.'}
+                          </p>
+                          <button
+                            onClick={advance}
+                            className="rounded-organic-pill border border-organic-neutral-300/60 text-organic-neutral-700 font-heading text-sm px-4 py-2"
+                          >
+                            Skip and continue
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   ) : (
-                    <input
-                      value={typeof answers[q.id] === 'string' ? (answers[q.id] as any) : ''}
-                      onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value as any }))}
-                      placeholder="Record the answer…"
-                      className="w-full bg-organic-bg border border-organic-neutral-300/60 rounded-organic-tile px-3 py-2 text-sm"
-                    />
+                    <div className="mt-4" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+                      {current.definition_json?.instructions && (
+                        <p className="text-sm text-organic-neutral-600 mb-5">
+                          {lang === 'en'
+                            ? current.definition_json.instructions
+                            : current.definition_json.instructions_ar || current.definition_json.instructions}
+                        </p>
+                      )}
+                      <div className="flex flex-col gap-4">
+                        {questions.map((q: any, qi: number) => (
+                          <div key={q.id} className="bg-organic-bg rounded-organic-tile p-4">
+                            <div className="text-sm font-semibold mb-2.5">
+                              {qi + 1}. {(lang === 'en' ? q.text : q.text_ar) || q.text}
+                            </div>
+                            {q.options && q.options.length > 0 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {q.options.map((opt: any) => (
+                                  <button
+                                    key={opt.value}
+                                    onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: opt.value }))}
+                                    className={`text-xs px-3 py-1.5 rounded-organic-pill border transition-colors ${
+                                      answers[q.id] === opt.value
+                                        ? 'bg-organic-accent text-organic-accent-100 border-organic-accent'
+                                        : 'bg-organic-surface border-organic-neutral-300/60 text-organic-neutral-700'
+                                    }`}
+                                  >
+                                    {(lang === 'en' ? opt.label : opt.label_ar) || opt.label}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <input
+                                value={typeof answers[q.id] === 'string' ? (answers[q.id] as any) : ''}
+                                onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value as any }))}
+                                placeholder="Record the answer…"
+                                className="w-full bg-organic-surface border border-organic-neutral-300/60 rounded-organic-tile px-3 py-2 text-sm"
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      {submitError && <div className="text-sm text-organic-accent-800 mt-4">{submitError}</div>}
+
+                      <button
+                        onClick={submitCurrent}
+                        disabled={!allAnswered || submitting}
+                        className="w-full mt-5 rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm py-3 disabled:opacity-50"
+                      >
+                        {submitting
+                          ? 'Recording…'
+                          : index === assessments.length - 1
+                          ? 'Record & go to wrap-up'
+                          : 'Record & next assessment'}
+                      </button>
+                    </div>
                   )}
                 </div>
-              ))}
+              )}
+
+              {phase === 'wrapup' && (
+                <SessionWrapUp
+                  assessmentsQueued={assessments.length}
+                  assessmentsRecorded={results.length}
+                  results={results}
+                  elapsedSeconds={elapsedSeconds}
+                  noteEmpty={noteEmpty}
+                  noteDirty={noteDirty}
+                  savedNoteCount={savedNoteIds.length}
+                  signOff={signOff}
+                  onSignOffChange={setSignOff}
+                  bookNext={bookNext}
+                  onBookNextChange={setBookNext}
+                  nextDate={nextDate}
+                  onNextDate={setNextDate}
+                  nextTime={nextTime}
+                  onNextTime={setNextTime}
+                  nextDuration={nextDuration}
+                  onNextDuration={setNextDuration}
+                  nextType={nextType}
+                  onNextType={setNextType}
+                  nextLocation={nextLocation}
+                  onNextLocation={setNextLocation}
+                  nextStart={nextStart}
+                  nextInPast={nextInPast}
+                  finishing={finishing}
+                  finishError={finishError}
+                  onFinish={finish}
+                  onBackToAssessments={
+                    index < assessments.length ? () => setPhase('assessments') : null
+                  }
+                />
+              )}
             </div>
 
-            <button
-              onClick={submitCurrent}
-              disabled={!allAnswered || submitting}
-              className="w-full mt-6 rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm py-3 disabled:opacity-50"
-            >
-              {submitting ? 'Submitting…' : index === assessments.length - 1 ? 'Submit & finish' : 'Submit & next assessment'}
-            </button>
-          </div>
-        )}
+            {/* ── Aside: the note being written, and the history behind it ── */}
+            <aside className="flex flex-col gap-3.5">
+              <NotePanel
+                note={note}
+                onField={setNoteField}
+                onSave={handleSaveNote}
+                saving={savingNote}
+                error={noteError}
+                savedCount={savedNoteIds.length}
+                savedAt={savedAt}
+                dirty={noteDirty}
+                empty={noteEmpty}
+                otherLayoutUnsaved={otherLayoutUnsaved}
+              />
 
-        {(done || assessments.length === 0) && (
-          <div className="mt-6">
-            {results.length > 0 && (
-              <div className="flex flex-col gap-3 mb-6">
-                {results.map((r, i) => (
-                  <div key={i} className="bg-organic-surface rounded-organic-tile p-4 shadow-organic-sm">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="font-bold text-sm">{r.name}</span>
-                      <span className="font-heading text-lg text-organic-accent-700">{r.raw_score ?? '—'}</span>
-                    </div>
-                    <div className="text-xs text-organic-neutral-600">{r.interpretation}</div>
-                    {r.risk_flags?.length > 0 && (
-                      <div className="mt-2 flex items-center gap-2 bg-organic-accent-100 rounded-organic-tile px-3 py-2">
-                        <AlertTriangle size={16} className="text-organic-accent-700 flex-none" />
-                        <span className="text-xs text-organic-accent-800">{r.risk_flags[0].message}</span>
+              <HistoryPanel
+                title="Recent notes"
+                icon={<History size={17} className="text-organic-accent-700" />}
+                loading={history === null && !contextError}
+                error={contextError || historyError.notes}
+                empty={history !== null && history.notes.length === 0}
+                emptyText="No previous notes for this patient."
+                total={history?.notes.length ?? 0}
+                shown={history?.notes.length ? Math.min(history.notes.length, 5) : 0}
+              >
+                {history?.notes.slice(0, 5).map((n) => (
+                  <div key={n.id} className="flex items-start gap-2.5 py-2 border-b border-organic-text/[0.07] last:border-b-0">
+                    <FileText size={15} className="text-organic-accent-600 mt-0.5 flex-none" />
+                    <div className="min-w-0">
+                      <div className="text-[0.8438rem] text-organic-text">{notePreview(n)}</div>
+                      <div className="text-xs text-organic-neutral-600 mt-0.5">
+                        {new Date(n.created_at).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                        {n.therapist_approved ? ' · signed off' : ''}
                       </div>
-                    )}
+                    </div>
                   </div>
                 ))}
-              </div>
-            )}
-            <button onClick={finish} className="w-full rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm py-3">
-              Finish session
-            </button>
+              </HistoryPanel>
+
+              <HistoryPanel
+                title="Previous results"
+                icon={<ClipboardList size={17} className="text-organic-accent-700" />}
+                loading={history === null && !contextError}
+                error={contextError || historyError.assessments}
+                empty={history !== null && history.assessments.length === 0}
+                emptyText="No assessments recorded for this patient yet."
+                total={history?.assessments.length ?? 0}
+                shown={history?.assessments.length ? Math.min(history.assessments.length, 6) : 0}
+              >
+                {history?.assessments.slice(0, 6).map((r, i) => (
+                  <div
+                    key={r.id || `${r.assessment_id}-${r.created_at}-${i}`}
+                    className="py-2 border-b border-organic-text/[0.07] last:border-b-0"
+                  >
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-sm font-semibold text-organic-text uppercase truncate">{r.assessment_id}</span>
+                      <span className="font-bold text-organic-accent-700 text-sm flex-none">
+                        {r.raw_score !== null && r.raw_score !== undefined ? r.raw_score : '—'}
+                        {r.severity ? ` · ${r.severity}` : ''}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs text-organic-neutral-600 mt-0.5">
+                      <span>
+                        {new Date(r.created_at).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </span>
+                      {r.flagged && (
+                        <span className="text-[0.7812rem] font-semibold px-2 py-0.5 rounded-organic-pill bg-organic-accent-200 text-organic-accent-800">
+                          Flagged
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </HistoryPanel>
+            </aside>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// The note being written. Lives outside SessionRunner's markup so the same
+// editor — with the same state behind it — can be shown beside the consultation
+// AND after the session is recorded, when a note that failed to save would
+// otherwise be unreachable and lost on close.
+function NotePanel({
+  note,
+  onField,
+  onSave,
+  saving,
+  error,
+  savedCount,
+  savedAt,
+  dirty,
+  empty,
+  otherLayoutUnsaved,
+}: {
+  note: NoteDraft
+  onField: (key: keyof NoteDraft, value: string) => void
+  onSave: () => void
+  saving: boolean
+  error: string | null
+  savedCount: number
+  savedAt: number | null
+  dirty: boolean
+  empty: boolean
+  otherLayoutUnsaved: boolean
+}) {
+  return (
+    <div className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm">
+      <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <StickyNote size={17} className="text-organic-accent-700" />
+          <h3 className="text-base font-heading text-organic-text">Session note</h3>
+        </div>
+        <div className="inline-flex bg-organic-neutral-200 rounded-organic-pill p-1">
+          {(['FREE', 'SOAP'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => onField('template', t)}
+              className={`px-3 py-1 rounded-organic-pill text-xs font-semibold transition-colors ${
+                note.template === t
+                  ? 'bg-organic-accent text-organic-accent-100'
+                  : 'text-organic-neutral-700 hover:text-organic-text'
+              }`}
+            >
+              {t === 'FREE' ? 'Free text' : 'SOAP'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {note.template === 'SOAP' ? (
+        <div className="flex flex-col gap-2.5">
+          {SOAP_FIELDS.map((f) => (
+            <div key={f.key}>
+              <label className={FORM_LABEL_CLASS}>
+                {f.label} <span className="font-normal text-organic-neutral-500">· {f.hint}</span>
+              </label>
+              <textarea
+                value={note[f.key]}
+                onChange={(e) => onField(f.key, e.target.value)}
+                rows={2}
+                className="w-full bg-organic-bg border border-organic-neutral-300/60 rounded-organic-tile px-3 py-2 text-sm resize-y"
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <textarea
+          value={note.free_text}
+          onChange={(e) => onField('free_text', e.target.value)}
+          rows={8}
+          placeholder="Write as the session goes — it stays here while you move between assessments."
+          className="w-full bg-organic-bg border border-organic-neutral-300/60 rounded-organic-tile px-3.5 py-2.5 text-sm resize-y"
+        />
+      )}
+
+      <div className="flex items-center gap-2.5 mt-3 flex-wrap">
+        <button
+          onClick={onSave}
+          disabled={saving || !dirty}
+          className="rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm px-4 py-2 disabled:opacity-50"
+        >
+          {saving ? 'Saving…' : savedCount ? 'Save as a new note' : 'Save to chart'}
+        </button>
+      </div>
+      <div className="text-xs mt-2">
+        {error ? (
+          <span className="text-organic-accent-800">{error}</span>
+        ) : savedCount === 0 ? (
+          <span className="text-organic-neutral-600">
+            {empty
+              ? 'Nothing written yet. It is saved to the chart when you save, or when you finish.'
+              : 'Not on the chart yet — it will be saved when you finish the session.'}
+          </span>
+        ) : dirty ? (
+          <span className="text-organic-neutral-600">
+            Edited since the last save. Notes are appended, so saving again adds a second note.
+          </span>
+        ) : (
+          <span className="text-organic-neutral-600">
+            Saved to the chart{savedAt ? ` at ${new Date(savedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}` : ''}
+            {savedCount > 1 ? ` · ${savedCount} notes this session` : ''}.
+          </span>
+        )}
+      </div>
+      {/* Only the layout on screen is written. Text left behind in the other one
+          would otherwise be discarded on finish without ever being mentioned. */}
+      {otherLayoutUnsaved && (
+        <div className="text-xs mt-2 text-organic-accent-800">
+          You also have unsaved text in the {layoutLabel(otherLayout(note).template)} layout. Only the layout shown here
+          is written to the chart — switch back to save it.
+        </div>
+      )}
+    </div>
+  )
+}
+
+// A history panel is either loading, broken, empty or full — and says which.
+// "No previous notes" is a clinical claim, so it is only ever rendered once the
+// list is known to have come back empty.
+function HistoryPanel({
+  title,
+  icon,
+  loading,
+  error,
+  empty,
+  emptyText,
+  total,
+  shown,
+  children,
+}: {
+  title: string
+  icon: ReactNode
+  loading: boolean
+  error: string | null
+  empty: boolean
+  emptyText: string
+  total: number
+  shown: number
+  children: React.ReactNode
+}) {
+  return (
+    <div className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm">
+      <div className="flex items-center gap-2 mb-2.5">
+        {icon}
+        <h3 className="text-base font-heading text-organic-text">{title}</h3>
+      </div>
+      {loading && <div className="text-sm text-organic-neutral-600">Loading…</div>}
+      {error && <div className="text-sm text-organic-accent-800">{error}</div>}
+      {!loading && !error && empty && <div className="text-sm text-organic-neutral-600">{emptyText}</div>}
+      {!loading && !error && !empty && <div className="flex flex-col">{children}</div>}
+      {!loading && !error && total > shown && (
+        <div className="text-xs text-organic-neutral-600 pt-2">
+          Showing the {shown} most recent of {total}. The full record is in the patient chart.
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Wrap-up: what is being recorded, and the next appointment ──────────────
+
+function SummaryRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-start gap-3 py-2.5 border-b border-organic-text/[0.07] last:border-b-0">
+      <span className="text-[0.7812rem] font-semibold tracking-wide uppercase text-organic-neutral-600 w-[112px] flex-none pt-0.5">
+        {label}
+      </span>
+      <div className="text-[0.8438rem] text-organic-text flex-1 min-w-0">{children}</div>
+    </div>
+  )
+}
+
+function SessionWrapUp({
+  assessmentsQueued,
+  assessmentsRecorded,
+  results,
+  elapsedSeconds,
+  noteEmpty,
+  noteDirty,
+  savedNoteCount,
+  signOff,
+  onSignOffChange,
+  bookNext,
+  onBookNextChange,
+  nextDate,
+  onNextDate,
+  nextTime,
+  onNextTime,
+  nextDuration,
+  onNextDuration,
+  nextType,
+  onNextType,
+  nextLocation,
+  onNextLocation,
+  nextStart,
+  nextInPast,
+  finishing,
+  finishError,
+  onFinish,
+  onBackToAssessments,
+}: {
+  assessmentsQueued: number
+  assessmentsRecorded: number
+  results: any[]
+  elapsedSeconds: number
+  noteEmpty: boolean
+  noteDirty: boolean
+  savedNoteCount: number
+  signOff: boolean
+  onSignOffChange: (v: boolean) => void
+  bookNext: boolean
+  onBookNextChange: (v: boolean) => void
+  nextDate: string
+  onNextDate: (v: string) => void
+  nextTime: string
+  onNextTime: (v: string) => void
+  nextDuration: number
+  onNextDuration: (v: number) => void
+  nextType: string
+  onNextType: (v: string) => void
+  nextLocation: string
+  onNextLocation: (v: string) => void
+  nextStart: Date | null
+  nextInPast: boolean
+  finishing: boolean
+  finishError: string | null
+  onFinish: () => void
+  onBackToAssessments: (() => void) | null
+}) {
+  const minutes = Math.round(elapsedSeconds / 60)
+  const notAdministered = assessmentsQueued - assessmentsRecorded
+  // A note that exists only in the textarea is not on the chart yet, and the
+  // summary says so rather than counting it as recorded.
+  const willHaveNote = savedNoteCount > 0 || noteDirty
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
+        <h3 className="text-lg font-heading text-organic-text mb-1">Wrap up</h3>
+        <p className="text-sm text-organic-neutral-600 mb-3">This is what finishing will put on the record.</p>
+
+        <div className="flex flex-col">
+          <SummaryRow label="Time">
+            {formatElapsed(elapsedSeconds)} — recorded as {minutes} minute{minutes === 1 ? '' : 's'}
+            {minutes === 0 ? ' (less than a minute so far)' : ''}
+          </SummaryRow>
+
+          <SummaryRow label="Assessments">
+            {assessmentsQueued === 0 ? (
+              <span className="text-organic-neutral-600">
+                None were queued for this session. That is fine — the note and the duration are still recorded.
+              </span>
+            ) : (
+              <>
+                <div>
+                  {assessmentsRecorded} of {assessmentsQueued} recorded
+                  {notAdministered > 0 && (
+                    <span className="text-organic-neutral-600">
+                      {' '}
+                      · {notAdministered} not administered, nothing saved for {notAdministered === 1 ? 'it' : 'them'}
+                    </span>
+                  )}
+                </div>
+                {results.length > 0 && (
+                  <div className="flex flex-col gap-2 mt-2">
+                    {results.map((r, i) => (
+                      <div key={i} className="bg-organic-bg rounded-organic-tile p-3">
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="font-bold text-sm">{r.name}</span>
+                          <span className="font-heading text-base text-organic-accent-700">{r.raw_score ?? '—'}</span>
+                        </div>
+                        {r.interpretation && (
+                          <div className="text-xs text-organic-neutral-600 mt-0.5">{r.interpretation}</div>
+                        )}
+                        {r.risk_flags?.length > 0 && (
+                          <div className="mt-2 flex items-center gap-2 bg-organic-accent-100 rounded-organic-tile px-3 py-2">
+                            <AlertTriangle size={15} className="text-organic-accent-700 flex-none" />
+                            <span className="text-xs text-organic-accent-800">{r.risk_flags[0].message}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </SummaryRow>
+
+          <SummaryRow label="Session note">
+            {savedNoteCount > 0 && !noteDirty ? (
+              <>
+                {savedNoteCount} note{savedNoteCount === 1 ? '' : 's'} already saved to the chart
+              </>
+            ) : noteDirty ? (
+              <>
+                {savedNoteCount > 0
+                  ? 'Edited since the last save — the new version will be added as another note when you finish.'
+                  : 'Not saved yet — it will be written to the chart when you finish.'}
+              </>
+            ) : noteEmpty ? (
+              <span className="text-organic-neutral-600">Nothing written. No note will be recorded.</span>
+            ) : (
+              <span className="text-organic-neutral-600">Nothing new to save.</span>
+            )}
+          </SummaryRow>
+        </div>
+
+        {willHaveNote && (
+          <label className="flex items-center gap-2.5 bg-organic-bg rounded-organic-tile px-3.5 py-2.5 text-sm cursor-pointer mt-3">
+            <input type="checkbox" checked={signOff} onChange={(e) => onSignOffChange(e.target.checked)} />
+            <span className="flex-1">
+              Sign the note off now
+              <span className="block text-xs text-organic-neutral-600">
+                A signed note drops off your &ldquo;notes due&rdquo; list. Leave this unticked to review it later.
+              </span>
+            </span>
+          </label>
+        )}
+      </div>
+
+      <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
+        <div className="flex items-center gap-2 mb-1">
+          <CalendarPlus size={18} className="text-organic-accent-700" />
+          <h3 className="text-lg font-heading text-organic-text">Next appointment</h3>
+        </div>
+        <p className="text-sm text-organic-neutral-600 mb-3">Optional — book it now while the patient is with you.</p>
+
+        <label className="flex items-center gap-2.5 bg-organic-bg rounded-organic-tile px-3.5 py-2.5 text-sm cursor-pointer">
+          <input type="checkbox" checked={bookNext} onChange={(e) => onBookNextChange(e.target.checked)} />
+          <span className="flex-1">Book the follow-up now</span>
+        </label>
+
+        {bookNext && (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 mt-3">
+              <div>
+                <label className={FORM_LABEL_CLASS}>Date</label>
+                <input
+                  type="date"
+                  value={nextDate}
+                  onChange={(e) => onNextDate(e.target.value)}
+                  className={INPUT_CLASS}
+                />
+              </div>
+              <div>
+                <label className={FORM_LABEL_CLASS}>Start time</label>
+                <input
+                  type="time"
+                  value={nextTime}
+                  onChange={(e) => onNextTime(e.target.value)}
+                  className={INPUT_CLASS}
+                />
+              </div>
+              <div>
+                <label className={FORM_LABEL_CLASS}>Duration</label>
+                <select
+                  value={String(nextDuration)}
+                  onChange={(e) => onNextDuration(Number(e.target.value))}
+                  className={INPUT_CLASS}
+                >
+                  {DURATION_OPTIONS.map((d) => (
+                    <option key={d} value={d}>
+                      {d} minutes
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={FORM_LABEL_CLASS}>Type</label>
+                <select value={nextType} onChange={(e) => onNextType(e.target.value)} className={INPUT_CLASS}>
+                  {NEXT_TYPE_OPTIONS.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={FORM_LABEL_CLASS}>Location</label>
+                <select value={nextLocation} onChange={(e) => onNextLocation(e.target.value)} className={INPUT_CLASS}>
+                  <option value="IN_PERSON">In person</option>
+                  <option value="ONLINE">Video</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="text-xs mt-2.5">
+              {nextStart ? (
+                <span className={nextInPast ? 'text-organic-accent-800' : 'text-organic-neutral-600'}>
+                  {nextInPast
+                    ? `That is in the past — ${formatWhen(nextStart)}. Check the date before finishing.`
+                    : `Books ${formatWhen(nextStart)} for ${nextDuration} minutes.`}
+                </span>
+              ) : (
+                <span className="text-organic-neutral-600">Choose a date and a start time.</span>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {finishError && <div className="text-sm text-organic-accent-800">{finishError}</div>}
+
+      <div className="flex items-center gap-2.5 flex-wrap">
+        <button
+          onClick={onFinish}
+          disabled={finishing}
+          className="rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm px-6 py-3 disabled:opacity-50"
+        >
+          {finishing ? 'Finishing…' : 'Finish session'}
+        </button>
+        {onBackToAssessments && (
+          <button
+            onClick={onBackToAssessments}
+            className="rounded-organic-pill border border-organic-neutral-300/70 font-heading text-sm px-4 py-3 text-organic-text hover:bg-organic-neutral-100 transition-colors"
+          >
+            Back to assessments
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Recorded: what actually landed ─────────────────────────────────────────
+
+function SessionRecorded({ outcome, onDone }: { outcome: FinishOutcome; onDone: () => void }) {
+  return (
+    <div className="max-w-[720px]">
+      <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
+        <div className="flex items-center gap-2.5 mb-3">
+          <CheckCircle2 size={20} className="text-organic-accent-2-600" />
+          <h3 className="text-lg font-heading text-organic-text">Session recorded</h3>
+        </div>
+
+        <div className="flex flex-col">
+          <SummaryRow label="Time">
+            {formatElapsed(outcome.elapsedSeconds)} in session
+            {outcome.durationRecorded !== null
+              ? ` · saved as ${outcome.durationRecorded} minute${outcome.durationRecorded === 1 ? '' : 's'}`
+              : ''}
+          </SummaryRow>
+
+          <SummaryRow label="Assessments">
+            {outcome.assessmentsQueued === 0 ? (
+              <span className="text-organic-neutral-600">None were administered.</span>
+            ) : (
+              <>
+                {outcome.assessmentsRecorded} of {outcome.assessmentsQueued} recorded
+                {outcome.assessmentsQueued > outcome.assessmentsRecorded && (
+                  <span className="text-organic-neutral-600">
+                    {' '}
+                    · nothing was saved for the {outcome.assessmentsQueued - outcome.assessmentsRecorded} not
+                    administered
+                  </span>
+                )}
+              </>
+            )}
+          </SummaryRow>
+
+          <SummaryRow label="Session note">
+            {outcome.noteFailed ? (
+              <span className="text-organic-accent-800">
+                The note could not be saved. Reopen the patient chart and write it there — it was not recorded.
+              </span>
+            ) : outcome.notesSaved === 0 ? (
+              <span className="text-organic-neutral-600">No note was written.</span>
+            ) : (
+              <>
+                {outcome.notesSaved} note{outcome.notesSaved === 1 ? '' : 's'} saved to the chart
+                {outcome.signedOff
+                  ? ' · signed off'
+                  : outcome.signOffFailed
+                  ? ' · the sign-off did not go through, so it is still on your notes-due list'
+                  : ' · awaiting your sign-off'}
+              </>
+            )}
+          </SummaryRow>
+
+          <SummaryRow label="Next">
+            {outcome.booking === null ? (
+              <span className="text-organic-neutral-600">No follow-up was booked.</span>
+            ) : outcome.booking.confirmed ? (
+              <>Booked for {outcome.booking.whenLabel}.</>
+            ) : (
+              <span className="text-organic-accent-800">
+                Requested for {outcome.booking.whenLabel}, but the server did not confirm it. Check the scheduler
+                before the patient leaves.
+              </span>
+            )}
+          </SummaryRow>
+        </div>
+
+        <button
+          onClick={onDone}
+          className="mt-4 rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm px-6 py-3"
+        >
+          Close and open the chart
+        </button>
       </div>
     </div>
   )
@@ -1272,7 +2495,9 @@ type AssessmentRecord = {
   created_at: string
 }
 
-function notePreview(n: SessionNote): string {
+// Takes the loose HistoryNote shape so the same preview serves both the chart's
+// full notes and the trimmed ones that ride along with a session payload.
+function notePreview(n: HistoryNote): string {
   const text = n.free_text || [n.subjective, n.objective, n.assessment, n.plan].filter(Boolean).join(' · ')
   return text ? (text.length > 160 ? text.slice(0, 160) + '…' : text) : '(empty note)'
 }
@@ -1707,7 +2932,11 @@ function ChartView({
   patient: ChartPatientRef | null
   onPickPatient: (p: ChartPatientRef | null) => void
 }) {
-  const [myPatients, setMyPatients] = useState<SimplePatient[]>([])
+  // null = not answered yet (loading, or the request failed). Never [] on
+  // failure: an empty array here renders "No patients assigned to you yet.",
+  // which is a statement about the caseload, not about the network.
+  const [myPatients, setMyPatients] = useState<SimplePatient[] | null>(null)
+  const [pickerError, setPickerError] = useState<string | null>(null)
   const [detail, setDetail] = useState<PatientDetail | null>(null)
   const [notes, setNotes] = useState<SessionNote[] | null>(null)
   const [records, setRecords] = useState<AssessmentRecord[] | null>(null)
@@ -1717,7 +2946,12 @@ function ChartView({
 
   useEffect(() => {
     if (!patient) {
-      apiClient.getPatients({ mine: true }).then(setMyPatients).catch(() => setMyPatients([]))
+      setPickerError(null)
+      setMyPatients(null)
+      apiClient
+        .getPatients({ mine: true, limit: CASELOAD_LIMIT })
+        .then((rows: SimplePatient[]) => setMyPatients(Array.isArray(rows) ? rows : []))
+        .catch(() => setPickerError('Could not load your caseload. This is not a record that you have no patients.'))
       return
     }
     setDetail(null)
@@ -1756,7 +2990,7 @@ function ChartView({
       <div className="max-w-[560px]">
         <h3 className="text-lg font-heading text-organic-text mb-3">Open a patient record</h3>
         <div className="flex flex-col gap-1.5">
-          {myPatients.map((p) => (
+          {myPatients?.map((p) => (
             <button
               key={p.id}
               onClick={() => onPickPatient({ id: p.id, name: p.name })}
@@ -1766,9 +3000,13 @@ function ChartView({
               <span className="text-xs text-organic-neutral-500">{p.status}</span>
             </button>
           ))}
-          {myPatients.length === 0 && (
+          {pickerError ? (
+            <div className="text-sm text-organic-accent-800">{pickerError}</div>
+          ) : myPatients === null ? (
+            <div className="text-sm text-organic-neutral-600">Loading…</div>
+          ) : myPatients.length === 0 ? (
             <div className="text-sm text-organic-neutral-600">No patients assigned to you yet.</div>
-          )}
+          ) : null}
         </div>
       </div>
     )

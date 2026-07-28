@@ -24,6 +24,28 @@ import '../../core/secure_phi_storage.dart';
 const _kAccessToken = 'auth.access_token';
 const _kRefreshToken = 'auth.refresh_token';
 
+// ─── Paginated list responses ─────────────────────────────────────────────────
+
+/// The rows out of a list response, whatever shape the endpoint returns.
+///
+/// `GET /patients` now answers with the paginated envelope
+/// `{items, total, limit, offset}` instead of a bare JSON array. Reading
+/// `items` when the payload is a map and falling back to the array otherwise
+/// means the app works against a backend on either side of that change — which
+/// matters because a released build cannot be upgraded in lock-step with the
+/// server it talks to.
+///
+/// Anything else (a null body, an unexpected object) yields an empty list
+/// rather than a cast error at the call site.
+List<dynamic> listItems(dynamic decoded) {
+  if (decoded is List) return decoded;
+  if (decoded is Map<String, dynamic>) {
+    final items = decoded['items'];
+    if (items is List) return items;
+  }
+  return const <dynamic>[];
+}
+
 // ─── ApiClient ────────────────────────────────────────────────────────────────
 
 class ApiClient {

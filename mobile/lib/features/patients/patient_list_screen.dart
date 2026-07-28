@@ -72,9 +72,11 @@ class _PatientListScreenState extends State<PatientListScreen> {
   Future<void> _loadPatients() async {
     setState(() { _isLoading = true; _error = null; });
     try {
+      // GET /patients returns {items, total, limit, offset}; listItems() also
+      // accepts the bare array older backends return.
       final patients = await ApiClient.instance.getJson<List<Patient>>(
         '/patients',
-        (data) => (data as List<dynamic>)
+        (data) => listItems(data)
             .map((e) => Patient.fromApi(e as Map<String, dynamic>))
             .toList(),
       );

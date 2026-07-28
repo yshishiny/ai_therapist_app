@@ -180,7 +180,9 @@ class DashboardProvider extends ChangeNotifier {
       // 1. Fetch patient list from real API
       final patientsResp = await ApiClient.instance.get('/patients');
       if (patientsResp.statusCode == 200) {
-        final raw = jsonDecode(patientsResp.body) as List<dynamic>;
+        // GET /patients returns {items, total, limit, offset}; listItems()
+        // also accepts the bare array older backends return.
+        final raw = listItems(jsonDecode(patientsResp.body));
         final apiPatients = raw
             .map((e) => PatientSummaryRow.fromApi(e as Map<String, dynamic>))
             .toList();

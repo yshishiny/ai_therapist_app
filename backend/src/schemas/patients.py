@@ -21,6 +21,21 @@ class PatientOut(BaseModel):
     wellbeing_status: str | None = None
 
 
+class PatientListOut(BaseModel):
+    """Paginated envelope for GET /patients.
+
+    `total` is a COUNT over the same org/therapist filters as `items`, NOT the
+    length of `items` -- without it a client cannot tell "50 patients, that's
+    all" from "50 patients, page one of nine", which is exactly the bug a bare
+    array produced.
+    """
+
+    items: list[PatientOut]
+    total: int
+    limit: int
+    offset: int
+
+
 class PatientCreateIn(BaseModel):
     full_name: str
     gender: str | None = None

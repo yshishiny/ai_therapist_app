@@ -8,10 +8,18 @@ class PatientServiceDb:
 
     async def list_patients(
         self, org_id: str, limit: int = 50, offset: int = 0, therapist_id: str | None = None
-    ) -> list[dict]:
-        return await self.repository.list_patients(
+    ) -> dict:
+        """One page of patients plus the total that matched.
+
+        Returns the paginated envelope `{items, total, limit, offset}`, not a
+        bare list. `total` comes from a COUNT over the same filters, so a client
+        can tell a short page from the last page.
+        """
+        items = await self.repository.list_patients(
             org_id=org_id, limit=limit, offset=offset, therapist_id=therapist_id
         )
+        total = await self.repository.count_patients(org_id=org_id, therapist_id=therapist_id)
+        return {'items': items, 'total': total, 'limit': limit, 'offset': offset}
 
     async def get_patient(self, patient_id: str, org_id: str) -> dict | None:
         return await self.repository.get_patient(patient_id=patient_id, org_id=org_id)

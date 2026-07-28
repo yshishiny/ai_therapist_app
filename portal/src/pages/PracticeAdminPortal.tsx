@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import apiClient from '../services/api'
+import type { PracticeSummary, ResourceItem } from '../services/api'
 import { useSampleDataHidden } from '../hooks/useSampleDataHidden'
 import { SampleGate } from '../components/SampleGate'
 import { TextSizeControl } from '../components/TextSizeControl'
@@ -24,25 +25,23 @@ import {
   UserPlus,
   Upload,
   AlertTriangle,
-  ClipboardCheck,
   FileText,
-  AudioLines,
   BookOpen,
   PlayCircle,
   Sparkles,
-  FileBadge,
-  Folder,
-  FolderCheck,
   Pencil,
   Check,
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
   Lock,
   Calendar,
+  CalendarClock,
   FileEdit,
 } from 'lucide-react'
 
 type View = 'dashboard' | 'clinicians' | 'patients' | 'patientDetail' | 'assessments' | 'content' | 'access' | 'billing' | 'settings'
-type DashLayout = 'a' | 'b' | 'c'
 
 // `ready: false` marks a view that is still design-mockup only -- no real
 // data behind it yet. Those nav entries render dimmed and non-clickable so
@@ -53,7 +52,7 @@ const NAV_ITEMS: { view: View; label: string; icon: typeof LayoutDashboard; read
   { view: 'clinicians', label: 'Clinicians', icon: Stethoscope, ready: true },
   { view: 'patients', label: 'Patients', icon: UsersRound, ready: true },
   { view: 'assessments', label: 'Assessments', icon: ClipboardList, ready: true },
-  { view: 'content', label: 'Content Library', icon: LibraryBig, ready: false },
+  { view: 'content', label: 'Content Library', icon: LibraryBig, ready: true },
   { view: 'access', label: 'Access Control', icon: ShieldCheck, ready: false },
   { view: 'billing', label: 'Billing & Plan', icon: CreditCard, ready: false },
   { view: 'settings', label: 'Settings', icon: SettingsIcon, ready: false },
@@ -70,16 +69,40 @@ const TITLES: Record<View, string> = {
   billing: 'Billing & plan',
   settings: 'Settings',
 }
+// Static subtitles only. Anything that used to state a quantity -- "9
+// clinicians · 2 seats available", "128 active patients across the practice",
+// "Professional plan · renews Aug 1, 2026" -- was a hardcoded string that
+// never once consulted the API, so it stayed put while the practice grew or
+// shrank. Counts now come from the live data in `subtitleFor` below, and where
+// there is no source for a number (seat allowances, renewal dates) the claim
+// is dropped rather than invented.
 const SUBTITLES: Record<View, string> = {
-  dashboard: 'Cedar & Sage Psychology · Cairo practice',
-  clinicians: '9 clinicians · 2 seats available',
-  patients: '128 active patients across the practice',
+  dashboard: 'Practice-wide activity',
+  clinicians: '',
+  patients: '',
   patientDetail: '',
   assessments: 'Assign, build and review clinical assessments',
-  content: 'IP-controlled resources with signed delivery',
+  content: 'Books, papers and videos ingested for clinical reference',
   access: 'Role-based & resource-level permissions',
-  billing: 'Professional plan · renews Aug 1, 2026',
+  billing: 'Plan and usage',
   settings: 'Practice profile, notifications and integrations',
+}
+
+/**
+ * Subtitles that carry a real, live count. Returns '' when the number is not
+ * known yet (still loading, or the server sent no total) — an empty subtitle
+ * is honest, a stale one is not.
+ */
+function subtitleFor(view: View, counts: { patientTotal: number | null; clinicianCount: number }): string {
+  if (view === 'patients') {
+    if (counts.patientTotal === null) return ''
+    return `${counts.patientTotal} ${counts.patientTotal === 1 ? 'patient' : 'patients'} in the registry`
+  }
+  if (view === 'clinicians') {
+    if (counts.clinicianCount === 0) return ''
+    return `${counts.clinicianCount} ${counts.clinicianCount === 1 ? 'clinician' : 'clinicians'}`
+  }
+  return SUBTITLES[view]
 }
 
 interface Patient {
@@ -90,7 +113,6 @@ interface Patient {
   last: string
   risk: 'High' | 'Med' | 'Low'
   status: string
-  next: string
   therapistId?: string
 }
 
@@ -126,19 +148,9 @@ function toPatientRow(api: any, clinicians: ClinicianRow[]): Patient {
     last: api.last_seen ? new Date(api.last_seen).toLocaleDateString() : 'No sessions yet',
     risk: toRiskLabel(api.risk),
     status: api.status || 'Active',
-    next: '—',
     therapistId: api.therapist_id,
   }
 }
-
-const PATIENTS: Patient[] = [
-  { id: 'p1', name: 'Maya Okonkwo', initials: 'MO', clinician: 'Dr. Heba Moustafa', last: '2 days ago', risk: 'High', status: 'In treatment', next: 'Review PHQ-9' },
-  { id: 'p2', name: 'Sara Farouk', initials: 'SF', clinician: 'Dr. Omar Nasser', last: 'Yesterday', risk: 'High', status: 'In treatment', next: 'Call scheduled' },
-  { id: 'p3', name: 'Diego Alvarez', initials: 'DA', clinician: 'Dr. Heba Moustafa', last: '4 days ago', risk: 'Med', status: 'In treatment', next: 'Assign homework' },
-  { id: 'p4', name: 'Lena Petrova', initials: 'LP', clinician: 'Dr. Amina Saleh', last: '1 week ago', risk: 'Low', status: 'Maintenance', next: 'GAD-7 due' },
-  { id: 'p5', name: 'Tomas Ruiz', initials: 'TR', clinician: 'Dr. Omar Nasser', last: '3 days ago', risk: 'Low', status: 'Intake', next: 'Complete intake' },
-  { id: 'p6', name: 'Grace Kim', initials: 'GK', clinician: 'Dr. Amina Saleh', last: 'Today', risk: 'Med', status: 'In treatment', next: 'Session note' },
-]
 
 const RISK_STYLE: Record<Patient['risk'], { color: string; bg: string }> = {
   High: { color: 'text-organic-accent-800', bg: 'bg-organic-accent-200' },
@@ -146,11 +158,21 @@ const RISK_STYLE: Record<Patient['risk'], { color: string; bg: string }> = {
   Low: { color: 'text-organic-neutral-700', bg: 'bg-organic-neutral-200' },
 }
 
+// GET /patients defaults to limit=50 server-side. The old client sent nothing,
+// so a practice with more than 50 patients silently saw 50 -- and because the
+// query orders by last_seen DESC NULLS LAST, the ones that fell off the end
+// were the least recently seen: exactly the patients at risk of being lost to
+// follow-up. The page size is now explicit and the rest are reachable.
+const PATIENT_PAGE_SIZE = 25
+
 export default function PracticeAdminPortal() {
   const [view, setView] = useState<View>('dashboard')
-  const [dash, setDash] = useState<DashLayout>('a')
   const [patientId, setPatientId] = useState<string | null>(null)
   const [realPatients, setRealPatients] = useState<Patient[]>([])
+  const [patientTotal, setPatientTotal] = useState<number | null>(null)
+  const [patientOffset, setPatientOffset] = useState(0)
+  const [patientsLoading, setPatientsLoading] = useState(true)
+  const [patientsError, setPatientsError] = useState<string | null>(null)
   const [clinicians, setClinicians] = useState<ClinicianRow[]>([])
   const [caseloadFilter, setCaseloadFilter] = useState<string | null>(null)
   const [hideSampleData, setHideSampleData] = useSampleDataHidden()
@@ -158,34 +180,54 @@ export default function PracticeAdminPortal() {
   const { logout, user } = useAuthStore()
   const me = clinicians.find((c) => c.id === user?.sub) || null
 
-  const loadClinicians = () =>
-    apiClient.getClinicians().then((rows: any[]) =>
-      setClinicians(
-        rows.map((r) => ({
-          id: r.id,
-          fullName: r.full_name,
-          initials: initialsOf(r.full_name),
-          email: r.email,
-          role: r.role,
-          active: r.active,
-          patientCount: r.patient_count,
-        }))
-      )
-    )
+  const loadClinicians = (): Promise<ClinicianRow[]> =>
+    apiClient.getClinicians().then((rows: any[]) => {
+      const mapped: ClinicianRow[] = rows.map((r) => ({
+        id: r.id,
+        fullName: r.full_name,
+        initials: initialsOf(r.full_name),
+        email: r.email,
+        role: r.role,
+        active: r.active,
+        patientCount: r.patient_count,
+      }))
+      setClinicians(mapped)
+      return mapped
+    })
 
-  const loadPatients = (cliniciansList: ClinicianRow[]) =>
-    apiClient.getPatients().then((rows: any[]) => setRealPatients(rows.map((r) => toPatientRow(r, cliniciansList))))
+  const loadPatients = (cliniciansList: ClinicianRow[], offset: number) => {
+    setPatientsLoading(true)
+    setPatientsError(null)
+    return apiClient
+      .getPatientsPage({ limit: PATIENT_PAGE_SIZE, offset })
+      .then((page) => {
+        setRealPatients(page.items.map((r) => toPatientRow(r, cliniciansList)))
+        setPatientTotal(page.total)
+        setPatientOffset(page.offset)
+      })
+      .catch(() => {
+        setRealPatients([])
+        setPatientTotal(null)
+        setPatientsError('Could not load the patient registry.')
+      })
+      .finally(() => setPatientsLoading(false))
+  }
 
+  // Clinicians first, because patient rows resolve "Assigned to" through them —
+  // but the registry loads either way. Chaining it off a non-empty clinician
+  // list meant a practice whose /clinicians call failed or came back empty sat
+  // on "Loading…" forever with patients it could have shown.
   useEffect(() => {
-    loadClinicians().then((_) => {})
+    loadClinicians()
+      .catch(() => {
+        setClinicians([])
+        return [] as ClinicianRow[]
+      })
+      .then((list) => loadPatients(list, 0))
   }, [])
 
-  // Patients need the clinician list first to resolve "Assigned to" names.
-  useEffect(() => {
-    if (clinicians.length > 0) loadPatients(clinicians)
-  }, [clinicians])
-
-  const refreshPatients = () => loadPatients(clinicians)
+  const refreshPatients = () => loadPatients(clinicians, patientOffset)
+  const goToPatientPage = (offset: number) => loadPatients(clinicians, Math.max(0, offset))
 
   const openPatient = (id: string) => {
     setPatientId(id)
@@ -199,7 +241,10 @@ export default function PracticeAdminPortal() {
 
   const patient = realPatients.find((p) => p.id === patientId) || null
   const title = view === 'patientDetail' ? patient?.name || '' : TITLES[view]
-  const subtitle = view === 'patientDetail' ? `${patient?.status} · Primary: ${patient?.clinician}` : SUBTITLES[view]
+  const subtitle =
+    view === 'patientDetail'
+      ? `${patient?.status} · Primary: ${patient?.clinician}`
+      : subtitleFor(view, { patientTotal, clinicianCount: clinicians.length })
 
   const handleLogout = async () => {
     await logout()
@@ -260,14 +305,12 @@ export default function PracticeAdminPortal() {
           Clinical Workspace
         </button>
 
-        <div className="mt-auto p-3 bg-organic-accent-2-100 rounded-organic-tile">
-          <div className="text-xs text-organic-accent-2-800 font-semibold mb-1">Professional plan</div>
-          <div className="text-[0.7812rem] text-organic-accent-2-700 leading-tight">9 / 12 seats used</div>
-          <div className="h-1.5 rounded-organic-pill bg-organic-accent-2-200 mt-2 overflow-hidden">
-            <div className="w-3/4 h-full bg-organic-accent-2-500" />
-          </div>
-        </div>
-        <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+        {/* The "Professional plan — 9 / 12 seats used" tile that used to sit
+            here, progress bar and all, was three hardcoded strings. There is no
+            plan or seat-allowance endpoint, so rather than keep a number that
+            could never be right the tile is gone; it returns when there is
+            something real to read it from. */}
+        <div className="mt-auto flex items-center justify-between gap-2 px-2 py-1.5">
           <span className="text-[0.7812rem] font-semibold text-organic-neutral-600">Hide sample data</span>
           <button
             onClick={() => setHideSampleData(!hideSampleData)}
@@ -304,14 +347,15 @@ export default function PracticeAdminPortal() {
               <Search size={16} className="text-organic-neutral-500" />
               <span className="text-sm text-organic-neutral-500">Search patients, notes…</span>
             </div>
+            {/* No unread dot: nothing feeds it, so it was a permanent claim
+                that something needed attention. */}
             <button className="w-[42px] h-[42px] rounded-full border border-organic-neutral-300/60 bg-organic-surface grid place-items-center relative">
               <Bell size={18} />
-              <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-organic-accent" />
             </button>
           </div>
         </header>
 
-        {view === 'dashboard' && <DashboardView dash={dash} setDash={setDash} onOpenPatient={openPatient} />}
+        {view === 'dashboard' && <DashboardView clinicianCount={clinicians.length} clinicianName={me?.fullName || null} />}
         {view === 'clinicians' && <CliniciansView clinicians={clinicians} onViewCaseload={openCaseload} />}
         {view === 'patients' && (
           <PatientsView
@@ -320,6 +364,12 @@ export default function PracticeAdminPortal() {
             onOpenPatient={openPatient}
             caseloadFilter={caseloadFilter}
             onClearCaseloadFilter={() => setCaseloadFilter(null)}
+            total={patientTotal}
+            offset={patientOffset}
+            pageSize={PATIENT_PAGE_SIZE}
+            loading={patientsLoading}
+            error={patientsError}
+            onGoToOffset={goToPatientPage}
           />
         )}
         {view === 'patientDetail' &&
@@ -343,235 +393,123 @@ export default function PracticeAdminPortal() {
   )
 }
 
-// ─── Dashboard (3 layout variants) ─────────────────────────────────────────
+// ─── Dashboard ──────────────────────────────────────────────────────────────
+//
+// This screen used to offer three layout variants over two hardcoded arrays:
+// STATS ("128 active patients", "94% assessment yield", "3 open risk alerts")
+// and ALERTS, which listed named patients against invented clinical findings —
+// "PHQ-9 item 9 elevated (suicidal ideation)" among them — beside a symptom
+// trend chart whose line was a literal SVG path. None of it ever touched the
+// API. All of it is gone.
+//
+// What replaces it reads GET /dashboard/summary, where every field is a
+// COUNT(*) scoped to this org, plus the clinician count already loaded for the
+// sidebar. Figures with no source behind them — assessment yield, seat
+// allowances, month-over-month deltas — are not shown at all.
 
-const STATS = [
-  { label: 'Active patients', value: '128', trend: '+12 this month', icon: UsersRound },
-  { label: 'Clinicians', value: '9', trend: '2 seats open', icon: Stethoscope },
-  { label: 'Open risk alerts', value: '3', trend: 'Needs attention', icon: AlertTriangle },
-  { label: 'Assessment yield', value: '94%', trend: '+7% vs last mo', icon: ClipboardCheck },
-]
+type StatTile = { label: string; value: number; note?: string; icon: typeof UsersRound }
 
-const ALERTS = [
-  { name: 'M. Okonkwo', detail: 'PHQ-9 item 9 elevated (suicidal ideation)', time: '12m' },
-  { name: 'S. Farouk', detail: 'GAD-7 spike to 19 — severe anxiety', time: '2h' },
-  { name: 'D. Alvarez', detail: 'Missed 2 consecutive homework tasks', time: '5h', med: true },
-]
-
-function DashboardView({ dash, setDash, onOpenPatient }: { dash: DashLayout; setDash: (d: DashLayout) => void; onOpenPatient: (id: string) => void }) {
-  return (
-    <div>
-      <div className="flex justify-between items-center flex-wrap gap-3 mb-5">
-        <div className="inline-flex bg-organic-neutral-100 border border-organic-neutral-300/60 rounded-organic-pill p-1">
-          {(['a', 'b', 'c'] as DashLayout[]).map((k) => (
-            <button
-              key={k}
-              onClick={() => setDash(k)}
-              className={`font-heading text-[0.8125rem] px-[18px] py-2 rounded-organic-pill ${dash === k ? 'bg-organic-accent text-organic-neutral-100' : 'text-organic-neutral-700'}`}
-            >
-              {k === 'a' ? 'Analytics' : k === 'b' ? 'Welcome' : 'Bento'}
-            </button>
-          ))}
-        </div>
-        <span className="text-xs text-organic-neutral-500">Three layout directions for the overview</span>
-      </div>
-
-      {dash === 'a' && <DashboardAnalytics onOpenPatient={onOpenPatient} />}
-      {dash === 'b' && <DashboardWelcome onOpenPatient={onOpenPatient} />}
-      {dash === 'c' && <DashboardBento />}
-    </div>
-  )
+function greetingFor(now: Date): string {
+  const hour = now.getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 18) return 'Good afternoon'
+  return 'Good evening'
 }
 
-function DashboardAnalytics({ onOpenPatient }: { onOpenPatient: (id: string) => void }) {
-  const [hideSampleData] = useSampleDataHidden()
-  return (
-    <SampleGate
-      hidden={hideSampleData}
-      placeholder={
-        <div className="text-sm text-organic-neutral-600 py-8">
-          Practice analytics will appear here once there is enough session and assessment activity to report on.
-        </div>
-      }
-    >
-    <div>
-      <div className="grid grid-cols-4 gap-4 mb-4">
-        {STATS.map((st) => (
-          <div key={st.label} className="bg-organic-surface rounded-organic-card p-[18px] shadow-organic-sm">
-            <div className="flex justify-between items-start">
-              <span className="text-xs text-organic-neutral-600">{st.label}</span>
-              <st.icon size={17} className="text-organic-accent-500" />
-            </div>
-            <div className="font-heading text-[2.25rem] my-1.5 text-organic-text">{st.value}</div>
-            <div className="text-xs text-organic-accent-2-700">{st.trend}</div>
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-[1.5fr_1fr] gap-4 mb-4">
-        <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-heading text-organic-text">Symptom trends</h3>
-            <span className="text-xs text-organic-neutral-500">PHQ-9 / GAD-7 practice avg</span>
-          </div>
-          <svg viewBox="0 0 560 200" className="w-full h-[200px]">
-            <defs>
-              <linearGradient id="dashTrend" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor="#5262ad" stopOpacity="0.28" />
-                <stop offset="1" stopColor="#5262ad" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            <path d="M0,70 L80,88 L160,64 L240,96 L320,120 L400,110 L480,140 L560,150 L560,200 L0,200 Z" fill="url(#dashTrend)" />
-            <path d="M0,70 L80,88 L160,64 L240,96 L320,120 L400,110 L480,140 L560,150" fill="none" stroke="#5262ad" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M0,110 L80,120 L160,100 L240,118 L320,108 L400,130 L480,124 L560,138" fill="none" stroke="#c9903d" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="1 8" />
-          </svg>
-          <div className="flex gap-5 mt-2 text-xs text-organic-neutral-600">
-            <span className="flex items-center gap-1.5"><span className="w-4 h-[3px] bg-organic-accent rounded-sm" />PHQ-9</span>
-            <span className="flex items-center gap-1.5"><span className="w-4 h-[3px] bg-organic-accent-2 rounded-sm" />GAD-7</span>
-          </div>
-        </div>
-        <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
-          <h3 className="text-lg font-heading text-organic-text mb-3.5">Risk flags</h3>
-          <AlertsList />
-        </div>
-      </div>
-      <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
-        <div className="flex justify-between items-center mb-2">
-          <h3 className="text-lg font-heading text-organic-text">Priority patients</h3>
-          <span className="text-sm text-organic-accent-700">View all</span>
-        </div>
-        <PatientsTable patients={PATIENTS.slice(0, 4)} onOpenPatient={onOpenPatient} showNext />
-      </div>
-    </div>
-    </SampleGate>
-  )
-}
+function DashboardView({ clinicianCount, clinicianName }: { clinicianCount: number; clinicianName: string | null }) {
+  const [summary, setSummary] = useState<PracticeSummary | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-function DashboardWelcome({ onOpenPatient }: { onOpenPatient: (id: string) => void }) {
-  const [hideSampleData] = useSampleDataHidden()
-  return (
-    <SampleGate
-      hidden={hideSampleData}
-      placeholder={
-        <div className="text-sm text-organic-neutral-600 py-8">
-          Your practice overview will appear here once there is enough activity to summarize.
-        </div>
-      }
-    >
-    <div>
-      <div className="bg-gradient-to-br from-organic-accent-600 to-organic-accent-800 rounded-[28px] p-9 text-organic-accent-100 flex justify-between items-center gap-6 flex-wrap mb-[18px]">
-        <div className="max-w-[520px]">
-          <div className="text-[0.8125rem] opacity-80 mb-1.5">Thursday, July 24</div>
-          <h2 className="text-3xl font-heading text-organic-accent-100 mb-2">Good morning, Dr. Moustafa.</h2>
-          <p className="opacity-85 text-[0.9375rem]">3 risk alerts need review, 12 sessions are scheduled today, and 2 clinician invitations are pending.</p>
-        </div>
-        <button className="rounded-organic-pill bg-organic-accent-100 text-organic-accent-800 font-heading text-[0.9375rem] px-6 py-3.5 whitespace-nowrap">
-          Review alerts
-        </button>
-      </div>
-      <div className="grid grid-cols-4 gap-3.5 mb-[18px]">
-        {STATS.map((st) => (
-          <div key={st.label} className="bg-organic-surface rounded-organic-tile p-4 flex items-center gap-3 shadow-organic-sm">
-            <div className="w-[42px] h-[42px] rounded-organic-tile bg-organic-accent-100 grid place-items-center flex-none">
-              <st.icon size={20} className="text-organic-accent-700" />
-            </div>
-            <div>
-              <div className="font-heading text-2xl leading-none">{st.value}</div>
-              <div className="text-[0.7812rem] text-organic-neutral-600">{st.label}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
-          <h3 className="text-lg font-heading text-organic-text mb-3.5">Today&apos;s schedule</h3>
-          <div className="flex flex-col">
-            {PATIENTS.slice(0, 4).map((p) => (
-              <button key={p.id} onClick={() => onOpenPatient(p.id)} className="flex items-center gap-3 py-2.5 px-1 border-b border-organic-text/[0.07] last:border-b-0 text-left">
-                <span className="text-xs font-bold text-organic-accent-700 w-[52px]">10:00</span>
-                <div className="w-[30px] h-[30px] rounded-full bg-organic-accent-200 grid place-items-center text-[0.7812rem] font-bold text-organic-accent-800">{p.initials}</div>
-                <span className="flex-1 font-semibold text-[0.8438rem]">{p.name}</span>
-                <span className="text-xs text-organic-neutral-600">{p.clinician}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
-          <h3 className="text-lg font-heading text-organic-text mb-3.5">Risk flags</h3>
-          <AlertsList />
-        </div>
-      </div>
-    </div>
-    </SampleGate>
-  )
-}
+  useEffect(() => {
+    apiClient
+      .getPracticeSummary()
+      .then(setSummary)
+      .catch(() => setError('Could not load the practice figures.'))
+      .finally(() => setLoading(false))
+  }, [])
 
-function DashboardBento() {
-  const [hideSampleData] = useSampleDataHidden()
+  const now = new Date()
+
+  const tiles: StatTile[] = []
+  if (summary) {
+    tiles.push({
+      label: 'Active patients',
+      value: summary.active_cases,
+      note: summary.new_this_month > 0 ? `${summary.new_this_month} registered this month` : undefined,
+      icon: UsersRound,
+    })
+  }
+  if (clinicianCount > 0) {
+    tiles.push({ label: 'Clinicians', value: clinicianCount, icon: Stethoscope })
+  }
+  if (summary) {
+    tiles.push({
+      label: 'Patients flagged high risk',
+      value: summary.high_priority,
+      note: 'Risk level recorded on the patient record',
+      icon: AlertTriangle,
+    })
+    tiles.push({ label: 'Sessions scheduled today', value: summary.sessions_today, icon: CalendarClock })
+    tiles.push({ label: 'Assessments completed', value: summary.assessments_completed, note: 'All time', icon: ClipboardList })
+  }
+
   return (
-    <SampleGate
-      hidden={hideSampleData}
-      placeholder={
-        <div className="text-sm text-organic-neutral-600 py-8">
-          Practice health metrics will appear here once there is enough activity to report on.
+    <div>
+      <div className="bg-gradient-to-br from-organic-accent-600 to-organic-accent-800 rounded-[28px] p-9 text-organic-accent-100 mb-[18px]">
+        <div className="text-[0.8125rem] opacity-80 mb-1.5">
+          {now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
         </div>
-      }
-    >
-    <div className="grid grid-cols-4 gap-3.5" style={{ gridAutoRows: 'minmax(120px, auto)' }}>
-      <div className="col-span-2 row-span-2 bg-gradient-to-br from-organic-accent-2-600 to-organic-accent-2-800 rounded-organic-card p-6 text-organic-accent-2-100 flex flex-col justify-between">
-        <div>
-          <div className="text-xs opacity-80">Practice health</div>
-          <div className="font-heading text-5xl leading-none mt-2">94%</div>
-          <div className="opacity-85 text-[0.8125rem] mt-1.5">Assessment completion this month</div>
-        </div>
-        <svg viewBox="0 0 300 90" className="w-full h-20">
-          <path d="M0,70 L50,60 L100,64 L150,44 L200,50 L250,30 L300,24" fill="none" stroke="#fdf3e0" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" opacity={0.9} />
-        </svg>
+        <h2 className="text-3xl font-heading text-organic-accent-100 mb-2">
+          {greetingFor(now)}
+          {clinicianName ? `, ${clinicianName}` : ''}.
+        </h2>
+        {summary && (
+          <p className="opacity-85 text-[0.9375rem]">
+            {summary.sessions_today} {summary.sessions_today === 1 ? 'session is' : 'sessions are'} scheduled today
+            {summary.high_priority > 0 &&
+              ` · ${summary.high_priority} ${summary.high_priority === 1 ? 'patient is' : 'patients are'} flagged high risk`}
+            .
+          </p>
+        )}
       </div>
-      {STATS.map((st) => (
-        <div key={st.label} className="bg-organic-surface rounded-organic-tile p-[18px] shadow-organic-sm flex flex-col justify-between">
-          <st.icon size={19} className="text-organic-accent-500" />
-          <div>
-            <div className="font-heading text-[1.75rem] leading-none">{st.value}</div>
-            <div className="text-[0.7812rem] text-organic-neutral-600">{st.label}</div>
-          </div>
-        </div>
-      ))}
-      <div className="col-span-2 bg-organic-surface rounded-organic-tile p-5 shadow-organic-sm">
-        <h3 className="text-[1.0625rem] font-heading text-organic-text mb-3">Risk flags</h3>
-        <div className="flex flex-col gap-2">
-          {ALERTS.map((a) => (
-            <div key={a.name} className={`flex items-center gap-2.5 py-2.5 px-2.5 rounded-organic-tile ${a.med ? 'bg-organic-accent-2-100' : 'bg-organic-accent-100'}`}>
-              <span className={`w-2 h-2 rounded-full flex-none ${a.med ? 'bg-organic-accent-2-700' : 'bg-organic-accent-700'}`} />
-              <div className="flex-1 min-w-0 text-[0.8125rem]">
-                <span className="font-semibold">{a.name}</span> <span className="text-[0.7812rem] text-organic-neutral-700">— {a.detail}</span>
+
+      {loading && <div className="text-sm text-organic-neutral-600 py-6">Loading practice figures…</div>}
+      {error && (
+        <div className="text-sm text-organic-accent-800 bg-organic-accent-100 rounded-organic-tile px-3.5 py-2.5 mb-4">{error}</div>
+      )}
+
+      {tiles.length > 0 && (
+        <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(224px, 1fr))' }}>
+          {tiles.map((st) => (
+            <div key={st.label} className="bg-organic-surface rounded-organic-card p-[18px] shadow-organic-sm">
+              <div className="flex justify-between items-start gap-2">
+                <span className="text-xs text-organic-neutral-600">{st.label}</span>
+                <st.icon size={17} className="text-organic-accent-500 flex-none" />
               </div>
+              <div className="font-heading text-[2.25rem] my-1.5 text-organic-text">{st.value}</div>
+              {st.note && <div className="text-xs text-organic-neutral-600">{st.note}</div>}
             </div>
           ))}
         </div>
+      )}
+
+      <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
+        <h3 className="text-lg font-heading text-organic-text mb-1.5">Risk review</h3>
+        <p className="text-[0.8125rem] text-organic-neutral-600 leading-relaxed">
+          There is no live risk feed yet — nothing scores an assessment answer against a flag threshold and raises it
+          here — so this space is deliberately empty rather than filled with examples. The high-risk figure above counts
+          the risk level recorded on each patient record; open the Patient registry and filter by High risk to work
+          through those patients.
+        </p>
       </div>
     </div>
-    </SampleGate>
   )
 }
 
-function AlertsList() {
-  return (
-    <div className="flex flex-col gap-2.5">
-      {ALERTS.map((a) => (
-        <div key={a.name} className={`flex items-center gap-3 py-2.5 px-3 rounded-organic-tile ${a.med ? 'bg-organic-accent-2-100' : 'bg-organic-accent-100'}`}>
-          <span className={`w-2.5 h-2.5 rounded-full flex-none ${a.med ? 'bg-organic-accent-2-700' : 'bg-organic-accent-700'}`} />
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold text-[0.8438rem]">{a.name}</div>
-            <div className="text-[0.7812rem] text-organic-neutral-700 leading-snug">{a.detail}</div>
-          </div>
-          <span className="text-xs text-organic-neutral-500 whitespace-nowrap">{a.time}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function PatientsTable({ patients, onOpenPatient, showNext }: { patients: Patient[]; onOpenPatient: (id: string) => void; showNext?: boolean }) {
+// The "Next action" column is gone with the mock data that fed it: every real
+// row carried a literal em dash, because nothing computes a next action.
+function PatientsTable({ patients, onOpenPatient }: { patients: Patient[]; onOpenPatient: (id: string) => void }) {
   return (
     <table className="w-full border-collapse text-sm">
       <thead>
@@ -580,7 +518,6 @@ function PatientsTable({ patients, onOpenPatient, showNext }: { patients: Patien
           <th className="text-left text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Clinician</th>
           <th className="text-left text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Last session</th>
           <th className="text-left text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Risk</th>
-          {showNext && <th className="text-left text-[0.7812rem] tracking-wide uppercase text-organic-neutral-600 px-2 py-2.5 border-b border-organic-neutral-300/60">Next action</th>}
         </tr>
       </thead>
       <tbody>
@@ -597,7 +534,6 @@ function PatientsTable({ patients, onOpenPatient, showNext }: { patients: Patien
             <td className="px-2 py-3 border-b border-organic-text/[0.08]">
               <span className={`text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-pill ${RISK_STYLE[p.risk].bg} ${RISK_STYLE[p.risk].color}`}>{p.risk}</span>
             </td>
-            {showNext && <td className="px-2 py-3 border-b border-organic-text/[0.08] text-organic-neutral-700">{p.next}</td>}
           </tr>
         ))}
       </tbody>
@@ -656,23 +592,52 @@ function PatientsView({
   onOpenPatient,
   caseloadFilter,
   onClearCaseloadFilter,
+  total,
+  offset,
+  pageSize,
+  loading,
+  error,
+  onGoToOffset,
 }: {
   patients: Patient[]
   clinicians: ClinicianRow[]
   onOpenPatient: (id: string) => void
   caseloadFilter: string | null
   onClearCaseloadFilter: () => void
+  /** Rows behind the filter across every page, or null if the server sent none. */
+  total: number | null
+  offset: number
+  pageSize: number
+  loading: boolean
+  error: string | null
+  onGoToOffset: (offset: number) => void
 }) {
   const [filter, setFilter] = useState<'All' | 'High risk' | 'Intake'>('All')
   const byRiskOrStatus = patients.filter((p) => (filter === 'All' ? true : filter === 'High risk' ? p.risk === 'High' : p.status === 'Intake'))
   const filtered = caseloadFilter ? byRiskOrStatus.filter((p) => p.therapistId === caseloadFilter) : byRiskOrStatus
   const caseloadClinician = caseloadFilter ? clinicians.find((c) => c.id === caseloadFilter) : null
 
+  // The risk/status pills and the caseload filter both run over the rows this
+  // page happens to hold — the API has no filter for either — so whenever one
+  // is on, the counts below have to say so rather than read like practice-wide
+  // totals.
+  const clientFiltered = filter !== 'All' || caseloadFilter !== null
+
+  const first = patients.length === 0 ? 0 : offset + 1
+  const last = offset + patients.length
+  const hasPrev = offset > 0
+  // With a total we know exactly; without one, another page is possible only
+  // if this one came back full.
+  const hasNext = total === null ? patients.length === pageSize : last < total
+
   return (
     <div>
       {caseloadFilter && (
-        <div className="flex items-center gap-2 bg-organic-accent-100 text-organic-accent-800 text-sm rounded-organic-tile px-3.5 py-2 mb-3.5">
-          Showing {caseloadClinician?.fullName || 'this clinician'}&apos;s patients
+        <div className="flex items-center gap-2 bg-organic-accent-100 text-organic-accent-800 text-sm rounded-organic-tile px-3.5 py-2 mb-3.5 flex-wrap">
+          <span>
+            Showing {caseloadClinician?.fullName || 'this clinician'}&apos;s patients
+            {caseloadClinician ? ` — ${filtered.length} of their ${caseloadClinician.patientCount} on this page` : ''}
+          </span>
           <button onClick={onClearCaseloadFilter} className="ml-auto text-xs underline">
             Clear
           </button>
@@ -695,10 +660,59 @@ function PatientsView({
         </button>
       </div>
       <div className="bg-organic-surface rounded-organic-card p-[22px] pt-2 shadow-organic-sm">
-        {patients.length === 0 ? (
+        {error ? (
+          <div className="text-sm text-organic-accent-800 py-3">{error}</div>
+        ) : loading ? (
           <div className="text-sm text-organic-neutral-600 py-3">Loading…</div>
+        ) : patients.length === 0 ? (
+          <div className="text-sm text-organic-neutral-600 py-3">
+            {offset > 0 ? 'No patients on this page.' : 'No patients registered yet.'}
+          </div>
         ) : (
           <PatientsTable patients={filtered} onOpenPatient={onOpenPatient} />
+        )}
+
+        {/* The pager also shows on an empty page reached from a later offset —
+            otherwise there is no way back. */}
+        {!error && !loading && (patients.length > 0 || offset > 0) && (
+          <div className="flex items-center justify-between gap-3 flex-wrap pt-3.5 mt-1 border-t border-organic-neutral-300/50">
+            <div className="text-[0.8125rem] text-organic-neutral-600">
+              {patients.length === 0 ? (
+                <>No rows on this page{total !== null && <> · {total} in the registry</>}</>
+              ) : clientFiltered ? (
+                <>
+                  Showing {filtered.length} of the {patients.length} on this page
+                  {total !== null && <> · {total} in the registry</>}
+                </>
+              ) : total !== null ? (
+                <>
+                  Showing {first}–{last} of {total}
+                </>
+              ) : (
+                // No total came back, so how many are beyond this page is
+                // unknown — say that instead of implying these are all of them.
+                <>
+                  Showing {first}–{last} · total not reported by the server
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onGoToOffset(offset - pageSize)}
+                disabled={!hasPrev}
+                className="rounded-organic-pill border border-organic-neutral-300/60 bg-organic-surface text-[0.8125rem] font-semibold px-3.5 py-1.5 inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={15} /> Previous
+              </button>
+              <button
+                onClick={() => onGoToOffset(offset + pageSize)}
+                disabled={!hasNext}
+                className="rounded-organic-pill border border-organic-neutral-300/60 bg-organic-surface text-[0.8125rem] font-semibold px-3.5 py-1.5 inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Next <ChevronRight size={15} />
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -707,19 +721,14 @@ function PatientsView({
 
 // ─── Patient detail (drill-in) ──────────────────────────────────────────────
 
-const FOLDERS = [
-  { key: 'input', label: 'Intake & raw docs', icon: Folder },
-  { key: 'processed', label: 'Processed notes', icon: FolderCheck },
-  { key: 'output', label: 'AI summaries', icon: Sparkles },
-  { key: 'reports', label: 'Patient reports', icon: FileBadge },
-] as const
-
-const FOLDER_FILES: Record<string, { n: string; d: string }[]> = {
-  input: [{ n: 'Intake form.pdf', d: '2 days ago' }, { n: 'GP referral.pdf', d: '3 weeks ago' }, { n: 'Consent.pdf', d: '3 weeks ago' }],
-  processed: [{ n: 'Session 04 note.md', d: 'Yesterday' }, { n: 'Session 03 note.md', d: '1 week ago' }],
-  output: [{ n: 'AI summary — wk 4.md', d: 'Yesterday' }, { n: 'Risk digest.md', d: '2 days ago' }],
-  reports: [{ n: 'Progress report Q2.pdf', d: '5 days ago' }],
-}
+// The four-folder document browser that used to sit here (FOLDERS /
+// FOLDER_FILES) listed invented files -- "Intake form.pdf · 2 days ago",
+// "Session 04 note.md · Yesterday", "AI summary — wk 4.md", "Risk digest.md" --
+// against whichever REAL patient had just been clicked in the registry. It was
+// only wrapped in SampleGate, which defaults to showing samples, so those files
+// were what an admin saw by default on a named patient's record: a fabricated
+// clinical document trail. There is no documents endpoint to read, so the claim
+// is dropped rather than faked, and the honest empty state is now unconditional.
 
 function PatientDetailView({
   patient,
@@ -732,10 +741,8 @@ function PatientDetailView({
   onBack: () => void
   onReassigned: () => void
 }) {
-  const [folder, setFolder] = useState<string>('input')
   const [reassigning, setReassigning] = useState(false)
   const [reassignError, setReassignError] = useState<string | null>(null)
-  const [hideSampleData] = useSampleDataHidden()
 
   // Transferring a patient between clinicians had no error handling: on a
   // 403/404/500 the promise rejected unhandled, the select snapped back, and
@@ -798,29 +805,11 @@ function PatientDetailView({
       )}
       <div className="grid grid-cols-[2fr_1fr] gap-4">
         <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
-          <SampleGate hidden={hideSampleData} placeholder={<p className="text-[0.8125rem] text-organic-neutral-600">No documents uploaded yet.</p>}>
-            <div className="flex gap-2.5 mb-[18px] flex-wrap">
-              {FOLDERS.map((f) => (
-                <button
-                  key={f.key}
-                  onClick={() => setFolder(f.key)}
-                  className={`text-xs font-semibold px-3.5 py-2 rounded-organic-pill inline-flex items-center gap-1.5 ${folder === f.key ? 'bg-organic-accent-100 text-organic-accent-800' : 'text-organic-neutral-800'}`}
-                >
-                  <f.icon size={15} /> {f.label}
-                </button>
-              ))}
-            </div>
-            <div className="flex flex-col gap-2">
-              {(FOLDER_FILES[folder] || []).map((file) => (
-                <div key={file.n} className="flex items-center gap-3 py-3.5 px-3.5 bg-organic-neutral-100 rounded-organic-tile">
-                  <FileText size={18} className="text-organic-accent-600" />
-                  <span className="flex-1 font-semibold text-[0.8438rem]">{file.n}</span>
-                  <span className="text-[0.7812rem] text-organic-neutral-500">{file.d}</span>
-                  <Lock size={14} className="text-organic-neutral-400" />
-                </div>
-              ))}
-            </div>
-          </SampleGate>
+          <h4 className="text-base font-heading mb-2">Documents</h4>
+          <p className="text-[0.8125rem] text-organic-neutral-600 leading-relaxed">
+            No documents are stored against this patient. Nothing in the product uploads or reads patient files yet, so
+            this panel stays empty rather than showing an example of what one would look like.
+          </p>
         </div>
         <aside className="flex flex-col gap-3.5">
           <div className="bg-gradient-to-br from-organic-accent-100 to-organic-surface rounded-organic-tile p-5 shadow-organic-sm">
@@ -1374,57 +1363,242 @@ function AssessmentReviewPanel({
 }
 
 // ─── Content library ────────────────────────────────────────────────────────
+//
+// GET /admin/resources has been serving the ingested knowledge base all along
+// and had no caller: this view rendered six invented rows ("Grounding &
+// Breathing (Audio)", "DBT Skills — Distress Tolerance") with invented access
+// labels. It now reads the real table.
+//
+// The provenance marker is the part that matters clinically. Each ingested
+// topic library is tagged either:
+//
+//   verified    an audit independently re-checked a sample of that topic's
+//               citations against live sources
+//   unverified  that check never ran, so the citations behind these items have
+//               NOT been independently confirmed
+//
+// A reading list that was never checked must not look like one that was, so
+// every card states which it is and the header counts how many are unchecked.
 
-const CONTENT = [
-  { title: 'CBT Thought Record Workbook', type: 'PDF', icon: FileText, cat: 'Worksheets', access: 'All clinicians' },
-  { title: 'Grounding & Breathing (Audio)', type: 'Audio', icon: AudioLines, cat: 'Mindfulness', access: 'Patients' },
-  { title: 'Understanding Trauma — Guide', type: 'eBook', icon: BookOpen, cat: 'Psychoeducation', access: 'Group: Trauma team' },
-  { title: 'Sleep Hygiene Handout', type: 'PDF', icon: FileText, cat: 'Handouts', access: 'All clinicians' },
-  { title: 'DBT Skills — Distress Tolerance', type: 'Video', icon: PlayCircle, cat: 'Video course', access: 'Licensed only' },
-  { title: 'Safety Plan Template', type: 'DOCX', icon: FileText, cat: 'Clinical forms', access: 'Clinicians' },
-]
+type Provenance = 'verified' | 'unverified' | 'unrecorded'
+
+// Tags that describe the item rather than its subject: the media word and the
+// provenance marker. Whatever is left is the topic.
+const NON_TOPIC_TAGS = new Set(['book', 'paper', 'video', 'verified', 'unverified'])
+
+const CATEGORY_META: Record<string, { label: string; icon: typeof BookOpen }> = {
+  BOOK: { label: 'Books', icon: BookOpen },
+  PAPER: { label: 'Papers', icon: FileText },
+  VIDEO: { label: 'Videos', icon: PlayCircle },
+}
+
+function categoryLabel(category: string): string {
+  return CATEGORY_META[category]?.label || category
+}
+
+function provenanceOf(tags: string[]): Provenance {
+  if (tags.includes('verified')) return 'verified'
+  if (tags.includes('unverified')) return 'unverified'
+  return 'unrecorded'
+}
+
+function topicOf(tags: string[]): string | null {
+  return tags.find((t) => !NON_TOPIC_TAGS.has(t)) || null
+}
+
+function humanTopic(slug: string): string {
+  return slug.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+const PROVENANCE_STYLE: Record<Provenance, { label: string; title: string; className: string }> = {
+  verified: {
+    label: 'Citations checked',
+    title: 'An audit independently re-checked a sample of this topic’s citations against live sources.',
+    className: 'bg-organic-accent-2-100 text-organic-accent-2-800',
+  },
+  unverified: {
+    label: 'Citations NOT checked',
+    title: 'No independent citation check was ever run for this topic. Verify anything you rely on before using it with a patient.',
+    className: 'bg-organic-accent-200 text-organic-accent-800',
+  },
+  unrecorded: {
+    label: 'Provenance not recorded',
+    title: 'This item carries no provenance marker, so there is no record of a citation check either way.',
+    className: 'bg-organic-neutral-200 text-organic-neutral-700',
+  },
+}
+
+function ProvenanceBadge({ provenance }: { provenance: Provenance }) {
+  const style = PROVENANCE_STYLE[provenance]
+  return (
+    <span
+      title={style.title}
+      className={`text-[0.7812rem] font-semibold px-2.5 py-0.5 rounded-organic-pill inline-flex items-center gap-1 ${style.className}`}
+    >
+      {provenance === 'verified' ? <ShieldCheck size={13} /> : <AlertTriangle size={13} />}
+      {style.label}
+    </span>
+  )
+}
+
+function FilterPill({ label, count, active, onClick }: { label: string; count: number; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`text-xs px-4 py-1.5 rounded-organic-pill font-semibold ${
+        active ? 'bg-organic-accent text-organic-accent-100' : 'bg-organic-surface text-organic-neutral-700 border border-organic-neutral-300/60'
+      }`}
+    >
+      {label} <span className="opacity-70">{count}</span>
+    </button>
+  )
+}
 
 function ContentView() {
-  const [hideSampleData] = useSampleDataHidden()
+  const [resources, setResources] = useState<ResourceItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [category, setCategory] = useState<string>('All')
+  const [topic, setTopic] = useState<string>('All')
+
+  useEffect(() => {
+    apiClient
+      .getResources()
+      .then(setResources)
+      .catch(() => setError('Could not load the content library.'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const withTags = resources.map((r) => ({ ...r, tags: Array.isArray(r.tags) ? r.tags : [] }))
+
+  const topicMatches = (r: ResourceItem) => topic === 'All' || topicOf(r.tags) === topic
+  const categoryMatches = (r: ResourceItem) => category === 'All' || r.category === category
+
+  const categories = Array.from(new Set(withTags.map((r) => r.category))).sort()
+  const topics = Array.from(
+    new Set(withTags.map((r) => topicOf(r.tags)).filter((t): t is string => t !== null)),
+  ).sort()
+
+  const visible = withTags.filter((r) => categoryMatches(r) && topicMatches(r))
+  const unchecked = visible.filter((r) => provenanceOf(r.tags) !== 'verified')
+
+  // Grouped by category so a category filter of "All" still reads as a library
+  // rather than one undifferentiated wall of cards.
+  const grouped = visible.reduce<Record<string, ResourceItem[]>>((acc, r) => {
+    ;(acc[r.category] ||= []).push(r)
+    return acc
+  }, {})
+  const groupOrder = Object.keys(grouped).sort()
+
+  if (loading) return <div className="text-sm text-organic-neutral-600 py-8">Loading the content library…</div>
+  if (error) return <div className="text-sm text-organic-accent-800 bg-organic-accent-100 rounded-organic-tile px-3.5 py-2.5">{error}</div>
+  if (resources.length === 0) {
+    return <div className="text-sm text-organic-neutral-600 py-8">No resources have been ingested for this practice yet.</div>
+  }
+
   return (
-    <SampleGate
-      hidden={hideSampleData}
-      placeholder={<div className="text-sm text-organic-neutral-600 py-8">No content has been uploaded to the library yet.</div>}
-    >
     <div>
-      <div className="flex justify-between items-center gap-3 flex-wrap mb-4">
-        <div className="inline-flex gap-2 flex-wrap">
-          {['All', 'Worksheets', 'Mindfulness', 'Video'].map((f, i) => (
-            <span key={f} className={`text-xs px-4 py-1.5 rounded-organic-pill font-semibold ${i === 0 ? 'bg-organic-accent text-organic-accent-100' : 'bg-organic-surface text-organic-neutral-700 border border-organic-neutral-300/60'}`}>
-              {f}
-            </span>
+      <div className="flex flex-col gap-2.5 mb-4">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[0.7812rem] uppercase tracking-wide text-organic-neutral-500 w-[62px]">Type</span>
+          <FilterPill label="All" count={withTags.filter(topicMatches).length} active={category === 'All'} onClick={() => setCategory('All')} />
+          {categories.map((c) => (
+            <FilterPill
+              key={c}
+              label={categoryLabel(c)}
+              count={withTags.filter((r) => r.category === c && topicMatches(r)).length}
+              active={category === c}
+              onClick={() => setCategory(c)}
+            />
           ))}
         </div>
-        <button className="rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm px-5 py-2.5 inline-flex items-center gap-2">
-          <Upload size={16} /> Upload content
-        </button>
-      </div>
-      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
-        {CONTENT.map((c) => (
-          <div key={c.title} className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm flex flex-col gap-3.5">
-            <div className="flex justify-between items-start">
-              <div className="w-[46px] h-[46px] rounded-organic-tile bg-organic-accent-100 grid place-items-center">
-                <c.icon size={22} className="text-organic-accent-700" />
-              </div>
-              <span className="text-[0.7812rem] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-200 text-organic-neutral-700">{c.type}</span>
-            </div>
-            <div>
-              <div className="font-bold text-[0.9375rem] leading-tight">{c.title}</div>
-              <div className="text-xs text-organic-neutral-600 mt-1">{c.cat}</div>
-            </div>
-            <div className="flex items-center gap-1.5 pt-3 border-t border-organic-neutral-300/50 text-xs text-organic-neutral-700">
-              <ShieldCheck size={14} className="text-organic-accent-2-600" /> {c.access}
-            </div>
+        {topics.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[0.7812rem] uppercase tracking-wide text-organic-neutral-500 w-[62px]">Topic</span>
+            <FilterPill label="All" count={withTags.filter(categoryMatches).length} active={topic === 'All'} onClick={() => setTopic('All')} />
+            {topics.map((t) => (
+              <FilterPill
+                key={t}
+                label={humanTopic(t)}
+                count={withTags.filter((r) => topicOf(r.tags) === t && categoryMatches(r)).length}
+                active={topic === t}
+                onClick={() => setTopic(t)}
+              />
+            ))}
           </div>
-        ))}
+        )}
       </div>
+
+      <div className="bg-organic-surface rounded-organic-tile p-4 shadow-organic-sm mb-4 text-[0.8125rem] text-organic-neutral-700 leading-relaxed">
+        <div className="flex items-start gap-2.5">
+          <ShieldCheck size={17} className="text-organic-accent-2-600 flex-none mt-0.5" />
+          <div>
+            <strong className="font-semibold">Citations checked</strong> means an audit independently re-checked a sample
+            of that topic&apos;s citations against live sources. <strong className="font-semibold">Citations NOT checked</strong>{' '}
+            means that check never ran — treat those entries as unconfirmed and verify anything you pass to a patient.
+            {unchecked.length > 0 && (
+              <div className="mt-1.5 text-organic-accent-800">
+                {unchecked.length} of the {visible.length} {visible.length === 1 ? 'item' : 'items'} shown{' '}
+                {unchecked.length === 1 ? 'has' : 'have'} not been through a citation check.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {visible.length === 0 && <div className="text-sm text-organic-neutral-600 py-6">Nothing matches those filters.</div>}
+
+      {groupOrder.map((cat) => (
+        <div key={cat} className="mb-6">
+          <h3 className="text-[0.7812rem] font-heading uppercase tracking-wide text-organic-neutral-500 mb-2.5 px-1">
+            {categoryLabel(cat)} · {grouped[cat].length}
+          </h3>
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+            {grouped[cat].map((r) => {
+              const Icon = CATEGORY_META[r.category]?.icon || FileText
+              const slug = topicOf(r.tags)
+              return (
+                <div key={r.id} className="bg-organic-surface rounded-organic-card p-5 shadow-organic-sm flex flex-col gap-3">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="w-[46px] h-[46px] rounded-organic-tile bg-organic-accent-100 grid place-items-center flex-none">
+                      <Icon size={22} className="text-organic-accent-700" />
+                    </div>
+                    <span className="text-[0.7812rem] px-2.5 py-0.5 rounded-organic-pill bg-organic-neutral-200 text-organic-neutral-700">
+                      {r.category}
+                    </span>
+                  </div>
+                  <div>
+                    <div className="font-bold text-[0.9375rem] leading-tight">{r.title}</div>
+                    {r.author && <div className="text-xs text-organic-neutral-600 mt-1">{r.author}</div>}
+                  </div>
+                  {r.description && (
+                    <p className="text-[0.8125rem] text-organic-neutral-700 leading-relaxed line-clamp-4">{r.description}</p>
+                  )}
+                  <div className="flex items-center gap-1.5 flex-wrap mt-auto">
+                    {slug && (
+                      <span className="text-[0.7812rem] px-2.5 py-0.5 rounded-organic-pill bg-organic-accent-100 text-organic-accent-800">
+                        {humanTopic(slug)}
+                      </span>
+                    )}
+                    <ProvenanceBadge provenance={provenanceOf(r.tags)} />
+                  </div>
+                  {r.file_url && (
+                    <a
+                      href={r.file_url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="text-[0.8125rem] font-semibold text-organic-accent-700 inline-flex items-center gap-1.5 pt-2.5 border-t border-organic-neutral-300/50"
+                    >
+                      <ExternalLink size={14} /> Open resource
+                    </a>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
     </div>
-    </SampleGate>
   )
 }
 

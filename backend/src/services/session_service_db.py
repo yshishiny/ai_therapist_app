@@ -15,3 +15,13 @@ class SessionServiceDb:
             payload=body.model_dump(),
             org_id=org_id,
         )
+
+    async def set_note_approval(
+        self, patient_id: str, note_id: str, org_id: str, therapist_approved: bool
+    ) -> dict | None:
+        return await self.repository.set_note_approval(
+            patient_id=patient_id,
+            note_id=note_id,
+            org_id=org_id,
+            therapist_approved=therapist_approved,
+        )

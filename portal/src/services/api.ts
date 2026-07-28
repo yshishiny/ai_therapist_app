@@ -4,8 +4,73 @@ import { getAccessToken, getRefreshToken, saveTokens, clearTokens } from './stor
 
 const API_URL = (import.meta as any).env.VITE_API_URL || 'https://aitherapistapp-production.up.railway.app'
 
+// Follow-up booked from the end of a session. Times are absolute ISO instants
+// so the backend never has to guess the clinician's timezone.
+export type NextAppointmentIn = {
+  start_time: string
+  end_time: string
+  appointment_type?: string
+  location?: string
+}
+
 let isRefreshing = false
 let failedQueue: Array<{ resolve: (value: any) => void; reject: (reason?: any) => void }> = []
+
+/** One page of GET /patients. */
+export interface PatientsPage {
+  items: any[]
+  /**
+   * How many patients exist behind the filter, NOT how many are in `items`.
+   * `null` means the server did not report one — it is never guessed from the
+   * page length, because "50 rows" and "50 rows of 300" must not look alike.
+   */
+  total: number | null
+  limit: number | null
+  offset: number
+}
+
+/**
+ * GET /patients returns `{ items, total, limit, offset }`. Older server builds
+ * returned a bare array; that is normalised here with `total: null` so callers
+ * render "Showing 1-50" rather than claiming a total nobody sent.
+ */
+function toPatientsPage(data: any, requested?: { limit?: number; offset?: number }): PatientsPage {
+  const fallbackLimit = requested?.limit ?? null
+  const fallbackOffset = requested?.offset ?? 0
+  if (Array.isArray(data)) {
+    return { items: data, total: null, limit: fallbackLimit, offset: fallbackOffset }
+  }
+  return {
+    items: Array.isArray(data?.items) ? data.items : [],
+    total: typeof data?.total === 'number' ? data.total : null,
+    limit: typeof data?.limit === 'number' ? data.limit : fallbackLimit,
+    offset: typeof data?.offset === 'number' ? data.offset : fallbackOffset,
+  }
+}
+
+/** A row of the practice content library (GET /admin/resources). */
+export interface ResourceItem {
+  id: string
+  title: string
+  author: string | null
+  category: string
+  description: string | null
+  file_url: string | null
+  /** Topic slug, media word, and the provenance marker ('verified' / 'unverified'). */
+  tags: string[]
+  created_at: string
+}
+
+/** Practice-wide counters (GET /dashboard/summary). Every field is a COUNT(*). */
+export interface PracticeSummary {
+  active_cases: number
+  new_this_month: number
+  risk_alerts: number
+  high_priority: number
+  assessments_completed: number
+  sessions_today: number
+  sessions_remaining: number
+}
 
 const processQueue = (error: any, token?: string) => {
   failedQueue.forEach(prom => {
@@ -120,9 +185,25 @@ class ApiClient {
   }
 
   // Patient endpoints
-  async getPatients(opts?: { mine?: boolean }) {
-    const response = await this.client.get('/patients', { params: opts?.mine ? { mine: true } : undefined })
-    return response.data
+
+  // GET /patients answers with a paginated envelope: { items, total, limit, offset }.
+  // Callers that only want the rows should use getPatients() below — it unwraps
+  // the envelope and still accepts the older bare-array response, so no caller
+  // breaks depending on which side of the change is deployed first.
+  async getPatientsPage(opts?: { mine?: boolean; limit?: number; offset?: number }): Promise<PatientsPage> {
+    const params: Record<string, string | number | boolean> = {}
+    if (opts?.mine) params.mine = true
+    if (opts?.limit !== undefined) params.limit = opts.limit
+    if (opts?.offset !== undefined) params.offset = opts.offset
+    const response = await this.client.get('/patients', {
+      params: Object.keys(params).length ? params : undefined,
+    })
+    return toPatientsPage(response.data, opts)
+  }
+
+  async getPatients(opts?: { mine?: boolean; limit?: number; offset?: number }) {
+    const page = await this.getPatientsPage(opts)
+    return page.items
   }
 
   async getCurrentAppointment() {
@@ -178,6 +259,13 @@ class ApiClient {
   async getAssessmentCatalog() {
     const response = await this.client.get('/admin/assessment-catalog')
     return response.data
+  }
+
+  // Content library. The rows are the ingested knowledge-base entries; each
+  // carries its topic slug and its provenance marker inside `tags`.
+  async getResources(): Promise<ResourceItem[]> {
+    const response = await this.client.get<ResourceItem[]>('/admin/resources')
+    return Array.isArray(response.data) ? response.data : []
   }
 
   async uploadAssessmentJson(file: File) {
@@ -269,10 +357,14 @@ class ApiClient {
     return response.data
   }
 
-  async createClinicianSession(patientId: string, templateKeys: string[]) {
+  // `appointmentId` links the session to the calendar slot it is being held in,
+  // so the two rows stop being separate records of the same event. Omitted when
+  // the session was started ad hoc rather than from a booked appointment.
+  async createClinicianSession(patientId: string, templateKeys: string[], appointmentId?: string | null) {
     const response = await this.client.post('/clinician-sessions', {
       patient_id: patientId,
       template_keys: templateKeys,
+      ...(appointmentId ? { appointment_id: appointmentId } : {}),
     })
     return response.data
   }
@@ -282,8 +374,17 @@ class ApiClient {
     return response.data
   }
 
-  async completeClinicianSession(sessionId: string) {
-    const response = await this.client.post(`/clinician-sessions/${sessionId}/complete`)
+  // `duration_minutes` is the elapsed consultation time measured by the client;
+  // `next_appointment` books the follow-up in the same round trip and comes back
+  // linked as `next_appointment_id`.
+  async completeClinicianSession(
+    sessionId: string,
+    body?: { duration_minutes?: number; next_appointment?: NextAppointmentIn },
+  ) {
+    const response = await this.client.post(
+      `/clinician-sessions/${sessionId}/complete`,
+      body && Object.keys(body).length ? body : undefined,
+    )
     return response.data
   }
 
@@ -298,6 +399,13 @@ class ApiClient {
     return response.data
   }
 
+  // Sign-off. `therapist_approved` is what the dashboard's "Notes due" counter
+  // reads, so this is the only thing that can ever take a note off that list.
+  async updatePatientSessionNote(patientId: string, noteId: string, data: { therapist_approved: boolean }) {
+    const response = await this.client.patch(`/patients/${patientId}/sessions/${noteId}`, data)
+    return response.data
+  }
+
   async updateSession(sessionId: string, data: any) {
     const response = await this.client.patch(`/sessions/${sessionId}`, data)
     return response.data
@@ -306,6 +414,13 @@ class ApiClient {
   // Dashboard endpoints
   async getDashboard() {
     const response = await this.client.get('/dashboard')
+    return response.data
+  }
+
+  // Practice-wide counters. Every field is a COUNT(*) scoped to the caller's
+  // org, so these are safe to render as fact.
+  async getPracticeSummary(): Promise<PracticeSummary> {
+    const response = await this.client.get<PracticeSummary>('/dashboard/summary')
     return response.data
   }
 
