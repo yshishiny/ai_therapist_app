@@ -28,11 +28,22 @@ class PatientServiceDb:
         updates = body.model_dump(exclude_unset=True)
         return await self.repository.update_patient(patient_id=patient_id, org_id=org_id, updates=updates)
 
-    async def create_patient(self, body: PatientCreateIn, org_id: str, therapist_id: str) -> dict:
+    async def create_patient(
+        self,
+        body: PatientCreateIn,
+        org_id: str,
+        therapist_id: str,
+        source: str = 'MANUAL',
+        created_by: str | None = None,
+        source_detail: str | None = None,
+    ) -> dict:
         return await self.repository.create_patient(
             payload=body.model_dump(),
             org_id=org_id,
             therapist_id=therapist_id,
+            source=source,
+            created_by=created_by,
+            source_detail=source_detail,
         )
 
     async def find_clinician_id_by_email(self, email: str, org_id: str) -> str | None:

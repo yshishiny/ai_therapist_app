@@ -18,6 +18,11 @@ class PatientOut(BaseModel):
     emergency_contact_name: str | None = None
     emergency_contact_phone: str | None = None
     consent_ai_analysis: bool = False
+    # How this record arrived and who added it. BULK_UPLOAD / MANUAL / SEED /
+    # SYSTEM -- a seeded demo record must be distinguishable from a real one.
+    source: str | None = None
+    created_by: str | None = None
+    source_detail: str | None = None
     wellbeing_status: str | None = None
 
 

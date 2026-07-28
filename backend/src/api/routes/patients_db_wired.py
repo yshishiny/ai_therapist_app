@@ -290,7 +290,14 @@ async def bulk_upload_patients(
 
         try:
             body = PatientCreateIn(**payload)
-            await service.create_patient(body=body, org_id=context.org_id, therapist_id=therapist_id)
+            await service.create_patient(
+                body=body,
+                org_id=context.org_id,
+                therapist_id=therapist_id,
+                source='BULK_UPLOAD',
+                created_by=context.user_id,
+                source_detail=f'Imported from {file.filename or "an uploaded file"}',
+            )
             created += 1
         except Exception as exc:
             errors.append({'row': row_number, 'error': f'Could not create patient: {exc}'})
@@ -343,4 +350,7 @@ async def create_patient(
         body=body,
         org_id=context.org_id,
         therapist_id=context.user_id,
+        source='MANUAL',
+        created_by=context.user_id,
+        source_detail='Added in the practice console',
     )

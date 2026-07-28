@@ -16,6 +16,7 @@ class PatientRepositoryDbReal:
             rows = await self.db.fetch(
                 """
                 SELECT id, name, status, risk, diagnosis, last_seen, therapist_id, dob, gender,
+                       source, created_by, source_detail,
                        phone, email, emergency_contact_name, emergency_contact_phone,
                        consent_ai_analysis, wellbeing_status
                 FROM patients
@@ -32,6 +33,7 @@ class PatientRepositoryDbReal:
             rows = await self.db.fetch(
                 """
                 SELECT id, name, status, risk, diagnosis, last_seen, therapist_id, dob, gender,
+                       source, created_by, source_detail,
                        phone, email, emergency_contact_name, emergency_contact_phone,
                        consent_ai_analysis, wellbeing_status
                 FROM patients
@@ -73,6 +75,7 @@ class PatientRepositoryDbReal:
         row = await self.db.fetchrow(
             """
             SELECT id, name, status, risk, diagnosis, last_seen, therapist_id, dob, gender,
+                       source, created_by, source_detail,
                    phone, email, emergency_contact_name, emergency_contact_phone,
                    consent_ai_analysis, wellbeing_status
             FROM patients
@@ -113,6 +116,8 @@ class PatientRepositoryDbReal:
         data = dict(row)
         data["id"] = str(data["id"])
         data["diagnosis"] = data.get("diagnosis") or ""
+        if data.get("created_by") is not None:
+            data["created_by"] = str(data["created_by"])
         data["consent_ai_analysis"] = bool(data.get("consent_ai_analysis"))
         return data
 
@@ -131,7 +136,18 @@ class PatientRepositoryDbReal:
         )
         return str(clinician_id) if clinician_id is not None else None
 
-    async def create_patient(self, payload: dict, org_id: str, therapist_id: str) -> dict:
+    async def create_patient(
+        self,
+        payload: dict,
+        org_id: str,
+        therapist_id: str,
+        source: str = 'MANUAL',
+        created_by: str | None = None,
+        source_detail: str | None = None,
+    ) -> dict:
+        """`source` says HOW the record arrived and `created_by` says WHO added
+        it, so a seeded demo record can never again be mistaken for a real
+        person on a clinician's caseload."""
         if self.db is None:
             return payload
         new_id = uuid.uuid4()
@@ -142,8 +158,9 @@ class PatientRepositoryDbReal:
             """
             INSERT INTO patients
                 (id, org_id, therapist_id, name, full_name, gender, dob,
-                 diagnosis, risk, status, phone, email, created_at, updated_at)
-            VALUES ($1,$2,$3,$4,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12)
+                 diagnosis, risk, status, phone, email, created_at, updated_at,
+                 source, created_by, source_detail)
+            VALUES ($1,$2,$3,$4,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12,$13,$14,$15)
             """,
             new_id,
             uuid.UUID(org_id),
@@ -157,6 +174,9 @@ class PatientRepositoryDbReal:
             payload.get('phone'),
             payload.get('email'),
             now,
+            source,
+            uuid.UUID(created_by) if created_by else None,
+            source_detail,
         )
         return {
             'id': str(new_id),
@@ -168,4 +188,7 @@ class PatientRepositoryDbReal:
             'therapist_id': therapist_id,
             'dob': dob,
             'gender': payload.get('gender'),
+            'source': source,
+            'created_by': created_by,
+            'source_detail': source_detail,
         }
