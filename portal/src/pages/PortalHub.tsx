@@ -3,14 +3,18 @@ import { Brain, Building2, ShieldCheck, Stethoscope, HeartHandshake, ArrowRight 
 
 const PORTALS = [
   {
+    // Advertised as built, but there is no platform-administrator role and no
+    // billing system behind it -- see PlatformAdminPortal.tsx. Marked so the
+    // hub does not promise a console that cannot exist yet.
     name: 'Platform Admin',
     layer: 'Layer 1',
     href: '/platform-admin',
     icon: Building2,
     iconBg: 'bg-organic-neutral-900',
     iconColor: 'text-organic-accent-100',
-    desc: 'Your company — tenants, plans, global catalog and revenue.',
-    tags: ['Tenants', 'MRR', 'Plans', 'Catalog'],
+    desc: 'Cross-clinic administration. Not built yet — needs a platform role and a billing system.',
+    tags: ['Not available'],
+    unavailable: true,
   },
   {
     name: 'Practice Admin',
@@ -71,7 +75,9 @@ export default function PortalHub() {
             <Link
               key={p.name}
               to={p.href}
-              className="block bg-organic-surface rounded-[26px] p-[26px] shadow-organic-sm border border-organic-neutral-300/50 relative overflow-hidden"
+              className={`block bg-organic-surface rounded-[26px] p-[26px] shadow-organic-sm border border-organic-neutral-300/50 relative overflow-hidden ${
+                (p as any).unavailable ? 'opacity-60' : ''
+              }`}
             >
               <div className="relative">
                 <div className="flex items-center justify-between mb-5">
