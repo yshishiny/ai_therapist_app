@@ -129,10 +129,27 @@ def _parse_xlsx_rows(raw: bytes) -> list[dict]:
                    "Use the 'Patients' sheet of the intake form without renaming its columns.",
         )
 
+    # The form pre-fills the assigned clinician down the whole sheet, so a row
+    # carrying only that value is still an unused template row. Judge emptiness
+    # on everything EXCEPT that column -- but no further: a row with a diagnosis
+    # or a date and no name is a real mistake and must be reported, not skipped.
+    significant = [i for i, key in enumerate(header) if key != 'therapist_email']
+
     out: list[dict] = []
+    # Sheet row numbers, carried through so an error can name the line the
+    # clinician is actually looking at. Counting positions in the parsed list
+    # instead would drift by one for every blank row skipped above it, and send
+    # someone to correct the wrong patient.
+    sheet_row = 1  # the header we just consumed
     for values in rows_iter:
-        if values is None or all(v is None or str(v).strip() == '' for v in values):
-            continue  # a blank pre-formatted row, not a patient
+        sheet_row += 1
+        if values is None:
+            continue
+        if all(
+            i >= len(values) or values[i] is None or str(values[i]).strip() == ''
+            for i in significant
+        ):
+            continue  # an unused template row, not a patient
         row: dict = {}
         for key, value in zip(header, values):
             if not key:
@@ -145,6 +162,7 @@ def _parse_xlsx_rows(raw: bytes) -> list[dict]:
                 row[key] = value.isoformat()
             else:
                 row[key] = str(value).strip()
+        row['__sheet_row__'] = sheet_row
         out.append(row)
     return out
 
@@ -223,7 +241,13 @@ async def bulk_upload_patients(
     email_cache: dict[str, str | None] = {}
 
     # Row numbers match the source file: header = row 1, first data row = 2.
-    for row_number, raw_row in enumerate(rows, start=2):
+    # A spreadsheet carries its own true row number, because blank rows are
+    # skipped during parsing and a positional count would drift past them.
+    for position, raw_row in enumerate(rows, start=2):
+        row_number = position
+        if isinstance(raw_row, dict) and '__sheet_row__' in raw_row:
+            raw_row = dict(raw_row)
+            row_number = raw_row.pop('__sheet_row__')
         if not isinstance(raw_row, dict):
             errors.append({'row': row_number, 'error': 'Row must be an object of patient fields.'})
             continue

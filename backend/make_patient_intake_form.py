@@ -45,6 +45,8 @@ GENDERS = ["Female", "Male", "Non-binary", "Prefer not to say"]
 RISKS = ["Low", "Med", "High"]
 STATUSES = ["Active", "Intake", "Maintenance", "Discharged"]
 
+DEFAULT_THERAPIST_EMAIL = "heba.moustafa5@gmail.com"
+
 MAX_ROWS = 200  # BULK_UPLOAD_MAX_ROWS
 DATA_ROWS = 120  # pre-formatted blank rows; the cap is enforced server-side
 
@@ -142,10 +144,10 @@ def build_instructions(ws) -> None:
         "status": "Where the patient is in your service. Defaults to Active.",
         "phone": "Any format. Include the country code if you have it.",
         "email": "Only if the patient is to be given access to the patient app.",
-        "therapist_email": "The clinician who will hold this patient, written as the email address "
-                           "they sign in with. Leave blank to assign them to whoever imports the "
-                           "file. An address the practice does not recognise is reported back "
-                           "rather than guessed at.",
+        "therapist_email": f"Pre-filled with {DEFAULT_THERAPIST_EMAIL}, so you can leave it as it "
+                           "is. Change it only if a patient belongs to a different clinician, and "
+                           "use the address they sign in with. An address the practice does not "
+                           "recognise is reported back rather than guessed at.",
     }
     r = header_row + 1
     for key, label, required, _w in COLUMNS:
@@ -186,9 +188,9 @@ def build_instructions(ws) -> None:
 
     examples = [
         ["Layla Hassan", "Female", "1994-03-22", "Generalised anxiety", "Med", "Active",
-         "+20 100 555 0134", "layla.hassan@example.com", "heba.moustafa5@gmail.com"],
+         "+20 100 555 0134", "layla.hassan@example.com", DEFAULT_THERAPIST_EMAIL],
         ["Omar Naguib", "Male", "1981-11-04", "Adjustment disorder", "Low", "Intake",
-         "+20 100 555 0187", "", ""],
+         "+20 100 555 0187", "", DEFAULT_THERAPIST_EMAIL],
     ]
     for k, ex in enumerate(examples, start=1):
         for j, val in enumerate(ex):
@@ -234,6 +236,12 @@ def build_patients(ws) -> None:
                 c.fill = REQ_FILL
             if key == "dob":
                 c.number_format = "@"  # text, so 1990-01-15 is never re-formatted as a date
+            if key == "therapist_email":
+                # Pre-filled so nobody has to type or misspell it. The importer
+                # ignores this column when deciding whether a row is an unused
+                # template row, so a sheet of pre-filled blanks stays blank.
+                c.value = DEFAULT_THERAPIST_EMAIL
+                c.font = Font(name=FONT, size=10, color=MUTED)
 
     def add_list(col_key: str, values: list[str], prompt: str) -> None:
         idx = next(i for i, (k, *_r) in enumerate(COLUMNS, start=1) if k == col_key)
