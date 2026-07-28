@@ -24,7 +24,6 @@ import {
   UserX,
   UsersRound,
   FileEdit,
-  Sparkles,
   FileText,
   PenLine,
   Volume2,
@@ -3128,80 +3127,63 @@ function ChartView({
 
 // ─── AI Scribe ──────────────────────────────────────────────────────────────
 
-const TRANSCRIPT = [
-  { who: 'CLINICIAN', text: 'How have things been since we last spoke about the sleep routine?' },
-  { who: 'PATIENT', text: 'The breathing before bed actually helped a few nights. Still wake up around 3am worrying though.' },
-  { who: 'CLINICIAN', text: "That's real progress. When you wake at 3am, what's the first thought?" },
-  { who: 'PATIENT', text: 'Usually that I forgot something at work and it will all fall apart.' },
-]
-
-const SOAP = [
-  { k: 'Subjective', v: 'Reports improved sleep onset with breathing homework; residual 3am waking with catastrophic work-related cognitions.' },
-  { k: 'Objective', v: 'Bright affect, engaged. PHQ-9 14 (↓ from 18). No acute SI voiced; item 9 monitored.' },
-  { k: 'Assessment', v: 'MDD, moderate — improving. Anxiety maintaining. Good homework adherence.' },
-  { k: 'Plan', v: 'Continue CBT; add thought record for nighttime cognitions. Weekly safety check-in. GAD-7 next session.' },
-]
-
+/**
+ * AI Scribe — deliberately not built.
+ *
+ * This view used to render a fabricated session: an invented verbatim
+ * clinician/patient dialogue, and an invented SOAP note whose Objective read
+ * "PHQ-9 14 (down from 18). No acute SI voiced; item 9 monitored." and whose
+ * Assessment read "MDD, moderate — improving". Beneath it sat a "Save to
+ * chart" button.
+ *
+ * That is invented clinical content, including an invented suicidal-ideation
+ * observation, one click away from a patient's permanent record. It was kept
+ * off screen only by the nav entry's `ready: false` flag -- the SampleGate
+ * wrapper around it defaults to SHOWING samples, so flipping that one flag
+ * would have shipped all of it.
+ *
+ * There is no scribe backend to wire this to: nothing in backend/ transcribes,
+ * diarises or summarises anything. Building it properly needs audio capture,
+ * streaming transcription, speaker diarisation, note generation, and a
+ * clinician review-and-sign flow before a word of it may reach a chart.
+ *
+ * Until then the clinician writes the note themselves during the session --
+ * which SessionRunner now supports, and which is wired to the real API.
+ */
 function ScribeView() {
-  const [hideSampleData] = useSampleDataHidden()
   return (
-    <SampleGate
-      hidden={hideSampleData}
-      placeholder={
-        <div className="text-sm text-organic-neutral-600 py-8">
-          Live transcript and AI session notes will appear here once a recording session starts.
+    <div className="max-w-[640px]">
+      <div className="bg-organic-surface rounded-organic-card p-7 shadow-organic-sm">
+        <div className="flex items-center gap-2.5 mb-3">
+          <Lock size={20} className="text-organic-neutral-500 flex-none" />
+          <h2 className="text-[1.375rem] font-heading text-organic-text">AI Scribe is not available</h2>
         </div>
-      }
-    >
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <div className="bg-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
-        <div className="flex justify-between items-center mb-3.5">
-          <h3 className="text-lg font-heading text-organic-text">Session transcript</h3>
-          <span className="inline-flex items-center gap-1.5 text-xs text-organic-accent-700">
-            <span className="w-2 h-2 rounded-full bg-organic-accent animate-pulse" />
-            Recording 24:11
-          </span>
-        </div>
-        <div className="flex flex-col gap-3">
-          {TRANSCRIPT.map((t, i) => (
-            <div key={i}>
-              <div className={`text-[0.7812rem] font-bold mb-0.5 ${t.who === 'CLINICIAN' ? 'text-organic-accent-700' : 'text-organic-accent-2-700'}`}>
-                {t.who}
-              </div>
-              <div className="text-[0.8438rem] text-organic-neutral-800 leading-relaxed">{t.text}</div>
-            </div>
-          ))}
-        </div>
-      </div>
 
-      <div className="flex flex-col gap-3.5">
-        <div className="bg-gradient-to-br from-organic-accent-100 to-organic-surface rounded-organic-card p-[22px] shadow-organic-sm">
-          <div className="flex items-center gap-2 mb-3.5">
-            <Sparkles size={18} className="text-organic-accent-700" />
-            <h3 className="text-lg font-heading text-organic-text">AI session note (SOAP)</h3>
-          </div>
-          <div className="flex flex-col gap-3">
-            {SOAP.map((s) => (
-              <div key={s.k}>
-                <div className="text-[0.7812rem] font-bold tracking-wide uppercase text-organic-accent-700 mb-0.5">{s.k}</div>
-                <div className="text-[0.8125rem] text-organic-neutral-800 leading-relaxed">{s.v}</div>
-              </div>
-            ))}
-          </div>
+        <p className="text-sm text-organic-neutral-700 mb-4">
+          Automatic session transcription and note drafting has not been built. Nothing
+          in the system records or transcribes a session today.
+        </p>
+
+        <div className="bg-organic-bg rounded-organic-tile p-4 mb-5 text-[0.8125rem] text-organic-neutral-700">
+          <p className="mb-2">Before a drafted note could ever reach a patient chart it would need:</p>
+          <ul className="list-disc pl-4 space-y-1.5">
+            <li>consented audio capture and transcription</li>
+            <li>reliable attribution of who said what</li>
+            <li>a clinician review-and-sign step, because an unreviewed generated
+                note is not a clinical record</li>
+          </ul>
         </div>
-        <div className="flex gap-2.5">
-          <button className="flex-1 rounded-organic-pill bg-organic-accent text-organic-accent-100 font-heading text-sm py-3.5 hover:bg-organic-accent-600 transition-colors">
-            Save to chart
-          </button>
-          <button className="rounded-organic-pill border border-organic-neutral-300/70 bg-transparent font-heading text-sm px-[18px] py-3.5 text-organic-text hover:bg-organic-neutral-100 transition-colors">
-            Edit
-          </button>
-        </div>
+
+        <p className="text-[0.8125rem] text-organic-neutral-600">
+          In the meantime, notes are written during the consultation itself — start a
+          session from the caseload and the note is saved to the patient&apos;s chart
+          with the rest of the visit.
+        </p>
       </div>
     </div>
-    </SampleGate>
   )
 }
+
 
 // ─── Care plan ──────────────────────────────────────────────────────────────
 
