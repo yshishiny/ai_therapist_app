@@ -39,9 +39,14 @@ jobs:
       # - name: Run Tests
       #   run: pytest
 
+      # backend/Dockerfile expects the repo ROOT as its build context (it does
+      # COPY backend/requirements.txt and COPY assessments), so this step opts
+      # out of the job-wide `working-directory: ./backend`. Building from inside
+      # backend/ fails on the first COPY.
       - name: Verify Docker Build (Dry Run)
+        working-directory: .
         run: |
-          docker build -t ai_therapist_backend .
-          
+          docker build -f backend/Dockerfile -t ai_therapist_backend .
+
       # Note: We do NOT push or deploy from here. 
       # Railway automatically handles deployment on push to the connected main branch.

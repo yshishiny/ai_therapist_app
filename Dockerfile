@@ -1,3 +1,9 @@
+# PORTAL image (React SPA served by nginx). This is the ONLY Dockerfile that
+# builds the deployed portal: railway.toml, cloudbuild.yaml, deploy-gcp.sh and
+# .github/workflows/deploy_portal.yml all resolve to this file at the repo root.
+# The BACKEND image is built from backend/Dockerfile -- see backend-cloudbuild.yaml.
+# Build context is the repo root (COPY portal/... and COPY public below need it).
+
 # Build stage
 FROM node:18-alpine AS builder
 

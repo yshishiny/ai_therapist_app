@@ -70,7 +70,6 @@ src/
 └── main.tsx          # Entry point
 
 public/              # Static assets
-Dockerfile          # Container config
 vite.config.ts      # Vite build config
 tailwind.config.js  # Tailwind CSS config
 ```
@@ -129,47 +128,34 @@ See backend README for full API docs.
 
 ---
 
-## Deployment (Railway)
+## Deployment
 
-### Option 1: Auto-Deploy from GitHub
+There is **no Dockerfile in this directory.** The portal image is built from the
+`Dockerfile` at the **repo root**, with the repo root as the build context — it
+runs `npm ci && npm run build` in a node stage and serves the result from nginx.
+There used to be a second `portal/Dockerfile` (`serve -s dist`); it was deleted
+because nothing built it and it had drifted — it baked in the wrong
+`VITE_API_URL` and no `VITE_GOOGLE_CLIENT_ID`, so anything built from it would
+have shipped a portal pointed at a dead backend with a broken Sign-In button.
 
-1. Push code to GitHub
-2. In Railway, create new project
-3. Select "Deploy from GitHub repo"
-4. Choose this repo
-5. Railway auto-detects Dockerfile
+Everything that builds this portal resolves to the root `Dockerfile`:
 
-### Option 2: Manual Deploy
+| Target | Config |
+| --- | --- |
+| Railway | `railway.toml` → `dockerfilePath = "Dockerfile"` |
+| Cloud Build | `cloudbuild.yaml` (context `.`, default Dockerfile) |
+| Manual GCP | `deploy-gcp.sh` (`gcloud builds submit` from repo root) |
+| CI check | `.github/workflows/deploy_portal.yml` → `file: ./Dockerfile` |
 
-```bash
-# Build locally
-npm run build
+The backend image is a different file — `backend/Dockerfile`, built by
+`backend-cloudbuild.yaml`. Don't cross the two.
 
-# Deploy via Railway CLI
-railway deploy
-```
+### Build-time environment variables
 
-### Environment Variables (Railway)
-
-Set in Railway project settings:
-
-```
-VITE_API_URL=https://aitherapistapp-production.up.railway.app
-```
-
-### Railway Config
-
-Create `railway.toml`:
-
-```toml
-[build]
-builder = "docker"
-
-[deploy]
-startCommand = "serve -s dist -l 3000"
-healthcheckPath = "/"
-ports = [3000]
-```
+Vite inlines `VITE_*` at build time, so these live in the root `Dockerfile` as
+`ENV` lines in the builder stage — setting them on the Cloud Run / Railway
+service at runtime has no effect on an already-built bundle. To repoint the
+portal at a different API, edit the root `Dockerfile` and rebuild.
 
 ---
 

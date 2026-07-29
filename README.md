@@ -54,7 +54,7 @@ You must set the following environment variables in your Railway Project Setting
 ### Railway Setup Steps
 1. Push this repository to GitHub.
 2. In Railway, click **New Project** -> **Deploy from GitHub repo**.
-3. Select this repository. Railway will automatically detect the `railway.toml` and root `backend/Dockerfile`.
+3. Select this repository. Railway reads `railway.toml`, which builds the root `Dockerfile` — that is the **portal** image. The **backend** image is built separately from `backend/Dockerfile` (see `backend-cloudbuild.yaml`); point the backend service's `dockerfilePath` at `backend/Dockerfile` rather than letting it auto-detect the root one.
 4. Add the environment variables listed above.
 5. Railway will automatically inject the `PORT` variable. The `/health` endpoint serves as a rolling gate; if the container fails to start or the endpoint returns !== HTTP 200, Railway will abort the deployment preventing downtime.
 

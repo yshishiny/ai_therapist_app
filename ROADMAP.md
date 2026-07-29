@@ -81,7 +81,7 @@
 | GitHub Actions — Docker build CI | ✅ Done | `deploy_backend.yml` |
 | GitHub Actions — APK build | ✅ Done | `build-apk.yml` |
 | Fastlane Play Store deployment | ✅ Done | `Fastfile`, `Gemfile` |
-| Railway backend deployment | ✅ Done | `railway.toml`, `Dockerfile` |
+| Railway backend deployment | ✅ Done | `backend/Dockerfile` (root `Dockerfile` + `railway.toml` are the **portal**) |
 | Develop branch for beta releases | ✅ Done | branch: `develop` |
 
 ---

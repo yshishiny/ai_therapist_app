@@ -1,6 +1,13 @@
 services:
   api:
-    build: .
+    # Context is the repo root, but the Dockerfile is backend/Dockerfile. The
+    # bare `build: .` this used to be silently started resolving to the root
+    # Dockerfile -- the nginx PORTAL image -- once the portal took over that
+    # filename, so `docker compose up` was building a static web server and
+    # calling it the API.
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: ai-therapist-api
     restart: unless-stopped
     ports:
